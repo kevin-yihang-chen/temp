@@ -1,0 +1,68 @@
+# Independent ChartQA validation confirmation protocol
+
+## Status and freeze point
+
+This protocol is frozen before any Qwen rollout is collected on the target
+validation states. The development data are the 2,500 ChartQA test states. The
+confirmation data are the public `HuggingFaceM4/ChartQA` validation split at
+revision `b605b6e08b57faf4359aeb2fe6a3ca595f99b6c5`.
+
+Two validation questions whose image hash also occurred in the development test
+set are excluded before rollout collection. The frozen target therefore contains
+1,918 states (958 human, 960 augmented), 1,054 unique images, and zero image or
+state overlap with development. Its manifest SHA-256 is
+`d3178218853b10447228963e839716f0eac768b51bdc0f5b4a83268d3819b58b`.
+
+## Frozen rollout protocol
+
+- Qwen2.5-VL-3B-Instruct revision
+  `66285546d2b821cf421d4f5eb2576359d3770cd3`.
+- One answer-now action and four UG-grid crop siblings per state.
+- Original image retained alongside each crop.
+- Deterministic generation seed 0 and `max_new_tokens=16`.
+- Concise final-answer-only system prompt used by the development protocol.
+- ChartQA task scorer and state-cluster bootstrap.
+
+## Frozen primary policy
+
+The primary learned policy is the context-only factorized gate introduced in
+code revision `e7626605ff491624a49694ea7f5a28f43760a129`:
+
+1. estimate whether the baseline answer is wrong;
+2. among development states whose baseline is wrong, estimate whether any crop
+   can rescue the answer;
+3. multiply the two probabilities;
+4. apply the regularization and absolute call threshold selected only on an
+   image-grouped development split;
+5. if the gate fires, execute one uniform random crop. Evaluation uses the exact
+   mean of the four frozen sibling outcomes to remove arbitrary action-seed
+   variance.
+
+The primary cost coefficient remains `lambda=0.05`. Target labels may be used
+only after the policy, scaler, regularization, and threshold have been frozen on
+development data.
+
+## Primary criterion
+
+The confirmation succeeds only if the transferred factorized policy has:
+
+- positive mean utility at `lambda=0.05`;
+- a 95% state-bootstrap utility interval whose lower endpoint is above zero;
+- positive accuracy gain; and
+- lower tool use than unconditional one-crop and exhaustive entropy policies.
+
+The source-tuned entropy gate, unconditional uniform random crop, exhaustive
+four-crop entropy search, answer-now, and oracle VOI are reported under the same
+target rollout table. A positive point estimate with an interval crossing zero
+does not pass.
+
+## Secondary analyses
+
+- Human and augmented validation strata are reported separately.
+- Helpful, harmful, and transition counts are reported.
+- A cost frontier may be reported, but it cannot replace the registered
+  `lambda=0.05` primary result.
+- Unlabeled target-quantile calibration is exploratory and is not the primary
+  confirmation policy.
+- No semantic feature, action ranker, threshold, prompt, or candidate-set change
+  is permitted after target outcomes are inspected.
