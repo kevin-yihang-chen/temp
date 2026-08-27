@@ -15,6 +15,20 @@ from .rescue_gate import (
 from .schema import ActionRecord
 
 
+def threshold_for_target_rate(scores: Sequence[float], target_rate: float) -> float:
+    """Choose an unlabeled target-score threshold matching a source call budget."""
+
+    if not scores or not 0.0 <= target_rate <= 1.0:
+        raise ValueError("target-rate calibration requires scores and a rate in [0, 1]")
+    ordered = sorted((float(score) for score in scores), reverse=True)
+    selected_count = round(target_rate * len(ordered))
+    if selected_count <= 0:
+        return ordered[0] + 1e-9
+    if selected_count >= len(ordered):
+        return ordered[-1] - 1e-9
+    return (ordered[selected_count - 1] + ordered[selected_count]) / 2.0
+
+
 def _baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
     result = {}
     for key, siblings in group_by_decision(records).items():
@@ -228,6 +242,31 @@ def fit_factorized_context_transfer(
         threshold=source_entropy_threshold,
         name="source_tuned_entropy_uniform_random_expectation",
     )
+    source_tool_rate = -negative_tool_rate
+    target_quantile_threshold = threshold_for_target_rate(
+        target_scores_array.tolist(),
+        source_tool_rate,
+    )
+    quantile_transfer_policy = PrecomputedRescueGatePolicy(
+        target_scores,
+        threshold=target_quantile_threshold,
+        name="factorized_context_quantile_transfer_random_expectation",
+    )
+    target_entropy_scores = [
+        target_baselines[key].entropy_before for key in target_keys
+    ]
+    target_entropy_quantile_threshold = threshold_for_target_rate(
+        target_entropy_scores,
+        source_entropy_tool_rate,
+    )
+    target_entropy_quantile_policy = PrecomputedRescueGatePolicy(
+        {
+            key: score
+            for key, score in zip(target_keys, target_entropy_scores)
+        },
+        threshold=target_entropy_quantile_threshold,
+        name="entropy_quantile_transfer_random_expectation",
+    )
     policies = {
         "factorized_context_transfer": _evaluated(
             target_records,
@@ -239,6 +278,20 @@ def fit_factorized_context_transfer(
         "source_tuned_entropy_transfer": _evaluated(
             target_records,
             target_entropy_policy,
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+        "factorized_context_quantile_transfer": _evaluated(
+            target_records,
+            quantile_transfer_policy,
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+        "entropy_quantile_transfer": _evaluated(
+            target_records,
+            target_entropy_quantile_policy,
             lambda_cost=lambda_cost,
             bootstrap_resamples=bootstrap_resamples,
             bootstrap_seed=bootstrap_seed,
@@ -327,6 +380,20 @@ def fit_factorized_context_transfer(
                     bootstrap_resamples=bootstrap_resamples,
                     bootstrap_seed=bootstrap_seed,
                 ),
+                "factorized_context_quantile_transfer": _evaluated(
+                    subset,
+                    quantile_transfer_policy,
+                    lambda_cost=lambda_cost,
+                    bootstrap_resamples=bootstrap_resamples,
+                    bootstrap_seed=bootstrap_seed,
+                ),
+                "entropy_quantile_transfer": _evaluated(
+                    subset,
+                    target_entropy_quantile_policy,
+                    lambda_cost=lambda_cost,
+                    bootstrap_resamples=bootstrap_resamples,
+                    bootstrap_seed=bootstrap_seed,
+                ),
                 "oracle": _evaluated(
                     subset,
                     OracleVOIPolicy(lambda_cost),
@@ -352,9 +419,11 @@ def fit_factorized_context_transfer(
         "source_validation_threshold": threshold,
         "source_validation_utility": validation_utility,
         "source_validation_tool_rate": -negative_tool_rate,
+        "target_quantile_threshold": target_quantile_threshold,
         "source_entropy_threshold": source_entropy_threshold,
         "source_entropy_validation_utility": source_entropy_utility,
         "source_entropy_validation_tool_rate": source_entropy_tool_rate,
+        "target_entropy_quantile_threshold": target_entropy_quantile_threshold,
         "target_decisions": len(target_keys),
         "diagnostics": diagnostics,
         "policies": policies,

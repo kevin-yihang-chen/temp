@@ -7,7 +7,7 @@ mail_file="${repo_dir}/.slurm-notify-email"
 source_rollouts="${repo_dir}/artifacts/gate1-chartqa-2500/qwen3b-c4-concise-seed0/rollouts.jsonl"
 target_rollouts="${repo_dir}/artifacts/gate1-vstar-191/qwen3b-c4-seed0/rollouts.jsonl"
 target_manifest="${repo_dir}/data/vstar-frozen-191/manifest.jsonl"
-output_dir="${repo_dir}/artifacts/gate2-transfer-chartqa-vstar/factorized-context-v1"
+output_dir="${repo_dir}/artifacts/gate2-transfer-chartqa-vstar/factorized-context-v2-quantile"
 
 if [[ ! -r "${mail_file}" ]]; then
   echo "Missing private Slurm email file: ${mail_file}" >&2
