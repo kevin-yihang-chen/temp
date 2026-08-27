@@ -269,9 +269,12 @@ def main() -> None:
             )
         )
     frozen_gate_scores = score_frozen_factorized_context_model(model, target_records)
+    frozen_threshold = model["threshold"]
+    if not isinstance(frozen_threshold, (int, float)):
+        raise ValueError("frozen gate threshold must be numeric")
     primary_policy = PrecomputedRescueGatePolicy(
         frozen_gate_scores,
-        threshold=float(model["threshold"]),
+        threshold=float(frozen_threshold),
         name="frozen_factorized_context_uniform_random_expectation",
     )
     frozen_top_actions = select_frozen_context_quadrant_actions(
@@ -282,7 +285,7 @@ def main() -> None:
         {
             key: (
                 action_id
-                if frozen_gate_scores[key] >= float(model["threshold"])
+                if frozen_gate_scores[key] >= float(frozen_threshold)
                 else None
             )
             for key, action_id in frozen_top_actions.items()
