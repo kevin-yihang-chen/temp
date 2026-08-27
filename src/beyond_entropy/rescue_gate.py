@@ -23,9 +23,11 @@ class PrecomputedRescueGatePolicy:
         scores: Mapping[DecisionKey, float],
         *,
         threshold: float,
+        name: str = "compact_rescue_gate_uniform_random_expectation",
     ) -> None:
         self.scores = scores
         self.threshold = threshold
+        self.name = name
 
     def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
         exemplar = siblings[0]
@@ -159,7 +161,7 @@ def fit_rescue_gate_split(
     }
     missing = set().union(*map(set, split_keys.values())) - set(decision_by_key)
     if missing:
-        raise ValueError(f"semantic features are missing decisions: {sorted(missing)[:5]}")
+        raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
     outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
     features = {
         name: np.asarray(
@@ -438,6 +440,141 @@ def fit_crossfit_rescue_gate_split(
         "threshold": threshold,
         "n_folds": n_folds,
         "fold_models": ensemble_payload,
+    }
+    return report, model_payload
+
+
+def fit_expected_gain_rescue_gate_split(
+    records: Sequence[ActionRecord],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+    *,
+    split_group: str = "image_id",
+    train_fraction: float = 0.7,
+    validation_fraction: float = 0.2,
+    lambda_cost: float = 0.05,
+    alpha_values: Sequence[float] = (0.01, 0.1, 1.0, 10.0, 100.0),
+    bootstrap_resamples: int = 2000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Regress expected one-crop gain, then tune a cost gate on validation only."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import Ridge  # type: ignore[import-untyped]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if not alpha_values or any(value <= 0.0 for value in alpha_values):
+        raise ValueError("alpha_values must contain positive regularization values")
+    outer_train, test = split_by_group(
+        records,
+        group=split_group,  # type: ignore[arg-type]
+        train_fraction=train_fraction,
+        seed=seed,
+    )
+    model_train, validation = split_by_group(
+        outer_train,
+        group=split_group,  # type: ignore[arg-type]
+        train_fraction=1.0 - validation_fraction,
+        seed=seed + 1,
+    )
+    split_keys = {
+        "model_train": _keys(model_train),
+        "validation": _keys(validation),
+        "test": _keys(test),
+    }
+    missing = set().union(*map(set, split_keys.values())) - set(decision_by_key)
+    if missing:
+        raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
+    outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    features = {
+        name: np.asarray(
+            [compact_rescue_features(decision_by_key[key]) for key in keys],
+            dtype=np.float64,
+        )
+        for name, keys in split_keys.items()
+    }
+    scaler = StandardScaler().fit(features["model_train"])
+    transformed = {
+        name: scaler.transform(values) for name, values in features.items()
+    }
+    train_targets = np.asarray(
+        [float(outcomes[key]["expected_gain"]) for key in split_keys["model_train"]],
+        dtype=np.float64,
+    )
+    validation_utilities = [
+        float(outcomes[key]["expected_utility"]) for key in split_keys["validation"]
+    ]
+    candidates: list[tuple[float, float, float, float, Any]] = []
+    for alpha in alpha_values:
+        model = Ridge(alpha=float(alpha)).fit(transformed["model_train"], train_targets)
+        validation_scores = model.predict(transformed["validation"])
+        threshold, utility, tool_rate = tune_rescue_gate_threshold(
+            validation_scores.tolist(),
+            validation_utilities,
+        )
+        candidates.append((utility, -tool_rate, -float(alpha), threshold, model))
+    validation_utility, negative_tool_rate, negative_alpha, threshold, model = max(
+        candidates,
+        key=lambda value: value[:3],
+    )
+    test_scores_array = model.predict(transformed["test"])
+    test_scores = {
+        key: float(score)
+        for key, score in zip(split_keys["test"], test_scores_array.tolist())
+    }
+    policy = PrecomputedRescueGatePolicy(
+        test_scores,
+        threshold=threshold,
+        name="compact_expected_gain_gate_uniform_random_expectation",
+    )
+    policy_result: dict[str, Any] = dict(
+        evaluate_policy(test, policy, lambda_cost=lambda_cost)
+    )
+    policy_result["bootstrap"] = bootstrap_policy_evaluation(
+        test,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+    )
+    test_labels = np.asarray(
+        [bool(outcomes[key]["helpful"]) for key in split_keys["test"]],
+        dtype=np.int64,
+    )
+    report = {
+        "seed": seed,
+        "selection_mode": "inner_validation_expected_gain_ridge",
+        "split_group": split_group,
+        "train_fraction": train_fraction,
+        "validation_fraction_within_train": validation_fraction,
+        "model_train_decisions": len(split_keys["model_train"]),
+        "validation_decisions": len(split_keys["validation"]),
+        "test_decisions": len(split_keys["test"]),
+        "feature_count": int(features["model_train"].shape[1]),
+        "selected_alpha": -negative_alpha,
+        "validation_threshold": threshold,
+        "validation_utility": validation_utility,
+        "validation_tool_rate": -negative_tool_rate,
+        "test_helpful_rate": float(test_labels.mean()),
+        "test_helpful_roc_auc": float(roc_auc_score(test_labels, test_scores_array)),
+        "test_helpful_average_precision": float(
+            average_precision_score(test_labels, test_scores_array)
+        ),
+        "policy_result": policy_result,
+    }
+    model_payload = {
+        "model_type": "compact_expected_random_gain_ridge",
+        "seed": seed,
+        "selected_alpha": -negative_alpha,
+        "threshold": threshold,
+        "scaler_mean": [float(value) for value in scaler.mean_.tolist()],
+        "scaler_scale": [float(value) for value in scaler.scale_.tolist()],
+        "coefficient": [float(value) for value in model.coef_.tolist()],
+        "intercept": float(model.intercept_),
     }
     return report, model_payload
 

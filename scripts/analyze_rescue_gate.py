@@ -15,6 +15,7 @@ from beyond_entropy.rescue_gate import (
     aggregate_rescue_gate_splits,
     build_rescue_gate_markdown,
     fit_crossfit_rescue_gate_split,
+    fit_expected_gain_rescue_gate_split,
     fit_rescue_gate_split,
 )
 
@@ -39,6 +40,11 @@ def main() -> None:
         default="inner-validation",
     )
     parser.add_argument("--cv-folds", type=int, default=5)
+    parser.add_argument(
+        "--estimator",
+        choices=("helpful-logistic", "expected-gain-ridge"),
+        default="helpful-logistic",
+    )
     args = parser.parse_args()
 
     records = read_jsonl(args.rollouts)
@@ -50,7 +56,18 @@ def main() -> None:
     }
     split_reports = []
     for seed in args.seeds:
-        if args.selection_mode == "grouped-crossfit":
+        if args.estimator == "expected-gain-ridge":
+            if args.selection_mode != "inner-validation":
+                parser.error("expected-gain-ridge currently requires inner-validation")
+            split_report, model = fit_expected_gain_rescue_gate_split(
+                records,
+                decision_by_key,
+                lambda_cost=args.lambda_cost,
+                bootstrap_resamples=args.bootstrap_resamples,
+                bootstrap_seed=args.bootstrap_seed,
+                seed=seed,
+            )
+        elif args.selection_mode == "grouped-crossfit":
             split_report, model = fit_crossfit_rescue_gate_split(
                 records,
                 decision_by_key,
@@ -85,6 +102,7 @@ def main() -> None:
             "bootstrap_seed": args.bootstrap_seed,
             "selection_mode": args.selection_mode,
             "cv_folds": args.cv_folds,
+            "estimator": args.estimator,
         },
         "splits": split_reports,
         "aggregate": aggregate_rescue_gate_splits(split_reports),
