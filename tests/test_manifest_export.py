@@ -7,6 +7,7 @@ from beyond_entropy.cli import build_parser
 from beyond_entropy.manifest_export import (
     export_benchmark_manifest,
     stratified_sample_indices,
+    stratified_unique_group_sample_indices,
 )
 
 
@@ -23,6 +24,39 @@ def test_stratified_indices_are_balanced_and_deterministic():
 def test_stratified_indices_validate_count():
     with pytest.raises(ValueError, match="exceed"):
         stratified_sample_indices(["a"], count=2, seed=0)
+
+
+def test_stratified_unique_group_indices_are_balanced_and_group_disjoint():
+    labels = ["a", "b", "a", "b", "a", "b", "a", "b"]
+    groups = ["shared", "shared", "a1", "b1", "a2", "b2", "a3", "b3"]
+    first = stratified_unique_group_sample_indices(
+        labels,
+        groups,
+        count=6,
+        seed=11,
+    )
+    second = stratified_unique_group_sample_indices(
+        labels,
+        groups,
+        count=6,
+        seed=11,
+    )
+    assert first == second
+    assert len({groups[index] for index in first}) == 6
+    assert {label: sum(labels[index] == label for index in first) for label in set(labels)} == {
+        "a": 3,
+        "b": 3,
+    }
+
+
+def test_stratified_unique_group_indices_reject_impossible_count():
+    with pytest.raises(ValueError, match="unique groups"):
+        stratified_unique_group_sample_indices(
+            ["a", "b"],
+            ["shared", "shared"],
+            count=2,
+            seed=0,
+        )
 
 
 def test_export_vstar_manifest_deduplicates_images(tmp_path):

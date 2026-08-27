@@ -75,7 +75,56 @@ def stratified_sample_indices(
     return sorted(selected)
 
 
-def _image_digest(image: Any) -> str:
+def stratified_unique_group_sample_indices(
+    labels: Sequence[str],
+    group_ids: Sequence[str],
+    *,
+    count: int,
+    seed: int,
+) -> list[int]:
+    """Choose a balanced deterministic sample with at most one row per group."""
+
+    if len(labels) != len(group_ids):
+        raise ValueError("labels and group_ids must have the same length")
+    if count <= 0:
+        raise ValueError("count must be positive")
+    grouped: dict[str, list[int]] = {}
+    for index, (label, group_id) in enumerate(zip(labels, group_ids)):
+        normalized_label = str(label).strip()
+        normalized_group = str(group_id).strip()
+        if not normalized_label or not normalized_group:
+            raise ValueError(f"empty label or group ID at index {index}")
+        grouped.setdefault(normalized_label, []).append(index)
+    rng = random.Random(seed)
+    for label in sorted(grouped):
+        rng.shuffle(grouped[label])
+    offsets = {label: 0 for label in grouped}
+    selected: list[int] = []
+    selected_groups: set[str] = set()
+    while len(selected) < count:
+        made_progress = False
+        for label in sorted(grouped):
+            candidates = grouped[label]
+            while offsets[label] < len(candidates):
+                index = candidates[offsets[label]]
+                offsets[label] += 1
+                group_id = str(group_ids[index]).strip()
+                if group_id in selected_groups:
+                    continue
+                selected.append(index)
+                selected_groups.add(group_id)
+                made_progress = True
+                break
+            if len(selected) == count:
+                break
+        if not made_progress:
+            raise ValueError(
+                f"count {count} exceeds the available unique groups under stratification"
+            )
+    return sorted(selected)
+
+
+def image_digest(image: Any) -> str:
     width, height = image.size
     digest = hashlib.sha256()
     digest.update(f"RGB:{width}x{height}:".encode())
@@ -157,7 +206,7 @@ def export_benchmark_manifest(
     payloads: list[dict[str, Any]] = []
     for row, source_index in zip(rows, source_indices):
         image = row["image"].convert("RGB")
-        image_id = _image_digest(image)
+        image_id = image_digest(image)
         image_name = f"{image_id}.png"
         image_destination = image_dir / image_name
         if not image_destination.exists():
