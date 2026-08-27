@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 from .dataset import group_by_decision
 from .metrics import paired_bootstrap_policy_difference
@@ -76,6 +76,7 @@ def compare_candidate_sets(
     lambda_cost: float = 0.05,
     bootstrap_resamples: int = 2000,
     seed: int = 0,
+    cluster_by: Literal["state_id", "image_id", "source_id"] = "state_id",
 ) -> dict[str, Any]:
     """Compare candidate sets with paired state-cluster resampling."""
 
@@ -95,6 +96,7 @@ def compare_candidate_sets(
             lambda_cost=lambda_cost,
             n_resamples=bootstrap_resamples,
             seed=seed + index,
+            cluster_by=cluster_by,
         )
         for index, policy in enumerate(policies)
     ]
@@ -106,6 +108,7 @@ def compare_candidate_sets(
         "lambda_cost": lambda_cost,
         "bootstrap_resamples": bootstrap_resamples,
         "seed": seed,
+        "resampling_unit": cluster_by,
         "n_decisions": n_decisions,
         "left_candidates_per_decision": _candidate_count(left_records),
         "right_candidates_per_decision": _candidate_count(right_records),

@@ -20,6 +20,11 @@ def main() -> None:
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--cluster-by",
+        choices=("state_id", "image_id", "source_id"),
+        default="state_id",
+    )
     args = parser.parse_args()
 
     report = compare_candidate_sets(
@@ -28,6 +33,7 @@ def main() -> None:
         lambda_cost=args.lambda_cost,
         bootstrap_resamples=args.bootstrap_resamples,
         seed=args.seed,
+        cluster_by=args.cluster_by,
     )
     report["inputs"] = {
         "left": str(args.left.resolve()),
