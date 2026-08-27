@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 from dataclasses import asdict, dataclass
-from dataclasses import replace as dataclass_replace
 from statistics import mean
 from typing import Iterable, Sequence
 
@@ -289,6 +288,105 @@ def _percentile(values: Sequence[float], probability: float) -> float:
     return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
 
 
+def _entropy_sufficient_vector(records: Sequence[ActionRecord]) -> tuple[float, ...]:
+    """Return additive statistics needed by every entropy diagnostic metric."""
+
+    zooms = [record for record in records if record.action_type == "ZOOM"]
+    grouped = group_by_decision(records)
+    entropy_deltas = [record.delta_entropy for record in zooms]
+    success_deltas = [record.delta_success for record in zooms]
+    mismatches = 0
+    regret_sum = 0.0
+    for siblings in grouped.values():
+        sibling_zooms = [record for record in siblings if record.action_type == "ZOOM"]
+        entropy_top = max(
+            sibling_zooms,
+            key=lambda record: (record.delta_entropy, record.action_id),
+        )
+        best_success = max(record.delta_success for record in sibling_zooms)
+        success_top_ids = {
+            record.action_id
+            for record in sibling_zooms
+            if abs(record.delta_success - best_success) <= 1e-12
+        }
+        mismatches += int(entropy_top.action_id not in success_top_ids)
+        regret_sum += best_success - entropy_top.delta_success
+    return (
+        float(len(zooms)),
+        float(len(grouped)),
+        float(sum(value > 0.0 for value in entropy_deltas)),
+        float(sum(value > 0.0 for value in success_deltas)),
+        float(
+            sum(
+                entropy > 0.0 and success < 0.0
+                for entropy, success in zip(entropy_deltas, success_deltas)
+            )
+        ),
+        float(
+            sum(
+                entropy > 0.0 and success <= 0.0
+                for entropy, success in zip(entropy_deltas, success_deltas)
+            )
+        ),
+        float(
+            sum(
+                entropy > 0.0 and success > 0.0
+                for entropy, success in zip(entropy_deltas, success_deltas)
+            )
+        ),
+        sum(entropy_deltas),
+        sum(success_deltas),
+        sum(value * value for value in entropy_deltas),
+        sum(value * value for value in success_deltas),
+        sum(left * right for left, right in zip(entropy_deltas, success_deltas)),
+        float(mismatches),
+        regret_sum,
+    )
+
+
+def _entropy_diagnostic_from_vector(vector: Sequence[float]) -> dict[str, float | int | None]:
+    (
+        n_zoom,
+        n_decisions,
+        confidence_gains,
+        task_improvements,
+        spurious_gains,
+        nonbeneficial_gains,
+        beneficial_confidence_gains,
+        sum_entropy,
+        sum_success,
+        sum_entropy_squared,
+        sum_success_squared,
+        sum_cross,
+        mismatches,
+        regret_sum,
+    ) = vector
+    if n_zoom <= 0.0 or n_decisions <= 0.0:
+        raise ValueError("entropy diagnostic requires ZOOM actions and decisions")
+    centered_cross = sum_cross - sum_entropy * sum_success / n_zoom
+    entropy_square = max(0.0, sum_entropy_squared - sum_entropy**2 / n_zoom)
+    success_square = max(0.0, sum_success_squared - sum_success**2 / n_zoom)
+    denominator = (entropy_square * success_square) ** 0.5
+    return {
+        "n_zoom_actions": int(n_zoom),
+        "n_decisions": int(n_decisions),
+        "confidence_gain_rate": confidence_gains / n_zoom,
+        "task_improvement_rate": task_improvements / n_zoom,
+        "spurious_confidence_gain_rate": spurious_gains / n_zoom,
+        "nonbeneficial_confidence_gain_rate": nonbeneficial_gains / n_zoom,
+        "confidence_gain_precision": (
+            beneficial_confidence_gains / confidence_gains
+            if confidence_gains > 0.0
+            else None
+        ),
+        "entropy_success_pearson": (
+            centered_cross / denominator if denominator > 0.0 else None
+        ),
+        "entropy_top1_mismatch_rate": mismatches / n_decisions,
+        "mean_entropy_selection_regret": regret_sum / n_decisions,
+    }
+
+
 def bootstrap_entropy_diagnostic(
     records: Sequence[ActionRecord],
     *,
@@ -309,18 +407,24 @@ def bootstrap_entropy_diagnostic(
         raise ValueError("bootstrap requires at least one state")
     state_ids = sorted(by_state)
     rng = random.Random(seed)
+    state_vectors = {
+        state_id: _entropy_sufficient_vector(state_records)
+        for state_id, state_records in by_state.items()
+    }
+    vector_width = len(next(iter(state_vectors.values())))
     samples: dict[str, list[float]] = {}
     for _ in range(n_resamples):
-        sampled_records: list[ActionRecord] = []
-        for draw_index, state_id in enumerate(rng.choices(state_ids, k=len(state_ids))):
-            sampled_records.extend(
-                dataclass_replace(record, state_id=f"bootstrap-{draw_index}:{state_id}")
-                for record in by_state[state_id]
-            )
-        diagnostic = diagnostic_to_dict(entropy_diagnostic(sampled_records))
-        for name, value in diagnostic.items():
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                samples.setdefault(name, []).append(float(value))
+        totals = [0.0] * vector_width
+        for state_id in rng.choices(state_ids, k=len(state_ids)):
+            vector = state_vectors[state_id]
+            for index, component_value in enumerate(vector):
+                totals[index] += component_value
+        diagnostic = _entropy_diagnostic_from_vector(totals)
+        for name, metric_value in diagnostic.items():
+            if isinstance(metric_value, (int, float)) and not isinstance(
+                metric_value, bool
+            ):
+                samples.setdefault(name, []).append(float(metric_value))
     point = diagnostic_to_dict(entropy_diagnostic(records))
     alpha = (1.0 - confidence) / 2.0
     intervals: dict[str, dict[str, float | int | None]] = {}
