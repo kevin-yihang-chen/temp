@@ -1,0 +1,17 @@
+{
+  "benchmarks": [
+    "vstar_bench",
+    "chartqa"
+  ],
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "action_space": [
+    "ANSWER",
+    "ZOOM"
+  ],
+  "num_candidates": 4,
+  "lambda_cost": 0.05,
+  "value_objective": "ridge_regression",
+  "primary_diagnostic": "spurious_confidence_gain_rate",
+  "seed": 7,
+  "status": "configuration target; real VLM rollouts not yet executed"
+}

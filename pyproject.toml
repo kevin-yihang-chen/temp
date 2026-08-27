@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "beyond-entropy"
+version = "0.1.0"
+description = "Counterfactual value-of-information experiments for active visual agents"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Beyond Entropy research project"}]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+beyond-entropy = "beyond_entropy.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
