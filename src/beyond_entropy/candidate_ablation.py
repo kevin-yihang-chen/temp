@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Literal, Sequence
 
 from .dataset import group_by_decision
@@ -44,7 +45,6 @@ def _validate_matched_baselines(
             "image_id",
             "source_id",
             "question",
-            "original_image",
             "replicate_id",
             "generation_seed",
             "answer_before",
@@ -55,6 +55,10 @@ def _validate_matched_baselines(
                 raise ValueError(
                     f"paired decision {decision_key!r} differs in baseline field {field}"
                 )
+        if Path(left_answer.original_image).name != Path(right_answer.original_image).name:
+            raise ValueError(
+                f"paired decision {decision_key!r} differs in baseline image filename"
+            )
         numeric_fields = (
             "entropy_before",
             "entropy_after",
