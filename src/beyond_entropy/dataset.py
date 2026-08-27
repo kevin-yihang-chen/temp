@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 from collections import defaultdict
 from pathlib import Path
@@ -27,10 +28,17 @@ def read_jsonl(path: str | Path, *, validate: bool = True) -> list[ActionRecord]
 def write_jsonl(records: Iterable[ActionRecord], path: str | Path) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("w", encoding="utf-8") as handle:
-        for record in records:
-            handle.write(json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True))
-            handle.write("\n")
+    temporary = destination.with_name(destination.name + ".tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True))
+                handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 DecisionKey = tuple[str, str]

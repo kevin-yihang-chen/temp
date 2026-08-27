@@ -17,6 +17,7 @@ def test_bbox_and_record_round_trip(tmp_path):
     write_jsonl(records, path)
     loaded = read_jsonl(path)
     assert loaded == records
+    assert not path.with_name(path.name + ".tmp").exists()
     assert loaded[1].candidate_bbox.area > 0.0
     assert loaded[0].image_id
     assert loaded[0].replicate_id == "replicate-000"
