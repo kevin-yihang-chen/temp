@@ -1410,6 +1410,14 @@ def fit_nested_oof_factorized_rescue_gate(
         n_resamples=bootstrap_resamples,
         seed=bootstrap_seed,
     )
+    policy_result["image_cluster_bootstrap"] = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+        cluster_by="image_id",
+    )
     pooled_error_labels = np.asarray(
         [error_labels[key] for key in all_keys],
         dtype=np.int64,
