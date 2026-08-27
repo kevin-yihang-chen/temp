@@ -546,6 +546,7 @@ def build_semantic_markdown_report(report: Mapping[str, Any]) -> str:
             "- Early stopping and affine calibration use only the inner validation split.",
             "- The outer test split is never used for fitting, stopping, or calibration.",
             "- Oracle VOI consumes labels and is not deployable.",
+            "- Uniform-random expectation averages sibling labels only for seed-free off-policy evaluation; deployment samples one crop.",
             "",
         )
     )

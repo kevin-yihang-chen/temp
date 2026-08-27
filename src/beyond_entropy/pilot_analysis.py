@@ -210,6 +210,7 @@ def build_pilot_markdown(report: Mapping[str, object]) -> str:
             "",
             "- Entropy search pays for all candidate executions.",
             "- Oracle VOI reads counterfactual correctness and is not deployable.",
+            "- Uniform-random expectation uses sibling outcomes only to remove evaluation seed variance.",
             "- Confidence intervals resample complete states, never action rows.",
             "- A larger frozen run is required before making a scientific claim.",
             "",
