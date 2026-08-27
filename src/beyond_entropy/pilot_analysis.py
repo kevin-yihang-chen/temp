@@ -15,6 +15,7 @@ from .metrics import (
 from .policies import (
     AnswerNowPolicy,
     EntropySearchPolicy,
+    ExpectedRandomZoomPolicy,
     FixedCenterZoomPolicy,
     OracleVOIPolicy,
     Policy,
@@ -52,6 +53,7 @@ def _analyze_slice(
     policies: list[Policy] = [
         AnswerNowPolicy(),
         RandomZoomPolicy(seed=seed),
+        ExpectedRandomZoomPolicy(),
         FixedCenterZoomPolicy(),
         EntropySearchPolicy(),
         OracleVOIPolicy(lambda_cost),
