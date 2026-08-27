@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
 from pathlib import Path
 from typing import Sequence
 
 from .dataset import group_by_decision, read_jsonl, split_by_group, write_jsonl
-from .metrics import diagnostic_to_dict, entropy_diagnostic, evaluate_policy
+from .metrics import (
+    bootstrap_entropy_diagnostic,
+    diagnostic_to_dict,
+    entropy_diagnostic,
+    evaluate_policy,
+)
 from .model import LinearGainModel
 from .policies import (
     AnswerNowPolicy,
@@ -180,6 +186,100 @@ def command_demo(args: argparse.Namespace) -> None:
     )
 
 
+def command_collect_qwen(args: argparse.Namespace) -> None:
+    from .benchmarks import load_manifest, scorer_by_name
+    from .crops import UGGridProposer
+    from .qwen_backend import Qwen25VLBackend
+    from .rollout import CachedVisualBackend, collect_sibling_rollouts
+
+    examples = load_manifest(args.manifest, limit=args.limit)
+    backend = CachedVisualBackend(
+        Qwen25VLBackend(
+            args.model,
+            revision=args.model_revision,
+            device_map=args.device_map,
+            dtype=args.dtype,
+            attention_implementation=args.attention_implementation,
+            max_new_tokens=args.max_new_tokens,
+            min_pixels=args.min_pixels,
+            max_pixels=args.max_pixels,
+            local_files_only=not args.allow_download,
+        )
+    )
+    records = collect_sibling_rollouts(
+        examples,
+        proposals=UGGridProposer(
+            candidate_count=args.candidate_count,
+            visual_crop_ratio=args.visual_crop_ratio,
+            visual_cost=args.visual_cost,
+        ),
+        backend=backend,
+        scorer=scorer_by_name(args.scorer),
+        generation_seeds=args.generation_seeds,
+    )
+    write_jsonl(records, args.output)
+    diagnostic_path = args.output.with_suffix(".diagnostic.json")
+    diagnostic = {
+        "point_estimate": diagnostic_to_dict(entropy_diagnostic(records)),
+        "bootstrap": bootstrap_entropy_diagnostic(
+            records,
+            n_resamples=args.bootstrap_resamples,
+            seed=args.bootstrap_seed,
+        ),
+    }
+    _write_json(diagnostic, diagnostic_path)
+
+    def package_version(name: str) -> str | None:
+        try:
+            return importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            return None
+
+    provenance_path = args.output.with_suffix(".provenance.json")
+    provenance = {
+        "scientific_status": "diagnostic; not a benchmark claim",
+        "manifest": str(args.manifest.resolve()),
+        "output": str(args.output.resolve()),
+        "model": args.model,
+        "model_revision": args.model_revision,
+        "ug_framework_revision": args.ug_revision,
+        "scorer": args.scorer,
+        "examples": len(examples),
+        "candidate_count": args.candidate_count,
+        "visual_crop_ratio": args.visual_crop_ratio,
+        "visual_cost": args.visual_cost,
+        "generation_seeds": list(args.generation_seeds),
+        "bootstrap_resamples": args.bootstrap_resamples,
+        "bootstrap_seed": args.bootstrap_seed,
+        "max_new_tokens": args.max_new_tokens,
+        "min_pixels": args.min_pixels,
+        "max_pixels": args.max_pixels,
+        "device_map": args.device_map,
+        "dtype": args.dtype,
+        "attention_implementation": args.attention_implementation,
+        "local_files_only": not args.allow_download,
+        "packages": {
+            "torch": package_version("torch"),
+            "transformers": package_version("transformers"),
+            "qwen-vl-utils": package_version("qwen-vl-utils"),
+            "Pillow": package_version("Pillow"),
+        },
+    }
+    _write_json(provenance, provenance_path)
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "diagnostic": str(diagnostic_path),
+                "provenance": str(provenance_path),
+                "examples": len(examples),
+                "records": len(records),
+            },
+            indent=2,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="beyond-entropy",
@@ -230,6 +330,42 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--alpha", type=float, default=1.0)
     demo.add_argument("--seed", type=int, default=7)
     demo.set_defaults(func=command_demo)
+
+    collect_qwen = subparsers.add_parser(
+        "collect-qwen",
+        help="collect frozen Qwen2.5-VL sibling rollouts from a JSONL manifest",
+    )
+    collect_qwen.add_argument("--manifest", type=Path, required=True)
+    collect_qwen.add_argument("--output", type=Path, required=True)
+    collect_qwen.add_argument(
+        "--model",
+        default="Qwen/Qwen2.5-VL-3B-Instruct",
+    )
+    collect_qwen.add_argument("--model-revision", default="main")
+    collect_qwen.add_argument(
+        "--ug-revision",
+        default="13050ee49865e4330519108f42d1ccfccff1aee1",
+    )
+    collect_qwen.add_argument("--scorer", choices=("vstar", "chartqa"), required=True)
+    collect_qwen.add_argument("--candidate-count", type=int, default=4)
+    collect_qwen.add_argument("--visual-crop-ratio", type=float, default=2.0)
+    collect_qwen.add_argument("--visual-cost", type=float, default=1.0)
+    collect_qwen.add_argument("--generation-seeds", type=int, nargs="+", default=[0])
+    collect_qwen.add_argument("--bootstrap-resamples", type=int, default=2000)
+    collect_qwen.add_argument("--bootstrap-seed", type=int, default=0)
+    collect_qwen.add_argument("--limit", type=int)
+    collect_qwen.add_argument("--max-new-tokens", type=int, default=16)
+    collect_qwen.add_argument("--min-pixels", type=int, default=256 * 28 * 28)
+    collect_qwen.add_argument("--max-pixels", type=int, default=768 * 28 * 28)
+    collect_qwen.add_argument("--device-map", default="cuda:0")
+    collect_qwen.add_argument("--dtype", default="bfloat16")
+    collect_qwen.add_argument("--attention-implementation", default="sdpa")
+    collect_qwen.add_argument(
+        "--allow-download",
+        action="store_true",
+        help="allow Hugging Face network access (offline cache is the default)",
+    )
+    collect_qwen.set_defaults(func=command_collect_qwen)
     return parser
 
 

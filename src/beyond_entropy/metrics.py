@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import random
 from dataclasses import asdict, dataclass
+from dataclasses import replace as dataclass_replace
 from statistics import mean
 from typing import Iterable, Sequence
 
@@ -170,3 +172,65 @@ def evaluate_policy(
 
 def diagnostic_to_dict(diagnostic: EntropyDiagnostic) -> dict[str, object]:
     return asdict(diagnostic)
+
+
+def _percentile(values: Sequence[float], probability: float) -> float:
+    if not values:
+        raise ValueError("percentile requires at least one value")
+    ordered = sorted(values)
+    position = probability * (len(ordered) - 1)
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
+
+
+def bootstrap_entropy_diagnostic(
+    records: Sequence[ActionRecord],
+    *,
+    n_resamples: int = 2000,
+    confidence: float = 0.95,
+    seed: int = 0,
+) -> dict[str, object]:
+    """State-cluster bootstrap intervals for entropy/success diagnostics."""
+
+    if n_resamples <= 0:
+        raise ValueError("n_resamples must be positive")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between zero and one")
+    by_state: dict[str, list[ActionRecord]] = {}
+    for record in records:
+        by_state.setdefault(record.state_id, []).append(record)
+    if not by_state:
+        raise ValueError("bootstrap requires at least one state")
+    state_ids = sorted(by_state)
+    rng = random.Random(seed)
+    samples: dict[str, list[float]] = {}
+    for _ in range(n_resamples):
+        sampled_records: list[ActionRecord] = []
+        for draw_index, state_id in enumerate(rng.choices(state_ids, k=len(state_ids))):
+            sampled_records.extend(
+                dataclass_replace(record, state_id=f"bootstrap-{draw_index}:{state_id}")
+                for record in by_state[state_id]
+            )
+        diagnostic = diagnostic_to_dict(entropy_diagnostic(sampled_records))
+        for name, value in diagnostic.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                samples.setdefault(name, []).append(float(value))
+    point = diagnostic_to_dict(entropy_diagnostic(records))
+    alpha = (1.0 - confidence) / 2.0
+    intervals: dict[str, dict[str, float | int | None]] = {}
+    for name, estimate in point.items():
+        values = samples.get(name, [])
+        intervals[name] = {
+            "estimate": estimate if isinstance(estimate, (int, float)) else None,
+            "ci_low": _percentile(values, alpha) if values else None,
+            "ci_high": _percentile(values, 1.0 - alpha) if values else None,
+        }
+    return {
+        "resampling_unit": "state_id",
+        "confidence": confidence,
+        "n_resamples": n_resamples,
+        "seed": seed,
+        "metrics": intervals,
+    }

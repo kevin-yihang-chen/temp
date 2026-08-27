@@ -1,0 +1,13 @@
+{
+  "attention_implementation": "sdpa",
+  "candidate_count": 1,
+  "generation_seeds": [0],
+  "max_new_tokens": 4,
+  "max_pixels": 602112,
+  "min_pixels": 200704,
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "model_revision": "cc594898137f460bfe9f0759e9844b3ce807cfb5",
+  "scientific_status": "backend smoke only",
+  "ug_framework_revision": "13050ee49865e4330519108f42d1ccfccff1aee1",
+  "visual_crop_ratio": 2.0
+}

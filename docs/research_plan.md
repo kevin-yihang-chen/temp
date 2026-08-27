@@ -27,6 +27,12 @@ post-action entropy. This is a software criterion, not a scientific claim.
 Exit criterion: SCGR is non-trivial with confidence intervals, and entropy-based
 selection underperforms an oracle task-utility selector on a held-out split.
 
+Implementation checkpoint (2026-08-27): the Qwen backend, UG grid proposer,
+benchmark manifest, task scorers, provenance sidecar, and one-image Slurm smoke
+entrypoint are implemented. The smoke uses the already cached 7B checkpoint and
+does not count as Gate 1 evidence. The formal frozen slice still targets the 3B
+checkpoint and must report state-bootstrap confidence intervals.
+
 ## Gate 2 — pre-action value learning
 
 - Freeze the VLM and train the semantic ROI gain head first.

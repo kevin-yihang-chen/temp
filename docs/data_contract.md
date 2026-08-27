@@ -18,6 +18,27 @@ ActionOutcome           -> labels and diagnostics only
 name blacklist remains as defense in depth, but it is no longer the primary
 ground-truth isolation mechanism.
 
+## Frozen benchmark input manifest
+
+`collect-qwen` consumes a separate JSONL manifest before it emits sibling rows.
+Each input row has the following shape:
+
+```json
+{
+  "state_id": "vstar-0001",
+  "image_id": "image-0001",
+  "source_id": "vstar-0001",
+  "image_path": "images/0001.jpg",
+  "question": "... Answer with the option letter only.",
+  "target": "B"
+}
+```
+
+`state_id`, `image_path`, `question`, and `target` are required. Relative image
+paths resolve against the manifest directory. `image_id` defaults to the
+resolved image path and `source_id` defaults to `image_id`. Ground truth enters
+`GroundTruth` and is passed only to the selected scorer.
+
 ## Flat JSONL representation
 
 | Field | Meaning | Gain-model input? |

@@ -1,7 +1,11 @@
 import pytest
 
 from beyond_entropy.dataset import split_by_group
-from beyond_entropy.metrics import entropy_diagnostic, evaluate_policy
+from beyond_entropy.metrics import (
+    bootstrap_entropy_diagnostic,
+    entropy_diagnostic,
+    evaluate_policy,
+)
 from beyond_entropy.model import LinearGainModel
 from beyond_entropy.policies import (
     EntropySearchPolicy,
@@ -78,3 +82,21 @@ def test_entropy_thresholds_are_tuned_without_test_labels():
         lambda_cost=0.05,
     )
     assert result["avg_tool_calls"] <= 4.0
+
+
+def test_entropy_bootstrap_resamples_whole_states_deterministically():
+    records = simulate_counterfactual_dataset(
+        n_states=12,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=11,
+    )
+    first = bootstrap_entropy_diagnostic(records, n_resamples=50, seed=4)
+    second = bootstrap_entropy_diagnostic(records, n_resamples=50, seed=4)
+    assert first == second
+    assert first["resampling_unit"] == "state_id"
+    assert first["n_resamples"] == 50
+    metrics = first["metrics"]
+    assert isinstance(metrics, dict)
+    mismatch = metrics["entropy_top1_mismatch_rate"]
+    assert mismatch["ci_low"] <= mismatch["ci_high"]
