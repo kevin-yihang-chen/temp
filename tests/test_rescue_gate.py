@@ -10,6 +10,7 @@ from beyond_entropy.rescue_gate import (
     PrecomputedRescueGatePolicy,
     aggregate_rescue_gate_splits,
     fit_nested_oof_entropy_gate,
+    fit_nested_oof_factorized_rescue_gate,
     fit_nested_oof_rescue_gate,
     fit_nested_oof_two_stage_gate,
     pre_action_context_features,
@@ -158,6 +159,19 @@ def test_nested_oof_context_gate_evaluates_each_decision_once():
     assert entropy_report["n_decisions"] == 80
     assert sum(fold["test_decisions"] for fold in entropy_report["folds"]) == 80
     assert entropy_report["policy_result"]["n_decisions"] == 80
+
+    factorized_report, factorized_model = fit_nested_oof_factorized_rescue_gate(
+        records,
+        decisions,
+        error_feature_mode="context",
+        rescue_feature_mode="context",
+        c_values=(0.1,),
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    assert factorized_report["n_decisions"] == 80
+    assert factorized_report["policy_result"]["n_decisions"] == 80
+    assert len(factorized_model["fold_models"]) == 5
 
 
 def test_nested_oof_two_stage_gate_runs_without_post_action_features():

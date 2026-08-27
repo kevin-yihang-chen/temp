@@ -1058,6 +1058,370 @@ def fit_nested_oof_entropy_gate(
     }
 
 
+def fit_nested_oof_factorized_rescue_gate(
+    records: Sequence[ActionRecord],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+    *,
+    split_group: str = "image_id",
+    n_outer_folds: int = 5,
+    validation_fraction: float = 0.2,
+    lambda_cost: float = 0.05,
+    error_feature_mode: str = "context",
+    rescue_feature_mode: str = "semantic-context",
+    c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Factor helpfulness into baseline error and conditional rescuability."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if not c_values or any(value <= 0.0 for value in c_values):
+        raise ValueError("c_values must contain positive regularization values")
+    all_keys = _keys(records)
+    missing = set(all_keys) - set(decision_by_key)
+    if missing:
+        raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
+    baselines = _decision_baselines(records)
+    outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    error_features = _rescue_feature_map(
+        all_keys,
+        decision_by_key,
+        baselines,
+        feature_mode=error_feature_mode,
+    )
+    rescue_features = _rescue_feature_map(
+        all_keys,
+        decision_by_key,
+        baselines,
+        feature_mode=rescue_feature_mode,
+    )
+    error_labels = {
+        key: int(baselines[key].correct_before < 0.5) for key in all_keys
+    }
+    rescue_labels = {key: int(bool(outcomes[key]["helpful"])) for key in all_keys}
+    outer_folds = _grouped_crossfit_records(
+        records,
+        split_group=split_group,
+        n_folds=n_outer_folds,
+        seed=seed,
+    )
+    pooled_actions: dict[DecisionKey, float] = {}
+    pooled_scores: dict[DecisionKey, float] = {}
+    pooled_error_probabilities: dict[DecisionKey, float] = {}
+    pooled_rescue_probabilities: dict[DecisionKey, float] = {}
+    fold_reports: list[dict[str, Any]] = []
+    fold_models: list[dict[str, Any]] = []
+    for fold_index, (outer_train, outer_test) in enumerate(outer_folds):
+        model_train, validation = split_by_group(
+            outer_train,
+            group=split_group,  # type: ignore[arg-type]
+            train_fraction=1.0 - validation_fraction,
+            seed=seed + 307 + fold_index,
+        )
+        train_keys = _keys(model_train)
+        validation_keys = _keys(validation)
+        test_keys = _keys(outer_test)
+        wrong_train_keys = [key for key in train_keys if error_labels[key]]
+        error_scaler = StandardScaler().fit(
+            np.asarray([error_features[key] for key in train_keys], dtype=np.float64)
+        )
+        rescue_scaler = StandardScaler().fit(
+            np.asarray(
+                [rescue_features[key] for key in wrong_train_keys],
+                dtype=np.float64,
+            )
+        )
+        error_train = error_scaler.transform(
+            np.asarray([error_features[key] for key in train_keys], dtype=np.float64)
+        )
+        error_validation = error_scaler.transform(
+            np.asarray(
+                [error_features[key] for key in validation_keys],
+                dtype=np.float64,
+            )
+        )
+        error_test = error_scaler.transform(
+            np.asarray([error_features[key] for key in test_keys], dtype=np.float64)
+        )
+        rescue_train = rescue_scaler.transform(
+            np.asarray(
+                [rescue_features[key] for key in wrong_train_keys],
+                dtype=np.float64,
+            )
+        )
+        rescue_validation = rescue_scaler.transform(
+            np.asarray(
+                [rescue_features[key] for key in validation_keys],
+                dtype=np.float64,
+            )
+        )
+        rescue_test = rescue_scaler.transform(
+            np.asarray([rescue_features[key] for key in test_keys], dtype=np.float64)
+        )
+        error_train_labels = np.asarray(
+            [error_labels[key] for key in train_keys],
+            dtype=np.int64,
+        )
+        rescue_train_labels = np.asarray(
+            [rescue_labels[key] for key in wrong_train_keys],
+            dtype=np.int64,
+        )
+        error_models = []
+        rescue_models = []
+        for c_value in c_values:
+            error_model = LogisticRegression(
+                C=float(c_value),
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=seed + fold_index,
+            ).fit(error_train, error_train_labels)
+            error_models.append(
+                (
+                    float(c_value),
+                    error_model,
+                    error_model.predict_proba(error_validation)[:, 1],
+                )
+            )
+            rescue_model = LogisticRegression(
+                C=float(c_value),
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=seed + fold_index,
+            ).fit(rescue_train, rescue_train_labels)
+            rescue_models.append(
+                (
+                    float(c_value),
+                    rescue_model,
+                    rescue_model.predict_proba(rescue_validation)[:, 1],
+                )
+            )
+        validation_utilities = [
+            float(outcomes[key]["expected_utility"]) for key in validation_keys
+        ]
+        candidates: list[tuple[float, float, float, float, float, Any, Any]] = []
+        for error_c, error_model, validation_error_probabilities in error_models:
+            for rescue_c, rescue_model, validation_rescue_probabilities in rescue_models:
+                validation_scores = (
+                    validation_error_probabilities * validation_rescue_probabilities
+                )
+                threshold, utility, tool_rate = tune_rescue_gate_threshold(
+                    validation_scores.tolist(),
+                    validation_utilities,
+                )
+                candidates.append(
+                    (
+                        utility,
+                        -tool_rate,
+                        -error_c,
+                        -rescue_c,
+                        threshold,
+                        error_model,
+                        rescue_model,
+                    )
+                )
+        (
+            validation_utility,
+            negative_tool_rate,
+            negative_error_c,
+            negative_rescue_c,
+            threshold,
+            error_model,
+            rescue_model,
+        ) = max(candidates, key=lambda value: value[:4])
+        test_error_probabilities = error_model.predict_proba(error_test)[:, 1]
+        test_rescue_probabilities = rescue_model.predict_proba(rescue_test)[:, 1]
+        test_scores_array = test_error_probabilities * test_rescue_probabilities
+        test_scores = {
+            key: float(score)
+            for key, score in zip(test_keys, test_scores_array.tolist())
+        }
+        overlap = set(test_scores) & set(pooled_actions)
+        if overlap:
+            raise RuntimeError(f"nested OOF test decisions overlap: {sorted(overlap)[:5]}")
+        for key, score, error_probability, rescue_probability in zip(
+            test_keys,
+            test_scores_array.tolist(),
+            test_error_probabilities.tolist(),
+            test_rescue_probabilities.tolist(),
+        ):
+            pooled_actions[key] = float(score >= threshold)
+            pooled_scores[key] = float(score) - threshold
+            pooled_error_probabilities[key] = float(error_probability)
+            pooled_rescue_probabilities[key] = float(rescue_probability)
+        fold_policy = PrecomputedRescueGatePolicy(
+            test_scores,
+            threshold=threshold,
+            name=f"nested_oof_factorized_{rescue_feature_mode}_random_expectation",
+        )
+        fold_result = dict(evaluate_policy(outer_test, fold_policy, lambda_cost=lambda_cost))
+        test_error_labels = np.asarray(
+            [error_labels[key] for key in test_keys],
+            dtype=np.int64,
+        )
+        test_helpful_labels = np.asarray(
+            [rescue_labels[key] for key in test_keys],
+            dtype=np.int64,
+        )
+        wrong_test_indices = [
+            index for index, key in enumerate(test_keys) if error_labels[key]
+        ]
+        wrong_test_labels = test_helpful_labels[wrong_test_indices]
+        wrong_test_rescue_scores = test_rescue_probabilities[wrong_test_indices]
+        has_both_error_classes = len(set(test_error_labels.tolist())) == 2
+        has_both_helpful_classes = len(set(test_helpful_labels.tolist())) == 2
+        has_both_conditional_classes = len(set(wrong_test_labels.tolist())) == 2
+        fold_reports.append(
+            {
+                "fold": fold_index,
+                "model_train_decisions": len(train_keys),
+                "model_train_wrong_decisions": len(wrong_train_keys),
+                "validation_decisions": len(validation_keys),
+                "test_decisions": len(test_keys),
+                "selected_error_c": -negative_error_c,
+                "selected_rescue_c": -negative_rescue_c,
+                "validation_threshold": threshold,
+                "validation_utility": validation_utility,
+                "validation_tool_rate": -negative_tool_rate,
+                "test_error_roc_auc": (
+                    float(roc_auc_score(test_error_labels, test_error_probabilities))
+                    if has_both_error_classes
+                    else None
+                ),
+                "test_conditional_rescue_roc_auc": (
+                    float(roc_auc_score(wrong_test_labels, wrong_test_rescue_scores))
+                    if has_both_conditional_classes
+                    else None
+                ),
+                "test_helpful_roc_auc": (
+                    float(roc_auc_score(test_helpful_labels, test_scores_array))
+                    if has_both_helpful_classes
+                    else None
+                ),
+                "test_helpful_average_precision": (
+                    float(average_precision_score(test_helpful_labels, test_scores_array))
+                    if has_both_helpful_classes
+                    else None
+                ),
+                "policy_result": fold_result,
+            }
+        )
+        fold_models.append(
+            {
+                "fold": fold_index,
+                "selected_error_c": -negative_error_c,
+                "selected_rescue_c": -negative_rescue_c,
+                "threshold": threshold,
+                "error_scaler_mean": [
+                    float(value) for value in error_scaler.mean_.tolist()
+                ],
+                "error_scaler_scale": [
+                    float(value) for value in error_scaler.scale_.tolist()
+                ],
+                "error_coefficient": [
+                    float(value) for value in error_model.coef_[0].tolist()
+                ],
+                "error_intercept": float(error_model.intercept_[0]),
+                "rescue_scaler_mean": [
+                    float(value) for value in rescue_scaler.mean_.tolist()
+                ],
+                "rescue_scaler_scale": [
+                    float(value) for value in rescue_scaler.scale_.tolist()
+                ],
+                "rescue_coefficient": [
+                    float(value) for value in rescue_model.coef_[0].tolist()
+                ],
+                "rescue_intercept": float(rescue_model.intercept_[0]),
+            }
+        )
+    if set(pooled_actions) != set(all_keys):
+        missing_oof = sorted(set(all_keys) - set(pooled_actions))
+        raise RuntimeError(f"nested OOF predictions are incomplete: {missing_oof[:5]}")
+    policy = PrecomputedRescueGatePolicy(
+        pooled_actions,
+        threshold=0.5,
+        name=f"nested_oof_factorized_{rescue_feature_mode}_random_expectation",
+    )
+    policy_result: dict[str, Any] = dict(
+        evaluate_policy(records, policy, lambda_cost=lambda_cost)
+    )
+    policy_result["bootstrap"] = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+    )
+    pooled_error_labels = np.asarray(
+        [error_labels[key] for key in all_keys],
+        dtype=np.int64,
+    )
+    pooled_helpful_labels = np.asarray(
+        [rescue_labels[key] for key in all_keys],
+        dtype=np.int64,
+    )
+    wrong_keys = [key for key in all_keys if error_labels[key]]
+    report = {
+        "scientific_status": (
+            "nested grouped OOF factorized diagnostic; error and conditional-rescue "
+            "models both exclude each evaluated image group"
+        ),
+        "seed": seed,
+        "error_feature_mode": error_feature_mode,
+        "rescue_feature_mode": rescue_feature_mode,
+        "error_feature_count": len(error_features[all_keys[0]]),
+        "rescue_feature_count": len(rescue_features[all_keys[0]]),
+        "split_group": split_group,
+        "n_outer_folds": n_outer_folds,
+        "validation_fraction_within_outer_train": validation_fraction,
+        "n_decisions": len(all_keys),
+        "pooled_error_roc_auc": float(
+            roc_auc_score(
+                pooled_error_labels,
+                [pooled_error_probabilities[key] for key in all_keys],
+            )
+        ),
+        "pooled_conditional_rescue_roc_auc": float(
+            roc_auc_score(
+                [rescue_labels[key] for key in wrong_keys],
+                [pooled_rescue_probabilities[key] for key in wrong_keys],
+            )
+        ),
+        "pooled_helpful_roc_auc_of_fold_margin": float(
+            roc_auc_score(
+                pooled_helpful_labels,
+                [pooled_scores[key] for key in all_keys],
+            )
+        ),
+        "pooled_helpful_average_precision_of_fold_margin": float(
+            average_precision_score(
+                pooled_helpful_labels,
+                [pooled_scores[key] for key in all_keys],
+            )
+        ),
+        "folds": fold_reports,
+        "policy_result": policy_result,
+    }
+    model_payload = {
+        "model_type": "nested_oof_factorized_error_and_rescue_gate",
+        "seed": seed,
+        "error_feature_mode": error_feature_mode,
+        "rescue_feature_mode": rescue_feature_mode,
+        "n_outer_folds": n_outer_folds,
+        "fold_models": fold_models,
+    }
+    return report, model_payload
+
+
 def fit_nested_oof_two_stage_gate(
     records: Sequence[ActionRecord],
     decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
