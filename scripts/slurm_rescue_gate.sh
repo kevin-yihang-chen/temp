@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#SBATCH --partition=debug
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=00:30:00
+#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-rescue-gate-%j.out
+#SBATCH --mail-type=ALL
+
+set -euo pipefail
+
+: "${BE_RESCUE_ROLLOUTS:?missing BE_RESCUE_ROLLOUTS}"
+: "${BE_RESCUE_FEATURES:?missing BE_RESCUE_FEATURES}"
+: "${BE_RESCUE_OUTPUT_DIR:?missing BE_RESCUE_OUTPUT_DIR}"
+: "${BE_RESCUE_ESTIMATOR:?missing BE_RESCUE_ESTIMATOR}"
+
+repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
+python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
+
+export PYTHONPATH="${repo_dir}/src"
+
+cd "${repo_dir}"
+export BE_CODE_REVISION
+BE_CODE_REVISION=$(git rev-parse HEAD)
+"${python_bin}" scripts/analyze_rescue_gate.py \
+  --rollouts "${BE_RESCUE_ROLLOUTS}" \
+  --features "${BE_RESCUE_FEATURES}" \
+  --output-dir "${BE_RESCUE_OUTPUT_DIR}" \
+  --seeds 3 11 17 29 47 \
+  --lambda-cost 0.05 \
+  --bootstrap-resamples 2000 \
+  --bootstrap-seed 0 \
+  --selection-mode inner-validation \
+  --estimator "${BE_RESCUE_ESTIMATOR}"
