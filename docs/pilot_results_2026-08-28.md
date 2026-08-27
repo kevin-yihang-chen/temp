@@ -308,6 +308,16 @@ deployment variant, but there is no resolved evidence that its action choice is
 better than random. The post-hoc report SHA-256 is
 `420c020b982131db62389c459aa4e9a2a29b5a5ecc711ac7a00c8883dccb7257`.
 
+A second post-hoc analysis holds the model, absolute threshold, and calls fixed
+while varying only the accounting cost. The point-estimate break-even cost is
+0.11009 gain per call. At `lambda=0.025`, utility is 0.00484 with state interval
+`[0.00138, 0.00890]` and image interval `[0.00143, 0.00876]`; at the registered
+`lambda=0.05`, the analysis exactly reproduces the failed primary intervals; at
+`lambda=0.075`, both intervals cross zero. This shows genuine cost sensitivity,
+not a reason to replace the registered cost. The corrected frontier report
+SHA-256 is
+`4ea18854e5a7ef23564b490b25ba05b82195b7893398fe0ba5291ac3baddc48d`.
+
 ## High-power independent replication in progress
 
 The validation interval motivated a new replication rather than extending or
@@ -393,6 +403,7 @@ claim is upgraded; no chart-layout follow-up is launched.
 - `artifacts/gate2-chartqa-2500/composed-factorized-context-quadrant-v13-image-bootstrap/report.json`
 - `artifacts/confirmation-chartqa-val-1918/frozen-factorized-context-v1/report.json`
 - `artifacts/confirmation-chartqa-val-1918/posthoc-action-contrasts-v1/report.json`
+- `artifacts/confirmation-chartqa-val-1918/posthoc-cost-frontier-v1/report.json`
 - `artifacts/confirmation-chart-layout-2137/matched-comparison-v1/report.json`
 - `docs/replication_protocol_chartqa_train.md`
 - `artifacts/gate1-chartqa-200/qwen3b-c9-concise-seed0/pilot_report.json`
