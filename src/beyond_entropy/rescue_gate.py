@@ -971,6 +971,93 @@ def fit_nested_oof_rescue_gate(
     return report, model_payload
 
 
+def fit_nested_oof_entropy_gate(
+    records: Sequence[ActionRecord],
+    *,
+    split_group: str = "image_id",
+    n_outer_folds: int = 5,
+    lambda_cost: float = 0.05,
+    bootstrap_resamples: int = 2000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> dict[str, Any]:
+    """Evaluate entropy stopping with thresholds tuned outside each outer fold."""
+
+    all_keys = _keys(records)
+    baselines = _decision_baselines(records)
+    outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    outer_folds = _grouped_crossfit_records(
+        records,
+        split_group=split_group,
+        n_folds=n_outer_folds,
+        seed=seed,
+    )
+    pooled_actions: dict[DecisionKey, float] = {}
+    fold_reports = []
+    for fold_index, (outer_train, outer_test) in enumerate(outer_folds):
+        train_keys = _keys(outer_train)
+        test_keys = _keys(outer_test)
+        threshold, train_utility, train_tool_rate = tune_rescue_gate_threshold(
+            [baselines[key].entropy_before for key in train_keys],
+            [float(outcomes[key]["expected_utility"]) for key in train_keys],
+        )
+        test_scores = {key: baselines[key].entropy_before for key in test_keys}
+        overlap = set(test_scores) & set(pooled_actions)
+        if overlap:
+            raise RuntimeError(f"nested OOF test decisions overlap: {sorted(overlap)[:5]}")
+        pooled_actions.update(
+            {key: float(score >= threshold) for key, score in test_scores.items()}
+        )
+        fold_policy = PrecomputedRescueGatePolicy(
+            test_scores,
+            threshold=threshold,
+            name="nested_oof_entropy_uniform_random_expectation",
+        )
+        fold_reports.append(
+            {
+                "fold": fold_index,
+                "train_decisions": len(train_keys),
+                "test_decisions": len(test_keys),
+                "train_threshold": threshold,
+                "train_utility": train_utility,
+                "train_tool_rate": train_tool_rate,
+                "policy_result": dict(
+                    evaluate_policy(outer_test, fold_policy, lambda_cost=lambda_cost)
+                ),
+            }
+        )
+    if set(pooled_actions) != set(all_keys):
+        missing_oof = sorted(set(all_keys) - set(pooled_actions))
+        raise RuntimeError(f"nested OOF predictions are incomplete: {missing_oof[:5]}")
+    policy = PrecomputedRescueGatePolicy(
+        pooled_actions,
+        threshold=0.5,
+        name="nested_oof_entropy_uniform_random_expectation",
+    )
+    policy_result: dict[str, Any] = dict(
+        evaluate_policy(records, policy, lambda_cost=lambda_cost)
+    )
+    policy_result["bootstrap"] = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+    )
+    return {
+        "scientific_status": (
+            "nested grouped OOF scalar baseline; each entropy threshold excludes its "
+            "outer test image groups"
+        ),
+        "seed": seed,
+        "split_group": split_group,
+        "n_outer_folds": n_outer_folds,
+        "n_decisions": len(all_keys),
+        "folds": fold_reports,
+        "policy_result": policy_result,
+    }
+
+
 def fit_nested_oof_two_stage_gate(
     records: Sequence[ActionRecord],
     decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],

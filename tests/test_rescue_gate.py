@@ -9,6 +9,7 @@ from beyond_entropy.rescue_gate import (
     PrecomputedActionGatePolicy,
     PrecomputedRescueGatePolicy,
     aggregate_rescue_gate_splits,
+    fit_nested_oof_entropy_gate,
     fit_nested_oof_rescue_gate,
     fit_nested_oof_two_stage_gate,
     pre_action_context_features,
@@ -148,6 +149,15 @@ def test_nested_oof_context_gate_evaluates_each_decision_once():
     assert report["policy_result"]["bootstrap"]["n_decisions"] == 80
     assert report["feature_count"] == 27
     assert len(model["fold_models"]) == 5
+
+    entropy_report = fit_nested_oof_entropy_gate(
+        records,
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    assert entropy_report["n_decisions"] == 80
+    assert sum(fold["test_decisions"] for fold in entropy_report["folds"]) == 80
+    assert entropy_report["policy_result"]["n_decisions"] == 80
 
 
 def test_nested_oof_two_stage_gate_runs_without_post_action_features():
