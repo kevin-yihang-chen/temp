@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Sequence
 
@@ -57,9 +58,18 @@ def export_capped_manifest(
         try:
             value = json.loads(line)
             state_id = str(value["state_id"])
+            raw_image_path = Path(str(value["image_path"]))
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             raise ValueError(f"invalid manifest row {source_path}:{line_number}") from exc
         if state_id in selected_ids:
+            source_image_path = (
+                raw_image_path
+                if raw_image_path.is_absolute()
+                else source_path.parent / raw_image_path
+            ).resolve()
+            if not source_image_path.is_file():
+                raise ValueError(f"manifest image does not exist: {source_image_path}")
+            value["image_path"] = os.path.relpath(source_image_path, output_path.parent.resolve())
             selected_lines.append(json.dumps(value, ensure_ascii=False, sort_keys=True))
             seen_ids.add(state_id)
     missing = selected_ids - seen_ids
