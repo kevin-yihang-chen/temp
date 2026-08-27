@@ -1,0 +1,22 @@
+{
+  "attention_implementation": "sdpa",
+  "bootstrap_resamples": 5000,
+  "bootstrap_seed": 0,
+  "candidate_count": 4,
+  "dataset": "lmms-lab/vstar-bench",
+  "dataset_revision": "b44023b4dca749ed8a76b85eb576627d05a1c174",
+  "generation_seeds": [0],
+  "manifest_count": 191,
+  "manifest_seed": 17,
+  "manifest_sha256": "5a78edc9a3e0d7dd527b67f089331a18c60e5811170cdecd8ba41ca7d27c11ca",
+  "max_new_tokens": 16,
+  "max_pixels": 602112,
+  "min_pixels": 200704,
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "scorer": "vstar",
+  "scientific_status": "full frozen Gate 1 VStar diagnostic",
+  "ug_framework_revision": "13050ee49865e4330519108f42d1ccfccff1aee1",
+  "visual_crop_ratio": 2.0,
+  "visual_cost": 1.0
+}
