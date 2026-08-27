@@ -3,78 +3,122 @@
 Research scaffold for learning the **pre-action, task-relevant value of visual
 information** from counterfactual sibling rollouts.
 
-The central target is:
+The learned quantity and deployment decision are deliberately separated:
 
 ```text
-Q_voi(s, a) = P(success after a | s) - P(success now | s) - lambda * cost(a)
+gain(s, a) = P(success after a | s) - P(success now | s)
+VOI(s, a)  = predicted_gain(s, a) - lambda * cost(a)
 ```
 
-The current milestone implements Stage 0/1 infrastructure: a strict rollout data
-contract, a real-backend collector interface, SCGR diagnostics, a dependency-free
-ridge value model, adaptive stopping, policy baselines, and an end-to-end synthetic
-control experiment. It has **not** run Qwen2.5-VL, public benchmarks, or RL yet.
+Version 0.2 implements:
+
+- type-level isolation between agent-visible state and ground truth;
+- additive `ORIGINAL + ZOOM` observation semantics;
+- paired stochastic replicates and generation seeds;
+- image/source-level train/test splitting;
+- cost-independent gain training and runtime lambda sweeps;
+- total-executed-cost policy utility;
+- adaptive entropy baselines and richer entropy ranking diagnostics;
+- serial/batch backend interfaces with an in-memory cache;
+- an optional semantic ROI gain head for frozen visual/text embeddings.
+
+It has **not** run Qwen2.5-VL, public benchmarks, or RL yet. The synthetic
+experiment validates software behavior only.
 
 ## Quick start
 
-No runtime packages outside the Python standard library are required.
+The core pipeline needs only the Python standard library:
 
 ```bash
 cd /userhome/cs3/yihangc/Documents/beyond-entropy
-PYTHONPATH=src python3 -m beyond_entropy demo --output-dir artifacts/demo
+PYTHONPATH=src python3 -m beyond_entropy demo --output-dir artifacts/demo-v2
 pytest
 ```
 
-The demo produces separate train/test sibling rollouts, a serialized value model,
-JSON metrics, and a Markdown report under `artifacts/demo/`.
+The demo produces an image-grouped train/test split, a serialized gain model,
+JSON metrics, tuned entropy baseline thresholds, and a Markdown report.
 
 Individual commands:
 
 ```bash
 PYTHONPATH=src python3 -m beyond_entropy simulate \
-  --output artifacts/counterfactual.jsonl --n-states 600 --num-candidates 4
+  --output artifacts/counterfactual-v2.jsonl \
+  --n-states 600 --num-candidates 4 --questions-per-image 2
 
 PYTHONPATH=src python3 -m beyond_entropy diagnose \
-  --data artifacts/counterfactual.jsonl
+  --data artifacts/counterfactual-v2.jsonl
 
 PYTHONPATH=src python3 -m beyond_entropy train \
-  --data artifacts/demo/train.jsonl --output artifacts/demo/value_model.json
+  --data artifacts/demo-v2/train.jsonl \
+  --output artifacts/demo-v2/gain_model.json
 
 PYTHONPATH=src python3 -m beyond_entropy evaluate \
-  --data artifacts/demo/test.jsonl --model artifacts/demo/value_model.json
+  --data artifacts/demo-v2/test.jsonl \
+  --model artifacts/demo-v2/gain_model.json \
+  --lambda-cost 0.05
 ```
+
+`lambda_cost` is no longer a training argument. The same gain model can be
+evaluated under any non-negative lambda.
+
+## Semantic gain head
+
+Install the optional PyTorch dependency:
+
+```bash
+python3 -m pip install -e '.[semantic]'
+```
+
+`SemanticGainHead` fuses:
+
+```text
+question embedding
++ global visual embedding
++ ROI-pooled candidate embedding
++ question-region interaction
++ bbox geometry
++ baseline state signals
+-> predicted Delta success
+```
+
+`roi_pool_spatial_tokens` extracts all candidate representations from one cached
+full-image spatial token grid. A Qwen/lmms-eval feature adapter is still required
+before this becomes a real frozen-VLM experiment.
 
 ## Project map
 
 ```text
 src/beyond_entropy/
-  rollout.py     model/backend-independent sibling collector
-  schema.py      validated action-rollout record
-  dataset.py     JSONL IO, sibling validation, state-level split
-  features.py    pre-action-only feature encoding and leakage guards
-  model.py       lightweight ridge VOI model
-  policies.py    answer/random/fixed/entropy/learned/oracle policies
-  metrics.py     SCGR and agent efficiency/stopping metrics
+  rollout.py     GT-safe state/action/outcome interfaces, batching, caching
+  schema.py      validated paired action-outcome record
+  dataset.py     JSONL IO, replicate validation, grouped splitting
+  features.py    pre-action scalar encoding and leakage guards
+  model.py       cost-independent ridge gain baseline
+  semantic.py    optional ROI semantic gain head
+  policies.py    stopping/search/learned/oracle policies and threshold tuning
+  metrics.py     SCGR, Top-1 mismatch, policy utility and efficiency metrics
   simulate.py    controlled synthetic pipeline test
   cli.py         experiment commands
 docs/
   data_contract.md
   reference_integration.md
   research_plan.md
+  review_remediation.md
 ```
 
-The reference-integration design is based on the official
+The integration design is based on the official
 [UG framework](https://github.com/ExplainableML/ug-framework) and
 [VTool-R1](https://github.com/VTOOL-R1/vtool-r1) repositories. Their code is not
-vendored here. See `docs/reference_integration.md` for the exact adapter boundary
-and `docs/research_plan.md` for experiment gates.
+vendored here.
 
 ## Scientific guardrails
 
-- Synthetic demo numbers validate code paths only.
-- Split by state/image, never by sibling action row.
-- `entropy_after`, answers, correctness, labels, and rewards cannot be model
+- Ground truth is accepted only by the scorer.
+- Split by image/source, never by sibling action row.
+- Post-action entropy, answers, correctness, labels, and rewards are not model
   inputs.
-- Entropy search pays for executing every candidate it scores.
-- Oracle VOI is a diagnostic upper bound, not a deployable baseline.
-- Pin upstream commits, model revisions, prompts, dataset revisions, and seeds
-  before real experiments.
+- The model predicts success gain; policy code alone applies cost preference.
+- Entropy search pays for every candidate it executes.
+- Synthetic demo numbers are not empirical research results.
+- Pin upstream commits, model revisions, prompts, datasets, and seeds before real
+  experiments.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "beyond-entropy"
-version = "0.1.0"
+version = "0.2.0"
 description = "Counterfactual value-of-information experiments for active visual agents"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,8 @@ authors = [{name = "Beyond Entropy research project"}]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "mypy>=1.8"]
+semantic = ["torch>=2.2"]
 
 [project.scripts]
 beyond-entropy = "beyond_entropy.cli:main"

@@ -1,12 +1,14 @@
 # Research execution plan
 
-## Gate 0 — pipeline validity (implemented)
+## Gate 0 — pipeline validity (implemented in v0.2)
 
 - Validate sibling grouping and pre/post-action field separation.
 - Compute SCGR and correlation between entropy reduction and success change.
 - Compare answer-now, random, fixed-center, entropy-search, learned-VOI, and
   oracle policies.
 - Verify adaptive stopping and account for candidate-evaluation cost.
+- Isolate ground truth from proposals by type and split by image/source.
+- Predict success gain independently of deployment cost preference.
 
 Exit criterion: deterministic tests pass and the synthetic control demonstrates
 that the implementation can recover a usefulness signal that differs from
@@ -19,6 +21,7 @@ post-action entropy. This is a software criterion, not a scientific claim.
 - Four crops per state, then ablate nine.
 - Use paired deterministic decoding where possible; otherwise run multiple
   sibling samples and estimate expected success.
+- Retain the original image when adding each zoom observation.
 - Bootstrap confidence intervals by state, never by action row.
 
 Exit criterion: SCGR is non-trivial with confidence intervals, and entropy-based
@@ -26,9 +29,12 @@ selection underperforms an oracle task-utility selector on a held-out split.
 
 ## Gate 2 — pre-action value learning
 
-- Freeze the VLM and train a lightweight value head first.
+- Freeze the VLM and train the semantic ROI gain head first.
+- Encode the image once, ROI-pool candidate regions, and fuse question, global
+  image, region, bbox, and baseline-state signals.
 - Split by source example/image to prevent sibling leakage.
 - Compare regression and pairwise ranking.
+- Predict `Delta success`; subtract `lambda * cost` only in the policy.
 - Evaluate accuracy-cost frontier, stopping, calibration, and oracle regret.
 
 Exit criterion: learned VOI beats random/fixed policies and improves the

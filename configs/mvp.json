@@ -9,9 +9,13 @@
     "ZOOM"
   ],
   "num_candidates": 4,
+  "questions_per_image": 2,
+  "split_group": "image_id",
+  "generation_replicates": 1,
   "lambda_cost": 0.05,
-  "value_objective": "ridge_regression",
+  "value_objective": "delta_success_regression",
+  "semantic_head": "question + global visual + ROI visual + interaction + state signals",
   "primary_diagnostic": "spurious_confidence_gain_rate",
   "seed": 7,
-  "status": "configuration target; real VLM rollouts not yet executed"
+  "status": "v0.2 interfaces implemented; frozen Qwen adapter and real rollouts pending"
 }

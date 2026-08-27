@@ -57,8 +57,12 @@ class ActionRecord:
     """
 
     state_id: str
+    image_id: str
+    source_id: str
     question: str
     original_image: str
+    replicate_id: str
+    generation_seed: int | None
     action_id: str
     action_type: ActionType
     candidate_bbox: BBox | None
@@ -73,8 +77,10 @@ class ActionRecord:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not self.state_id or not self.action_id:
-            raise ValueError("state_id and action_id must be non-empty")
+        if not all((self.state_id, self.image_id, self.source_id, self.replicate_id, self.action_id)):
+            raise ValueError(
+                "state_id, image_id, source_id, replicate_id, and action_id must be non-empty"
+            )
         if self.action_type not in ("ANSWER", "ZOOM"):
             raise ValueError(f"unsupported action_type: {self.action_type}")
         if self.action_type == "ANSWER" and self.candidate_bbox is not None:
@@ -112,8 +118,14 @@ class ActionRecord:
     def from_dict(cls, value: Mapping[str, Any]) -> "ActionRecord":
         return cls(
             state_id=str(value["state_id"]),
+            image_id=str(value.get("image_id", value["original_image"])),
+            source_id=str(value.get("source_id", value.get("image_id", value["original_image"]))),
             question=str(value["question"]),
             original_image=str(value["original_image"]),
+            replicate_id=str(value.get("replicate_id", "replicate-000")),
+            generation_seed=(
+                None if value.get("generation_seed") is None else int(value["generation_seed"])
+            ),
             action_id=str(value["action_id"]),
             action_type=str(value["action_type"]),  # type: ignore[arg-type]
             candidate_bbox=BBox.from_value(value.get("candidate_bbox")),

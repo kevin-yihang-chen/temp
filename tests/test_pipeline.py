@@ -1,27 +1,80 @@
-from beyond_entropy.dataset import split_by_state
+import pytest
+
+from beyond_entropy.dataset import split_by_group
 from beyond_entropy.metrics import entropy_diagnostic, evaluate_policy
-from beyond_entropy.model import LinearValueModel
-from beyond_entropy.policies import EntropySearchPolicy, LearnedVOIPolicy
+from beyond_entropy.model import LinearGainModel
+from beyond_entropy.policies import (
+    EntropySearchPolicy,
+    EntropyThresholdPolicy,
+    LearnedVOIPolicy,
+    tune_entropy_thresholds,
+)
 from beyond_entropy.simulate import simulate_counterfactual_dataset
 
 
-def test_end_to_end_value_pipeline_is_deterministic(tmp_path):
-    records = simulate_counterfactual_dataset(n_states=300, num_candidates=4, seed=7)
-    train, test = split_by_state(records, train_fraction=0.7, seed=7)
-    model = LinearValueModel.fit(train, lambda_cost=0.05, alpha=1.0)
+def test_end_to_end_gain_pipeline_is_cost_correct_and_deterministic(tmp_path):
+    records = simulate_counterfactual_dataset(
+        n_states=300,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=7,
+    )
+    train, test = split_by_group(
+        records,
+        group="image_id",
+        train_fraction=0.7,
+        seed=7,
+    )
+    model = LinearGainModel.fit(train, alpha=1.0)
     model_path = tmp_path / "model.json"
     model.save(model_path)
-    loaded = LinearValueModel.load(model_path)
+    loaded = LinearGainModel.load(model_path)
 
     diagnostic = entropy_diagnostic(test)
-    entropy_result = evaluate_policy(
-        test, EntropySearchPolicy(), lambda_cost=0.05
-    )
+    entropy_result = evaluate_policy(test, EntropySearchPolicy(), lambda_cost=0.05)
     learned_result = evaluate_policy(
-        test, LearnedVOIPolicy(loaded), lambda_cost=0.05
+        test,
+        LearnedVOIPolicy(loaded, lambda_cost=0.05),
+        lambda_cost=0.05,
     )
 
     assert diagnostic.spurious_confidence_gain_rate > 0.0
+    assert diagnostic.nonbeneficial_confidence_gain_rate >= (
+        diagnostic.spurious_confidence_gain_rate
+    )
+    assert diagnostic.entropy_top1_mismatch_rate > 0.0
     assert entropy_result["avg_tool_calls"] == 4.0
+    assert entropy_result["mean_policy_utility"] == pytest.approx(
+        entropy_result["mean_success_gain"] - 0.05 * 4.0
+    )
     assert learned_result["avg_tool_calls"] <= 1.0
     assert learned_result["mean_oracle_regret"] < entropy_result["mean_oracle_regret"]
+
+
+def test_lambda_is_applied_only_by_policy():
+    records = simulate_counterfactual_dataset(n_states=20, num_candidates=4, seed=9)
+    model = LinearGainModel.fit(records)
+    zoom = next(record for record in records if record.action_type == "ZOOM")
+    prediction = model.predict_gain(zoom)
+    low_cost_policy = LearnedVOIPolicy(model, lambda_cost=0.0)
+    high_cost_policy = LearnedVOIPolicy(model, lambda_cost=10.0)
+    siblings = [record for record in records if record.state_id == zoom.state_id]
+    assert model.predict_gain(zoom) == prediction
+    assert low_cost_policy.select(siblings).tool_calls >= high_cost_policy.select(siblings).tool_calls
+
+
+def test_entropy_thresholds_are_tuned_without_test_labels():
+    records = simulate_counterfactual_dataset(n_states=40, num_candidates=4, seed=10)
+    train, test = split_by_group(records, group="image_id", seed=10)
+    entropy_threshold, reduction_threshold = tune_entropy_thresholds(
+        train,
+        lambda_cost=0.05,
+    )
+    assert isinstance(entropy_threshold, float)
+    assert isinstance(reduction_threshold, float)
+    result = evaluate_policy(
+        test,
+        EntropyThresholdPolicy(entropy_threshold),
+        lambda_cost=0.05,
+    )
+    assert result["avg_tool_calls"] <= 4.0

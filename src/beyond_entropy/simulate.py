@@ -39,6 +39,7 @@ def simulate_counterfactual_dataset(
     *,
     n_states: int = 600,
     num_candidates: int = 4,
+    questions_per_image: int = 2,
     seed: int = 7,
 ) -> list[ActionRecord]:
     """Create a controlled testbed where confidence and usefulness diverge.
@@ -50,11 +51,15 @@ def simulate_counterfactual_dataset(
 
     if n_states < 2:
         raise ValueError("n_states must be at least 2")
+    if questions_per_image < 1:
+        raise ValueError("questions_per_image must be positive")
     rng = random.Random(seed)
     boxes = _grid_boxes(num_candidates)
     records: list[ActionRecord] = []
     for state_number in range(n_states):
         state_id = f"synthetic-{state_number:06d}"
+        image_id = f"synthetic-image-{state_number // questions_per_image:06d}"
+        original_image = f"synthetic://{image_id}.png"
         complexity = rng.random()
         baseline_probability = _sigmoid(2.0 - 3.2 * complexity)
         coupled_draw = rng.random()
@@ -65,8 +70,12 @@ def simulate_counterfactual_dataset(
         records.append(
             ActionRecord(
                 state_id=state_id,
+                image_id=image_id,
+                source_id=image_id,
                 question=f"Synthetic fine-grained visual question {state_number}",
-                original_image=f"synthetic://{state_id}.png",
+                original_image=original_image,
+                replicate_id="replicate-000",
+                generation_seed=seed,
                 action_id="answer-now",
                 action_type="ANSWER",
                 candidate_bbox=None,
@@ -118,8 +127,12 @@ def simulate_counterfactual_dataset(
             records.append(
                 ActionRecord(
                     state_id=state_id,
+                    image_id=image_id,
+                    source_id=image_id,
                     question=f"Synthetic fine-grained visual question {state_number}",
-                    original_image=f"synthetic://{state_id}.png",
+                    original_image=original_image,
+                    replicate_id="replicate-000",
+                    generation_seed=seed,
                     action_id=f"zoom-{candidate_index}",
                     action_type="ZOOM",
                     candidate_bbox=bbox,

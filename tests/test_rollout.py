@@ -1,40 +1,86 @@
 from beyond_entropy.rollout import (
-    CandidateProposal,
+    ActionSpec,
+    AgentState,
+    CachedVisualBackend,
+    GroundTruth,
+    InferenceRequest,
     ModelOutput,
-    TaskSample,
+    TaskExample,
+    VisualObservation,
     collect_sibling_rollouts,
     exact_match,
+    infer_many,
 )
 from beyond_entropy.schema import BBox
 
 
 class FakeBackend:
-    def infer(self, *, image_path, question, bbox):
-        if bbox is None:
+    def __init__(self):
+        self.calls = []
+
+    def infer(self, *, state, observations, generation_seed):
+        self.calls.append((state, observations, generation_seed))
+        if len(observations) == 1:
             return ModelOutput("no", 1.0, {"mode": "full"})
-        return ModelOutput("yes", 0.4, {"mode": "crop"})
+        return ModelOutput("yes", 0.4, {"mode": "additive-zoom"})
 
 
-def test_real_backend_collection_separates_pre_and_post_fields():
-    samples = [TaskSample("s1", "/tmp/image.png", "Is it present?", "yes")]
+def test_collection_isolates_target_and_adds_zoom_observation():
+    state = AgentState(
+        state_id="s1",
+        image_id="i1",
+        source_id="source-1",
+        image_path="/tmp/image.png",
+        question="Is it present?",
+    )
+    examples = [TaskExample(state, GroundTruth("yes"))]
+    proposer_inputs = []
 
-    def proposals(_sample):
+    def proposals(agent_state):
+        proposer_inputs.append(agent_state)
+        assert not hasattr(agent_state, "target")
         return [
-            CandidateProposal(
+            ActionSpec(
                 "zoom-0",
                 BBox(0.0, 0.0, 0.5, 0.5),
                 pre_action_features={"proposal_score": 0.8},
             )
         ]
 
+    backend = FakeBackend()
     records = collect_sibling_rollouts(
-        samples,
+        examples,
         proposals=proposals,
-        backend=FakeBackend(),
+        backend=backend,
         scorer=exact_match,
+        generation_seeds=(11, 12),
     )
-    assert len(records) == 2
+    assert len(records) == 4
+    assert proposer_inputs == [state]
+    assert {record.replicate_id for record in records} == {
+        "replicate-000",
+        "replicate-001",
+    }
     assert records[0].correct_before == 0.0
     assert records[1].delta_success == 1.0
     assert records[1].delta_entropy == 0.6
     assert records[1].pre_action_features == {"proposal_score": 0.8}
+    zoom_calls = [call for call in backend.calls if len(call[1]) == 2]
+    assert len(zoom_calls) == 2
+    assert all(call[1][0].kind == "ORIGINAL" for call in zoom_calls)
+    assert all(call[1][1].kind == "ZOOM" for call in zoom_calls)
+
+
+def test_cached_backend_avoids_duplicate_requests():
+    state = AgentState("s1", "i1", "source-1", "/tmp/image.png", "Question?")
+    request = InferenceRequest(
+        state,
+        (VisualObservation("ORIGINAL", state.image_path, "original", None),),
+        5,
+    )
+    raw_backend = FakeBackend()
+    cached = CachedVisualBackend(raw_backend)
+    first = infer_many(cached, [request])
+    second = infer_many(cached, [request])
+    assert first == second
+    assert len(raw_backend.calls) == 1

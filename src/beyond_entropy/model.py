@@ -35,14 +35,17 @@ def _solve_linear_system(matrix: list[list[float]], vector: list[float]) -> list
 
 
 @dataclass(frozen=True)
-class LinearValueModel:
-    """Dependency-free ridge model for pre-action visual value prediction."""
+class LinearGainModel:
+    """Dependency-free ridge model for pre-action success-gain prediction.
+
+    Cost preference is deliberately excluded from both inputs and targets. A
+    policy converts predicted gain to VOI using its runtime lambda.
+    """
 
     encoder: FeatureEncoder
     means: tuple[float, ...]
     scales: tuple[float, ...]
     weights: tuple[float, ...]
-    lambda_cost: float
     alpha: float
 
     @classmethod
@@ -50,11 +53,8 @@ class LinearValueModel:
         cls,
         records: Sequence[ActionRecord],
         *,
-        lambda_cost: float = 0.05,
         alpha: float = 1.0,
-    ) -> "LinearValueModel":
-        if lambda_cost < 0.0:
-            raise ValueError("lambda_cost must be non-negative")
+    ) -> "LinearGainModel":
         if alpha <= 0.0:
             raise ValueError("alpha must be positive")
         zooms = select_zooms(records)
@@ -73,7 +73,7 @@ class LinearValueModel:
             + [(value - means[column]) / scales[column] for column, value in enumerate(row)]
             for row in raw
         ]
-        targets = [record.voi(lambda_cost) for record in zooms]
+        targets = [record.delta_success for record in zooms]
         width = dimension + 1
         xtx = [[0.0 for _ in range(width)] for _ in range(width)]
         xty = [0.0 for _ in range(width)]
@@ -90,11 +90,10 @@ class LinearValueModel:
             means=tuple(means),
             scales=tuple(scales),
             weights=tuple(weights),
-            lambda_cost=lambda_cost,
             alpha=alpha,
         )
 
-    def predict(self, record: ActionRecord) -> float:
+    def predict_gain(self, record: ActionRecord) -> float:
         raw = self.encoder.transform_one(record)
         standardized = [
             (value - self.means[column]) / self.scales[column]
@@ -106,14 +105,13 @@ class LinearValueModel:
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "format_version": 1,
-            "model_type": "linear_ridge_voi",
+            "format_version": 2,
+            "model_type": "linear_ridge_success_gain",
             "encoder": self.encoder.to_dict(),
             "feature_names": list(self.encoder.names),
             "means": list(self.means),
             "scales": list(self.scales),
             "weights": list(self.weights),
-            "lambda_cost": self.lambda_cost,
             "alpha": self.alpha,
         }
 
@@ -126,16 +124,17 @@ class LinearValueModel:
         )
 
     @classmethod
-    def load(cls, path: str | Path) -> "LinearValueModel":
+    def load(cls, path: str | Path) -> "LinearGainModel":
         value = json.loads(Path(path).read_text(encoding="utf-8"))
-        if value.get("format_version") != 1 or value.get("model_type") != "linear_ridge_voi":
-            raise ValueError("unsupported value-model format")
+        if value.get("format_version") != 2 or value.get("model_type") != "linear_ridge_success_gain":
+            raise ValueError(
+                "unsupported gain-model format; retrain v1 models because their targets embed lambda"
+            )
         model = cls(
             encoder=FeatureEncoder.from_dict(value["encoder"]),
             means=tuple(float(item) for item in value["means"]),
             scales=tuple(float(item) for item in value["scales"]),
             weights=tuple(float(item) for item in value["weights"]),
-            lambda_cost=float(value["lambda_cost"]),
             alpha=float(value["alpha"]),
         )
         expected = len(model.encoder.names)
@@ -144,3 +143,8 @@ class LinearValueModel:
         if len(model.weights) != expected + 1:
             raise ValueError("serialized model weight dimensions do not match encoder")
         return model
+
+
+# Compatibility import for early scaffold users. New code should use
+# ``LinearGainModel`` because the model predicts gain, not cost-adjusted VOI.
+LinearValueModel = LinearGainModel

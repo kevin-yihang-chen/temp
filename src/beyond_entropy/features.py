@@ -15,6 +15,7 @@ _FORBIDDEN_FEATURE_PARTS = (
     "reward",
     "target",
     "label",
+    "cost",
 )
 
 
@@ -26,7 +27,6 @@ class FeatureEncoder:
 
     BASE_NAMES = (
         "entropy_before",
-        "tool_cost",
         "bbox_x_center",
         "bbox_y_center",
         "bbox_width",
@@ -66,7 +66,6 @@ class FeatureEncoder:
         center_distance = math.hypot(x_center - 0.5, y_center - 0.5)
         base = [
             record.entropy_before,
-            record.tool_cost,
             x_center,
             y_center,
             bbox.width,
