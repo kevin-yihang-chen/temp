@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=be-confirm-contrasts
 #SBATCH --partition=debug
+#SBATCH --gres=gpu:rtx_4090:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=00:20:00
