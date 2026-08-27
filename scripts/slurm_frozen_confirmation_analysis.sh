@@ -12,6 +12,7 @@ set -euo pipefail
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
 target_rollouts="${repo_dir}/artifacts/confirmation-chartqa-val-1918/qwen3b-c4-concise-seed0/rollouts.jsonl"
+target_provenance="${repo_dir}/artifacts/confirmation-chartqa-val-1918/qwen3b-c4-concise-seed0/rollouts.provenance.json"
 target_manifest="${repo_dir}/data/chartqa-val-confirmation-1918/manifest.jsonl"
 frozen_model="${repo_dir}/artifacts/gate2-transfer-chartqa-vstar/factorized-context-v2-quantile/model.json"
 source_report="${repo_dir}/artifacts/gate2-transfer-chartqa-vstar/factorized-context-v2-quantile/report.json"
@@ -24,6 +25,7 @@ export BE_CODE_REVISION
 BE_CODE_REVISION=$(git rev-parse HEAD)
 "${python_bin}" scripts/analyze_frozen_confirmation.py \
   --target-rollouts "${target_rollouts}" \
+  --target-provenance "${target_provenance}" \
   --target-manifest "${target_manifest}" \
   --frozen-model "${frozen_model}" \
   --source-report "${source_report}" \
