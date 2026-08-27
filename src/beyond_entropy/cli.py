@@ -292,6 +292,8 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
     report["run"] = {
         "synthetic": False,
         "source_data": str(args.data.resolve()),
+        "source_data_sha256": hashlib.sha256(args.data.read_bytes()).hexdigest(),
+        "code_revision": os.environ.get("BE_CODE_REVISION", "unknown"),
         "seed": args.seed,
         "train_fraction": args.train_fraction,
         "split_group": args.split_group,

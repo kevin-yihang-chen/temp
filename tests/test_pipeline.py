@@ -209,4 +209,5 @@ def test_fit_baseline_command_uses_grouped_real_split(tmp_path):
     assert "Frozen-rollout baseline report" in markdown
     assert "not a final benchmark claim" in markdown
     assert report["bootstrap_resamples"] == 10
+    assert len(report["run"]["source_data_sha256"]) == 64
     assert all("bootstrap" in result for result in report["policy_results"])
