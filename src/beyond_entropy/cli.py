@@ -460,12 +460,14 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             return None
 
     provenance_path = args.output.with_suffix(".provenance.json")
+    output_sha256 = hashlib.sha256(args.output.read_bytes()).hexdigest()
     provenance = {
         "scientific_status": "diagnostic; not a benchmark claim",
         "code_revision": os.environ.get("BE_CODE_REVISION"),
         "manifest": str(args.manifest.resolve()),
         "manifest_sha256": manifest_sha256,
         "output": str(args.output.resolve()),
+        "output_sha256": output_sha256,
         "model": args.model,
         "model_revision": args.model_revision,
         "ug_framework_revision": args.ug_revision,
