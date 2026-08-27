@@ -79,6 +79,18 @@ on source validation, fixed crop 0 had utility `0.01459`, compared with
 `0.01265` for the learned ranker, so the ranker must not be interpreted as an
 action-learning improvement unless it beats the fixed alternatives on target.
 
+A second source-only stopping policy was frozen before target outcomes were
+inspected. Its error model uses full context while conditional rescuability uses
+only question and baseline-answer text/form features, excluding entropy. This
+tests whether the development result depends on entropy calibration. The model
+SHA-256 is
+`175c044ceca6b755b8cc16b3f106604cfc1b54396b695bf9c685a81ffd162fa5`,
+its source-fit report SHA-256 is
+`ce1caa6bb08054d4ab30dea7af09e61f95d08eb91598e710275fe441adf43fc4`,
+and the implementation revision is
+`9bf0f02e1dcef475111e8c1555af0ca1cf53fdee`. It is secondary and cannot alter
+the registered full-context primary criterion.
+
 ## Secondary analyses
 
 - Human and augmented validation strata are reported separately.

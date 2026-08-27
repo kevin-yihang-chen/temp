@@ -179,12 +179,16 @@ def main() -> None:
     parser.add_argument("--source-report", type=Path, required=True)
     parser.add_argument("--secondary-action-model", type=Path, required=True)
     parser.add_argument("--secondary-source-report", type=Path, required=True)
+    parser.add_argument("--secondary-text-model", type=Path, required=True)
+    parser.add_argument("--secondary-text-report", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--expected-model-sha256", required=True)
     parser.add_argument("--expected-source-report-sha256", required=True)
     parser.add_argument("--expected-target-manifest-sha256", required=True)
     parser.add_argument("--expected-secondary-action-model-sha256", required=True)
     parser.add_argument("--expected-secondary-source-report-sha256", required=True)
+    parser.add_argument("--expected-secondary-text-model-sha256", required=True)
+    parser.add_argument("--expected-secondary-text-report-sha256", required=True)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
@@ -196,6 +200,8 @@ def main() -> None:
         "target_manifest": sha256(args.target_manifest),
         "secondary_action_model": sha256(args.secondary_action_model),
         "secondary_source_report": sha256(args.secondary_source_report),
+        "secondary_text_model": sha256(args.secondary_text_model),
+        "secondary_text_report": sha256(args.secondary_text_report),
     }
     expected_hashes = {
         "frozen_model": args.expected_model_sha256,
@@ -203,11 +209,14 @@ def main() -> None:
         "target_manifest": args.expected_target_manifest_sha256,
         "secondary_action_model": args.expected_secondary_action_model_sha256,
         "secondary_source_report": args.expected_secondary_source_report_sha256,
+        "secondary_text_model": args.expected_secondary_text_model_sha256,
+        "secondary_text_report": args.expected_secondary_text_report_sha256,
     }
     if actual_hashes != expected_hashes:
         raise ValueError(f"confirmation input hash mismatch: {actual_hashes}")
     model = read_json(args.frozen_model)
     secondary_action_model = read_json(args.secondary_action_model)
+    secondary_text_model = read_json(args.secondary_text_model)
     source_report = read_json(args.source_report)
     source_evaluation = source_report["evaluation"]
     if not isinstance(source_evaluation, dict):
@@ -247,6 +256,21 @@ def main() -> None:
     if not isinstance(policies, dict):
         raise RuntimeError("primary evaluation lacks policy results")
     policies["frozen_factorized_context_quadrant"] = composed_result
+    text_evaluation = evaluate_frozen_factorized_context_model(
+        secondary_text_model,
+        target_records,
+        source_entropy_threshold=source_entropy_threshold,
+        lambda_cost=args.lambda_cost,
+        target_strata=target_strata,
+        bootstrap_resamples=args.bootstrap_resamples,
+        bootstrap_seed=args.bootstrap_seed,
+    )
+    text_policies = text_evaluation["policies"]
+    if not isinstance(text_policies, dict):
+        raise RuntimeError("text-only evaluation lacks policy results")
+    policies["frozen_factorized_context_text"] = text_policies[
+        "frozen_factorized_context"
+    ]
     frozen_gate_scores = score_frozen_factorized_context_model(model, target_records)
     frozen_threshold = model["threshold"]
     if not isinstance(frozen_threshold, (int, float)):
@@ -303,6 +327,15 @@ def main() -> None:
                 bootstrap_seed=args.bootstrap_seed,
             )
         )
+        text_strata = text_evaluation["strata"]
+        if not isinstance(text_strata, dict):
+            raise RuntimeError("text-only evaluation lacks strata")
+        text_stratum = text_strata[stratum]
+        if not isinstance(text_stratum, dict):
+            raise RuntimeError(f"invalid text-only stratum: {stratum}")
+        stratum_results["frozen_factorized_context_text"] = text_stratum[
+            "frozen_factorized_context"
+        ]
         for policy_name, fixed_policy in fixed_policies.items():
             fixed_stratum_result: dict[str, object] = dict(
                 evaluate_policy(subset, fixed_policy, lambda_cost=args.lambda_cost)
@@ -335,6 +368,18 @@ def main() -> None:
         },
         name="frozen_factorized_context_quadrant_action",
     )
+    text_gate_scores = score_frozen_factorized_context_model(
+        secondary_text_model,
+        target_records,
+    )
+    text_threshold = secondary_text_model["threshold"]
+    if not isinstance(text_threshold, (int, float)):
+        raise ValueError("frozen text-only gate threshold must be numeric")
+    text_policy = PrecomputedRescueGatePolicy(
+        text_gate_scores,
+        threshold=float(text_threshold),
+        name="frozen_factorized_context_text_uniform_random_expectation",
+    )
     image_cluster_robustness = {
         "frozen_factorized_context": bootstrap_policy_evaluation(
             target_records,
@@ -360,6 +405,14 @@ def main() -> None:
             seed=args.bootstrap_seed,
             cluster_by="image_id",
         ),
+        "frozen_factorized_context_text": bootstrap_policy_evaluation(
+            target_records,
+            text_policy,
+            lambda_cost=args.lambda_cost,
+            n_resamples=args.bootstrap_resamples,
+            seed=args.bootstrap_seed,
+            cluster_by="image_id",
+        ),
     }
     report: dict[str, object] = {
         "scientific_status": "independent confirmation with frozen source model",
@@ -378,6 +431,10 @@ def main() -> None:
             "secondary_action_model_sha256": actual_hashes["secondary_action_model"],
             "secondary_source_report": str(args.secondary_source_report.resolve()),
             "secondary_source_report_sha256": actual_hashes["secondary_source_report"],
+            "secondary_text_model": str(args.secondary_text_model.resolve()),
+            "secondary_text_model_sha256": actual_hashes["secondary_text_model"],
+            "secondary_text_report": str(args.secondary_text_report.resolve()),
+            "secondary_text_report_sha256": actual_hashes["secondary_text_report"],
             "code_revision": os.environ.get("BE_CODE_REVISION"),
             "lambda_cost": args.lambda_cost,
             "bootstrap_resamples": args.bootstrap_resamples,
