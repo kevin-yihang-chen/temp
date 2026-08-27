@@ -13,6 +13,7 @@ from beyond_entropy.rescue_gate import (
     fit_nested_oof_factorized_rescue_gate,
     fit_nested_oof_rescue_gate,
     fit_nested_oof_two_stage_gate,
+    context_quadrant_action_features,
     pre_action_context_features,
     tune_rescue_gate_threshold,
 )
@@ -212,3 +213,30 @@ def test_nested_oof_two_stage_gate_runs_without_post_action_features():
     assert report["policy_result"]["n_decisions"] == 120
     assert report["action_feature_count"] == 15
     assert len(model["fold_models"]) == 5
+
+
+def test_context_quadrant_action_features_do_not_use_action_outcomes():
+    records = simulate_counterfactual_dataset(n_states=4, num_candidates=4, seed=13)
+    siblings = next(iter(group_by_decision(records).values()))
+    baseline = next(record for record in siblings if record.action_type == "ANSWER")
+    changed_outcomes = replace(
+        baseline,
+        entropy_after=baseline.entropy_after + 10.0,
+        correct_after=1.0 - baseline.correct_after,
+    )
+    features = context_quadrant_action_features(
+        baseline,
+        2,
+        action_count=4,
+    )
+    assert len(features) == 139
+    assert features == context_quadrant_action_features(
+        changed_outcomes,
+        2,
+        action_count=4,
+    )
+    assert features != context_quadrant_action_features(
+        baseline,
+        1,
+        action_count=4,
+    )

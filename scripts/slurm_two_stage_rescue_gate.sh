@@ -28,5 +28,6 @@ BE_CODE_REVISION=$(git rev-parse HEAD)
   --outer-folds 5 \
   --seed 17 \
   --lambda-cost 0.05 \
+  --action-feature-mode "${BE_ACTION_FEATURE_MODE:-semantic}" \
   --bootstrap-resamples 5000 \
   --bootstrap-seed 0

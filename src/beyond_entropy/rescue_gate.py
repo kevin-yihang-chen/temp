@@ -234,6 +234,26 @@ def compact_action_features(
     return [float(value) for value in features.tolist()]
 
 
+def context_quadrant_action_features(
+    baseline: ActionRecord,
+    action_index: int,
+    *,
+    action_count: int,
+) -> list[float]:
+    """Cross pre-action question/confidence context with a fixed crop identity."""
+
+    if action_count <= 1 or not 0 <= action_index < action_count:
+        raise ValueError("action index must identify one of at least two crops")
+    context = pre_action_context_features(baseline)
+    one_hot = [float(index == action_index) for index in range(action_count)]
+    interactions = [
+        indicator * value
+        for indicator in one_hot
+        for value in context
+    ]
+    return [*context, *one_hot, *interactions]
+
+
 def _decision_baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
     baselines: dict[DecisionKey, ActionRecord] = {}
     for key, siblings in group_by_decision(records).items():
@@ -1431,6 +1451,7 @@ def fit_nested_oof_two_stage_gate(
     validation_fraction: float = 0.2,
     lambda_cost: float = 0.05,
     state_feature_mode: str = "context",
+    action_feature_mode: str = "semantic",
     c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
     bootstrap_resamples: int = 5000,
     bootstrap_seed: int = 0,
@@ -1450,6 +1471,8 @@ def fit_nested_oof_two_stage_gate(
         raise ValueError("c_values must contain positive regularization values")
     grouped = group_by_decision(records)
     all_keys = sorted(grouped)
+    if action_feature_mode not in ("semantic", "context-quadrant"):
+        raise ValueError(f"unsupported action feature mode: {action_feature_mode}")
     missing = set(all_keys) - set(decision_by_key)
     if missing:
         raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
@@ -1474,9 +1497,17 @@ def fit_nested_oof_two_stage_gate(
             raise ValueError(f"semantic action IDs differ for decision {key!r}")
         zooms_by_key[key] = zooms
         for action_index, record in enumerate(zooms):
-            action_features[(key, record.action_id)] = compact_action_features(
-                decision_by_key[key],
-                action_index,
+            action_features[(key, record.action_id)] = (
+                compact_action_features(
+                    decision_by_key[key],
+                    action_index,
+                )
+                if action_feature_mode == "semantic"
+                else context_quadrant_action_features(
+                    baselines[key],
+                    action_index,
+                    action_count=len(zooms),
+                )
             )
     outer_folds = _grouped_crossfit_records(
         records,
@@ -1766,6 +1797,7 @@ def fit_nested_oof_two_stage_gate(
         ),
         "seed": seed,
         "state_feature_mode": state_feature_mode,
+        "action_feature_mode": action_feature_mode,
         "state_feature_count": len(state_features[all_keys[0]]),
         "action_feature_count": len(next(iter(action_features.values()))),
         "split_group": split_group,
@@ -1795,6 +1827,7 @@ def fit_nested_oof_two_stage_gate(
         "model_type": "nested_oof_two_stage_state_and_action_gate",
         "seed": seed,
         "state_feature_mode": state_feature_mode,
+        "action_feature_mode": action_feature_mode,
         "n_outer_folds": n_outer_folds,
         "fold_models": fold_models,
     }

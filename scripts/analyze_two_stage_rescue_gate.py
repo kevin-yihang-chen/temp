@@ -63,6 +63,11 @@ def main() -> None:
     parser.add_argument("--outer-folds", type=int, default=5)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
+    parser.add_argument(
+        "--action-feature-mode",
+        choices=("semantic", "context-quadrant"),
+        default="semantic",
+    )
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
     args = parser.parse_args()
@@ -80,11 +85,12 @@ def main() -> None:
         n_outer_folds=args.outer_folds,
         lambda_cost=args.lambda_cost,
         state_feature_mode="context",
+        action_feature_mode=args.action_feature_mode,
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
         seed=args.seed,
     )
-    report = {
+    report: dict[str, object] = {
         "scientific_status": "exploratory nested grouped OOF two-stage diagnostic",
         "run": {
             "rollouts": str(args.rollouts.resolve()),
@@ -95,6 +101,7 @@ def main() -> None:
             "outer_folds": args.outer_folds,
             "seed": args.seed,
             "lambda_cost": args.lambda_cost,
+            "action_feature_mode": args.action_feature_mode,
             "bootstrap_resamples": args.bootstrap_resamples,
             "bootstrap_seed": args.bootstrap_seed,
         },
