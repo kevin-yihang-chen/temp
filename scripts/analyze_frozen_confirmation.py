@@ -7,10 +7,17 @@ import os
 from pathlib import Path
 
 from beyond_entropy.dataset import group_by_decision, read_jsonl
+from beyond_entropy.metrics import bootstrap_policy_evaluation
+from beyond_entropy.rescue_gate import (
+    PrecomputedActionGatePolicy,
+    PrecomputedRescueGatePolicy,
+)
 from beyond_entropy.schema import ActionRecord
-from beyond_entropy.transfer_gate import evaluate_frozen_factorized_context_model
 from beyond_entropy.transfer_gate import (
     evaluate_frozen_composed_context_quadrant_policy,
+    evaluate_frozen_factorized_context_model,
+    score_frozen_factorized_context_model,
+    select_frozen_context_quadrant_actions,
 )
 
 
@@ -261,6 +268,45 @@ def main() -> None:
                 bootstrap_seed=args.bootstrap_seed,
             )
         )
+    frozen_gate_scores = score_frozen_factorized_context_model(model, target_records)
+    primary_policy = PrecomputedRescueGatePolicy(
+        frozen_gate_scores,
+        threshold=float(model["threshold"]),
+        name="frozen_factorized_context_uniform_random_expectation",
+    )
+    frozen_top_actions = select_frozen_context_quadrant_actions(
+        secondary_action_model,
+        target_records,
+    )
+    secondary_policy = PrecomputedActionGatePolicy(
+        {
+            key: (
+                action_id
+                if frozen_gate_scores[key] >= float(model["threshold"])
+                else None
+            )
+            for key, action_id in frozen_top_actions.items()
+        },
+        name="frozen_factorized_context_quadrant_action",
+    )
+    image_cluster_robustness = {
+        "frozen_factorized_context": bootstrap_policy_evaluation(
+            target_records,
+            primary_policy,
+            lambda_cost=args.lambda_cost,
+            n_resamples=args.bootstrap_resamples,
+            seed=args.bootstrap_seed,
+            cluster_by="image_id",
+        ),
+        "frozen_factorized_context_quadrant": bootstrap_policy_evaluation(
+            target_records,
+            secondary_policy,
+            lambda_cost=args.lambda_cost,
+            n_resamples=args.bootstrap_resamples,
+            seed=args.bootstrap_seed,
+            cluster_by="image_id",
+        ),
+    }
     report: dict[str, object] = {
         "scientific_status": "independent confirmation with frozen source model",
         "run": {
@@ -284,6 +330,7 @@ def main() -> None:
             "bootstrap_seed": args.bootstrap_seed,
         },
         "input_validation": input_validation,
+        "image_cluster_bootstrap_robustness": image_cluster_robustness,
         "evaluation": evaluation,
     }
     json_path = args.output_dir / "report.json"

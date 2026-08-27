@@ -77,6 +77,10 @@ The implementation was frozen at code revision
 ## Secondary analyses
 
 - Human and augmented validation strata are reported separately.
+- Because multiple questions may share an image, image-cluster bootstrap
+  intervals are reported as a stricter robustness check alongside the frozen
+  state-bootstrap primary analysis; they do not replace the registered primary
+  criterion.
 - Helpful, harmful, and transition counts are reported.
 - A cost frontier may be reported, but it cannot replace the registered
   `lambda=0.05` primary result.

@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import asdict, dataclass
 from statistics import mean
-from typing import Iterable, Sequence
+from typing import Iterable, Literal, Sequence
 
 from .dataset import group_by_decision
 from .policies import Policy, realized_policy_utility
@@ -36,6 +36,8 @@ class _PolicyOutcome:
 
     decision_key: tuple[str, str]
     state_id: str
+    image_id: str
+    source_id: str
     outcome: float
     baseline_outcome: float
     tool_calls: int
@@ -142,6 +144,8 @@ def _policy_outcomes(
             _PolicyOutcome(
                 decision_key=decision_key,
                 state_id=answer.state_id,
+                image_id=answer.image_id,
+                source_id=answer.source_id,
                 outcome=selected.correct_after,
                 baseline_outcome=answer.correct_after,
                 tool_calls=decision.tool_calls,
@@ -299,29 +303,31 @@ def bootstrap_policy_evaluation(
     n_resamples: int = 2000,
     confidence: float = 0.95,
     seed: int = 0,
+    cluster_by: Literal["state_id", "image_id", "source_id"] = "state_id",
 ) -> dict[str, object]:
-    """Bootstrap a fixed policy evaluation using whole states as clusters."""
+    """Bootstrap a fixed policy evaluation using whole deployment groups."""
 
     if n_resamples <= 0:
         raise ValueError("n_resamples must be positive")
     if not 0.0 < confidence < 1.0:
         raise ValueError("confidence must be between zero and one")
     outcomes = _policy_outcomes(records, policy, lambda_cost=lambda_cost)
-    by_state: dict[str, list[_PolicyOutcome]] = {}
+    by_cluster: dict[str, list[_PolicyOutcome]] = {}
     for outcome in outcomes:
-        by_state.setdefault(outcome.state_id, []).append(outcome)
-    state_ids = sorted(by_state)
+        cluster_id = getattr(outcome, cluster_by)
+        by_cluster.setdefault(cluster_id, []).append(outcome)
+    cluster_ids = sorted(by_cluster)
     rng = random.Random(seed)
-    state_vectors = {
-        state_id: _policy_sufficient_vector(state_outcomes)
-        for state_id, state_outcomes in by_state.items()
+    cluster_vectors = {
+        cluster_id: _policy_sufficient_vector(cluster_outcomes)
+        for cluster_id, cluster_outcomes in by_cluster.items()
     }
-    vector_width = len(next(iter(state_vectors.values())))
+    vector_width = len(next(iter(cluster_vectors.values())))
     samples: dict[str, list[float]] = {}
     for _ in range(n_resamples):
         totals = [0.0] * vector_width
-        for state_id in rng.choices(state_ids, k=len(state_ids)):
-            vector = state_vectors[state_id]
+        for cluster_id in rng.choices(cluster_ids, k=len(cluster_ids)):
+            vector = cluster_vectors[cluster_id]
             for index, component_value in enumerate(vector):
                 totals[index] += component_value
         summary = _summarize_policy_vector(totals, policy_name=policy.name)
@@ -341,13 +347,14 @@ def bootstrap_policy_evaluation(
             "ci_high": _percentile(values, 1.0 - alpha) if values else None,
         }
     return {
-        "resampling_unit": "state_id",
+        "resampling_unit": cluster_by,
         "confidence": confidence,
         "n_resamples": n_resamples,
         "seed": seed,
         "policy": policy.name,
         "lambda_cost": lambda_cost,
-        "n_states": len(state_ids),
+        "n_states": len({outcome.state_id for outcome in outcomes}),
+        "n_clusters": len(cluster_ids),
         "n_decisions": len(outcomes),
         "metrics": intervals,
     }

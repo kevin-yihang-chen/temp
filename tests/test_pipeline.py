@@ -177,6 +177,17 @@ def test_policy_bootstrap_fixes_decisions_and_resamples_whole_states():
     assert metrics["mean_policy_utility"]["ci_low"] <= metrics[
         "mean_policy_utility"
     ]["ci_high"]
+    image_clustered = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=0.05,
+        n_resamples=50,
+        seed=6,
+        cluster_by="image_id",
+    )
+    assert image_clustered["resampling_unit"] == "image_id"
+    assert image_clustered["n_states"] == 12
+    assert image_clustered["n_clusters"] == 6
 
 
 def test_fit_baseline_command_uses_grouped_real_split(tmp_path):
