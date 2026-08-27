@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -19,10 +20,15 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--dataset-revision")
     parser.add_argument("--cache-dir", type=Path)
+    parser.add_argument(
+        "--arrow-file",
+        type=Path,
+        help="load a previously materialized datasets Arrow split without Hub access",
+    )
     args = parser.parse_args()
 
     try:
-        from datasets import load_dataset
+        from datasets import Dataset, load_dataset
     except ImportError as exc:
         raise SystemExit(
             "Install the benchmark dependency with: pip install -e '.[benchmark]'"
@@ -30,12 +36,15 @@ def main() -> None:
 
     spec = BENCHMARK_SPECS[args.task]
     revision = args.dataset_revision or spec.default_revision
-    dataset = load_dataset(
-        spec.dataset_id,
-        split=spec.split,
-        revision=revision,
-        cache_dir=str(args.cache_dir) if args.cache_dir else None,
-    )
+    if args.arrow_file:
+        dataset = Dataset.from_file(str(args.arrow_file.resolve()))
+    else:
+        dataset = load_dataset(
+            spec.dataset_id,
+            split=spec.split,
+            revision=revision,
+            cache_dir=str(args.cache_dir) if args.cache_dir else None,
+        )
     labels = [str(label) for label in dataset[spec.group_field]]
     source_indices = stratified_sample_indices(
         labels,
@@ -52,6 +61,18 @@ def main() -> None:
         output_dir=args.output_dir,
         seed=args.seed,
     )
+    if args.arrow_file:
+        digest = hashlib.sha256()
+        with args.arrow_file.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        result["source_arrow"] = str(args.arrow_file.resolve())
+        result["source_arrow_sha256"] = digest.hexdigest()
+        provenance_path = args.output_dir / "manifest.provenance.json"
+        provenance_path.write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     print(json.dumps(result, indent=2, sort_keys=True))
 
 
