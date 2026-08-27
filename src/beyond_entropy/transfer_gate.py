@@ -8,7 +8,9 @@ from .metrics import bootstrap_policy_evaluation, evaluate_policy
 from .policies import EntropySearchPolicy, ExpectedRandomZoomPolicy, OracleVOIPolicy
 from .rescue_gate import (
     DecisionKey,
+    PrecomputedActionGatePolicy,
     PrecomputedRescueGatePolicy,
+    context_quadrant_action_features,
     pre_action_context_features,
     tune_rescue_gate_threshold,
 )
@@ -88,6 +90,52 @@ def score_frozen_factorized_context_model(
         )
         scores[key] = sigmoid(error_logit) * sigmoid(rescue_logit)
     return scores
+
+
+def select_frozen_context_quadrant_actions(
+    model: Mapping[str, Any],
+    records: Sequence[ActionRecord],
+) -> dict[DecisionKey, str]:
+    """Select one crop using serialized context-by-quadrant logistic parameters."""
+
+    if model.get("model_type") != "context_quadrant_action_ranker_transfer":
+        raise ValueError("unsupported frozen context-quadrant action model type")
+    baselines = _baselines(records)
+    grouped = group_by_decision(records)
+    center = [float(value) for value in model["action_scaler_mean"]]
+    scale = [float(value) for value in model["action_scaler_scale"]]
+    coefficient = [float(value) for value in model["action_coefficient"]]
+    if len(center) != len(scale) or len(center) != len(coefficient):
+        raise ValueError("frozen action model has inconsistent feature dimensions")
+    if any(value <= 0.0 for value in scale):
+        raise ValueError("frozen action model has non-positive feature scales")
+    selected = {}
+    for key in sorted(grouped):
+        zooms = sorted(
+            (record for record in grouped[key] if record.action_type == "ZOOM"),
+            key=lambda record: record.action_id,
+        )
+        scored = []
+        for index, zoom in enumerate(zooms):
+            features = context_quadrant_action_features(
+                baselines[key],
+                index,
+                action_count=len(zooms),
+            )
+            if len(features) != len(center):
+                raise ValueError("target action features differ from the frozen model")
+            score = float(model["action_intercept"]) + sum(
+                weight * (value - mean_value) / scale_value
+                for weight, value, mean_value, scale_value in zip(
+                    coefficient,
+                    features,
+                    center,
+                    scale,
+                )
+            )
+            scored.append((score, zoom.action_id))
+        selected[key] = max(scored)[1]
+    return selected
 
 
 def _baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
@@ -281,6 +329,209 @@ def evaluate_frozen_factorized_context_model(
         "strata": strata,
         "primary_confirmation_criterion": criterion,
     }
+
+
+def fit_context_quadrant_action_ranker_transfer(
+    source_records: Sequence[ActionRecord],
+    frozen_gate_model: Mapping[str, Any],
+    *,
+    source_split_group: str = "image_id",
+    source_train_fraction: float = 0.8,
+    lambda_cost: float = 0.05,
+    c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Fit a crop ranker while retaining a previously frozen state gate."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if not c_values or any(value <= 0.0 for value in c_values):
+        raise ValueError("c_values must contain positive regularization values")
+    source_train, source_validation = split_by_group(
+        source_records,
+        group=source_split_group,  # type: ignore[arg-type]
+        train_fraction=source_train_fraction,
+        seed=seed,
+    )
+    grouped = group_by_decision(source_records)
+    baselines = _baselines(source_records)
+    train_keys = sorted(group_by_decision(source_train))
+    validation_keys = sorted(group_by_decision(source_validation))
+    wrong_train_keys = [
+        key for key in train_keys if baselines[key].correct_before < 0.5
+    ]
+
+    def action_rows(keys: Sequence[DecisionKey]) -> tuple[list[list[float]], list[int]]:
+        features = []
+        labels = []
+        for key in keys:
+            zooms = sorted(
+                (record for record in grouped[key] if record.action_type == "ZOOM"),
+                key=lambda record: record.action_id,
+            )
+            for index, zoom in enumerate(zooms):
+                features.append(
+                    context_quadrant_action_features(
+                        baselines[key],
+                        index,
+                        action_count=len(zooms),
+                    )
+                )
+                labels.append(int(zoom.delta_success > 0.0))
+        return features, labels
+
+    train_features, train_labels = action_rows(wrong_train_keys)
+    scaler = StandardScaler().fit(np.asarray(train_features, dtype=np.float64))
+    transformed_train = scaler.transform(np.asarray(train_features, dtype=np.float64))
+    gate_scores = score_frozen_factorized_context_model(
+        frozen_gate_model,
+        source_validation,
+    )
+    candidates: list[tuple[float, float, Any, dict[DecisionKey, str | None]]] = []
+    for c_value in c_values:
+        action_model = LogisticRegression(
+            C=float(c_value),
+            class_weight="balanced",
+            solver="liblinear",
+            max_iter=2000,
+            random_state=seed,
+        ).fit(transformed_train, np.asarray(train_labels, dtype=np.int64))
+        decisions: dict[DecisionKey, str | None] = {}
+        for key in validation_keys:
+            zooms = sorted(
+                (record for record in grouped[key] if record.action_type == "ZOOM"),
+                key=lambda record: record.action_id,
+            )
+            features = np.asarray(
+                [
+                    context_quadrant_action_features(
+                        baselines[key],
+                        index,
+                        action_count=len(zooms),
+                    )
+                    for index in range(len(zooms))
+                ],
+                dtype=np.float64,
+            )
+            scores = action_model.decision_function(scaler.transform(features))
+            selected_index = max(
+                range(len(zooms)),
+                key=lambda index: (float(scores[index]), zooms[index].action_id),
+            )
+            decisions[key] = (
+                zooms[selected_index].action_id
+                if gate_scores[key] >= float(frozen_gate_model["threshold"])
+                else None
+            )
+        result = evaluate_policy(
+            source_validation,
+            PrecomputedActionGatePolicy(decisions),
+            lambda_cost=lambda_cost,
+        )
+        utility_value = result["mean_policy_utility"]
+        if not isinstance(utility_value, (int, float)):
+            raise RuntimeError("policy utility must be numeric")
+        candidates.append(
+            (
+                float(utility_value),
+                -float(c_value),
+                action_model,
+                decisions,
+            )
+        )
+    validation_utility, negative_c, action_model, decisions = max(
+        candidates,
+        key=lambda value: value[:2],
+    )
+    policy = PrecomputedActionGatePolicy(
+        decisions,
+        name="frozen_factorized_context_quadrant_action",
+    )
+    policy_result = _evaluated(
+        source_validation,
+        policy,
+        lambda_cost=lambda_cost,
+        bootstrap_resamples=bootstrap_resamples,
+        bootstrap_seed=bootstrap_seed,
+    )
+    validation_action_features, validation_action_labels = action_rows(
+        [key for key in validation_keys if baselines[key].correct_before < 0.5]
+    )
+    validation_action_scores = action_model.decision_function(
+        scaler.transform(np.asarray(validation_action_features, dtype=np.float64))
+    )
+    report = {
+        "scientific_status": (
+            "source-only secondary-policy fit; gate and all action-model selection "
+            "exclude the independent target"
+        ),
+        "seed": seed,
+        "source_split_group": source_split_group,
+        "source_train_fraction": source_train_fraction,
+        "source_action_train_decisions": len(wrong_train_keys),
+        "source_validation_decisions": len(validation_keys),
+        "selected_action_c": -negative_c,
+        "validation_utility": validation_utility,
+        "validation_action_roc_auc": float(
+            roc_auc_score(validation_action_labels, validation_action_scores)
+        ),
+        "validation_action_average_precision": float(
+            average_precision_score(validation_action_labels, validation_action_scores)
+        ),
+        "policy_result": policy_result,
+    }
+    model_payload = {
+        "model_type": "context_quadrant_action_ranker_transfer",
+        "seed": seed,
+        "selected_action_c": -negative_c,
+        "action_count": 4,
+        "action_scaler_mean": [float(value) for value in scaler.mean_.tolist()],
+        "action_scaler_scale": [float(value) for value in scaler.scale_.tolist()],
+        "action_coefficient": [float(value) for value in action_model.coef_[0].tolist()],
+        "action_intercept": float(action_model.intercept_[0]),
+    }
+    return report, model_payload
+
+
+def evaluate_frozen_composed_context_quadrant_policy(
+    gate_model: Mapping[str, Any],
+    action_model: Mapping[str, Any],
+    target_records: Sequence[ActionRecord],
+    *,
+    lambda_cost: float = 0.05,
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+) -> dict[str, Any]:
+    """Evaluate frozen stopping and action models without target fitting."""
+
+    gate_scores = score_frozen_factorized_context_model(gate_model, target_records)
+    top_actions = select_frozen_context_quadrant_actions(action_model, target_records)
+    selected_actions = {
+        key: (
+            action_id
+            if gate_scores[key] >= float(gate_model["threshold"])
+            else None
+        )
+        for key, action_id in top_actions.items()
+    }
+    return _evaluated(
+        target_records,
+        PrecomputedActionGatePolicy(
+            selected_actions,
+            name="frozen_factorized_context_quadrant_action",
+        ),
+        lambda_cost=lambda_cost,
+        bootstrap_resamples=bootstrap_resamples,
+        bootstrap_seed=bootstrap_seed,
+    )
 
 
 def fit_factorized_context_transfer(

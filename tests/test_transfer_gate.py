@@ -4,7 +4,9 @@ import pytest
 
 from beyond_entropy.transfer_gate import (
     evaluate_frozen_factorized_context_model,
+    evaluate_frozen_composed_context_quadrant_policy,
     fit_factorized_context_transfer,
+    fit_context_quadrant_action_ranker_transfer,
     threshold_for_target_rate,
 )
 
@@ -59,3 +61,18 @@ def test_factorized_context_transfer_never_tunes_on_target_labels():
     ] == pytest.approx(
         report["policies"]["factorized_context_transfer"]["mean_policy_utility"]
     )
+    action_report, action_model = fit_context_quadrant_action_ranker_transfer(
+        source,
+        model,
+        c_values=(0.1,),
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    composed = evaluate_frozen_composed_context_quadrant_policy(
+        model,
+        action_model,
+        target,
+        bootstrap_resamples=20,
+    )
+    assert action_report["source_validation_decisions"] > 0
+    assert composed["n_decisions"] == 80
