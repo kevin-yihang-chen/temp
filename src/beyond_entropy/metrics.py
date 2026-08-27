@@ -216,6 +216,79 @@ def evaluate_policy(
     )
 
 
+def _policy_sufficient_vector(outcomes: Sequence[_PolicyOutcome]) -> tuple[float, ...]:
+    return (
+        float(len(outcomes)),
+        sum(outcome.outcome for outcome in outcomes),
+        sum(outcome.baseline_outcome for outcome in outcomes),
+        float(sum(outcome.tool_calls for outcome in outcomes)),
+        sum(outcome.visual_cost for outcome in outcomes),
+        sum(outcome.success_gain for outcome in outcomes),
+        sum(outcome.utility for outcome in outcomes),
+        sum(outcome.oracle_regret for outcome in outcomes),
+        float(sum(outcome.tool_used for outcome in outcomes)),
+        float(sum(outcome.zoom_selected for outcome in outcomes)),
+        float(sum(outcome.unnecessary_tool for outcome in outcomes)),
+        float(sum(outcome.stopped for outcome in outcomes)),
+        float(sum(outcome.missed_information for outcome in outcomes)),
+        float(sum(outcome.correct_stop for outcome in outcomes)),
+    )
+
+
+def _summarize_policy_vector(
+    vector: Sequence[float],
+    *,
+    policy_name: str,
+) -> dict[str, float | int | str | None]:
+    (
+        n_decisions,
+        outcome_sum,
+        baseline_sum,
+        tool_call_sum,
+        visual_cost_sum,
+        success_gain_sum,
+        utility_sum,
+        regret_sum,
+        tool_decisions,
+        zoom_decisions,
+        unnecessary_tools,
+        stopped_decisions,
+        missed_information,
+        correct_stops,
+    ) = vector
+    if n_decisions <= 0.0:
+        raise ValueError("policy evaluation requires at least one outcome")
+    accuracy = outcome_sum / n_decisions
+    baseline_accuracy = baseline_sum / n_decisions
+    avg_calls = tool_call_sum / n_decisions
+    mean_utility = utility_sum / n_decisions
+    return {
+        "policy": policy_name,
+        "n_decisions": int(n_decisions),
+        "accuracy": accuracy,
+        "answer_now_accuracy": baseline_accuracy,
+        "accuracy_gain": accuracy - baseline_accuracy,
+        "avg_tool_calls": avg_calls,
+        "avg_visual_cost": visual_cost_sum / n_decisions,
+        "tool_use_rate": tool_decisions / n_decisions,
+        "zoom_rate": zoom_decisions / n_decisions,
+        "unnecessary_tool_call_rate": (
+            unnecessary_tools / tool_decisions if tool_decisions else 0.0
+        ),
+        "missed_information_rate": (
+            missed_information / stopped_decisions if stopped_decisions else 0.0
+        ),
+        "correct_stopping_rate": correct_stops / n_decisions,
+        "mean_success_gain": success_gain_sum / n_decisions,
+        "mean_policy_utility": mean_utility,
+        "mean_realized_voi": mean_utility,
+        "mean_oracle_regret": regret_sum / n_decisions,
+        "marginal_accuracy_gain_per_tool_call": (
+            (accuracy - baseline_accuracy) / avg_calls if avg_calls > 0.0 else None
+        ),
+    }
+
+
 def bootstrap_policy_evaluation(
     records: Sequence[ActionRecord],
     policy: Policy,
@@ -237,14 +310,19 @@ def bootstrap_policy_evaluation(
         by_state.setdefault(outcome.state_id, []).append(outcome)
     state_ids = sorted(by_state)
     rng = random.Random(seed)
+    state_vectors = {
+        state_id: _policy_sufficient_vector(state_outcomes)
+        for state_id, state_outcomes in by_state.items()
+    }
+    vector_width = len(next(iter(state_vectors.values())))
     samples: dict[str, list[float]] = {}
     for _ in range(n_resamples):
-        sampled = [
-            outcome
-            for state_id in rng.choices(state_ids, k=len(state_ids))
-            for outcome in by_state[state_id]
-        ]
-        summary = _summarize_policy_outcomes(sampled, policy_name=policy.name)
+        totals = [0.0] * vector_width
+        for state_id in rng.choices(state_ids, k=len(state_ids)):
+            vector = state_vectors[state_id]
+            for index, component_value in enumerate(vector):
+                totals[index] += component_value
+        summary = _summarize_policy_vector(totals, policy_name=policy.name)
         for name, value in summary.items():
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 samples.setdefault(name, []).append(float(value))
