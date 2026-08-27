@@ -73,6 +73,11 @@ and its source-only fit report SHA-256 is
 `c0510901bc351ea9bac799497775ff53f7bb42b23ad574b555a7995c9922f35c`.
 The implementation was frozen at code revision
 `92de08347c4cb0c1e066e54365297f19df24a115`.
+All four same-gate fixed-quadrant policies are also reported as secondary
+baselines. This baseline set was registered before target rollout completion;
+on source validation, fixed crop 0 had utility `0.01459`, compared with
+`0.01265` for the learned ranker, so the ranker must not be interpreted as an
+action-learning improvement unless it beats the fixed alternatives on target.
 
 ## Secondary analyses
 

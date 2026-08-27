@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from beyond_entropy.dataset import group_by_decision, read_jsonl
-from beyond_entropy.metrics import bootstrap_policy_evaluation
+from beyond_entropy.metrics import bootstrap_policy_evaluation, evaluate_policy
 from beyond_entropy.rescue_gate import (
     PrecomputedActionGatePolicy,
     PrecomputedRescueGatePolicy,
@@ -247,6 +247,41 @@ def main() -> None:
     if not isinstance(policies, dict):
         raise RuntimeError("primary evaluation lacks policy results")
     policies["frozen_factorized_context_quadrant"] = composed_result
+    frozen_gate_scores = score_frozen_factorized_context_model(model, target_records)
+    frozen_threshold = model["threshold"]
+    if not isinstance(frozen_threshold, (int, float)):
+        raise ValueError("frozen gate threshold must be numeric")
+    grouped_target = group_by_decision(target_records)
+    fixed_policies = {}
+    for action_index in range(4):
+        selected_actions = {}
+        for key, siblings in grouped_target.items():
+            zooms = sorted(
+                (record for record in siblings if record.action_type == "ZOOM"),
+                key=lambda record: record.action_id,
+            )
+            selected_actions[key] = (
+                zooms[action_index].action_id
+                if frozen_gate_scores[key] >= float(frozen_threshold)
+                else None
+            )
+        fixed_policy = PrecomputedActionGatePolicy(
+            selected_actions,
+            name=f"frozen_factorized_context_fixed_crop_{action_index}",
+        )
+        fixed_result: dict[str, object] = dict(
+            evaluate_policy(target_records, fixed_policy, lambda_cost=args.lambda_cost)
+        )
+        fixed_result["bootstrap"] = bootstrap_policy_evaluation(
+            target_records,
+            fixed_policy,
+            lambda_cost=args.lambda_cost,
+            n_resamples=args.bootstrap_resamples,
+            seed=args.bootstrap_seed,
+        )
+        policy_name = f"frozen_factorized_context_fixed_crop_{action_index}"
+        policies[policy_name] = fixed_result
+        fixed_policies[policy_name] = fixed_policy
     strata = evaluation["strata"]
     if not isinstance(strata, dict):
         raise RuntimeError("primary evaluation lacks stratum results")
@@ -268,10 +303,18 @@ def main() -> None:
                 bootstrap_seed=args.bootstrap_seed,
             )
         )
-    frozen_gate_scores = score_frozen_factorized_context_model(model, target_records)
-    frozen_threshold = model["threshold"]
-    if not isinstance(frozen_threshold, (int, float)):
-        raise ValueError("frozen gate threshold must be numeric")
+        for policy_name, fixed_policy in fixed_policies.items():
+            fixed_stratum_result: dict[str, object] = dict(
+                evaluate_policy(subset, fixed_policy, lambda_cost=args.lambda_cost)
+            )
+            fixed_stratum_result["bootstrap"] = bootstrap_policy_evaluation(
+                subset,
+                fixed_policy,
+                lambda_cost=args.lambda_cost,
+                n_resamples=args.bootstrap_resamples,
+                seed=args.bootstrap_seed,
+            )
+            stratum_results[policy_name] = fixed_stratum_result
     primary_policy = PrecomputedRescueGatePolicy(
         frozen_gate_scores,
         threshold=float(frozen_threshold),
@@ -304,6 +347,14 @@ def main() -> None:
         "frozen_factorized_context_quadrant": bootstrap_policy_evaluation(
             target_records,
             secondary_policy,
+            lambda_cost=args.lambda_cost,
+            n_resamples=args.bootstrap_resamples,
+            seed=args.bootstrap_seed,
+            cluster_by="image_id",
+        ),
+        "frozen_factorized_context_fixed_crop_0": bootstrap_policy_evaluation(
+            target_records,
+            fixed_policies["frozen_factorized_context_fixed_crop_0"],
             lambda_cost=args.lambda_cost,
             n_resamples=args.bootstrap_resamples,
             seed=args.bootstrap_seed,
