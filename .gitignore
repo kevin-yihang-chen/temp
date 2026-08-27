@@ -10,3 +10,4 @@ artifacts/*
 data/
 checkpoints/
 slurm-*.out
+.slurm-notify-email

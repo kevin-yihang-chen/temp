@@ -85,8 +85,12 @@ rollouts plus `.diagnostic.json` and `.provenance.json` sidecars. To validate th
 locally cached 7B model on one synthetic image through Slurm:
 
 ```bash
-sbatch scripts/slurm_qwen_smoke.sh
+scripts/submit_qwen_smoke.sh
 ```
+
+The submit wrapper reads the notification recipient from the private,
+git-ignored `.slurm-notify-email` file and requests email for all Slurm state
+changes. This keeps contact information out of the public repository.
 
 ## Semantic gain head
 

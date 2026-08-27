@@ -6,6 +6,7 @@
 #SBATCH --mem=48G
 #SBATCH --time=00:15:00
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-%j.out
+#SBATCH --mail-type=ALL
 
 set -euo pipefail
 
