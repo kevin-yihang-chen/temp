@@ -91,6 +91,7 @@ def _manifest_payload(
     image_id: str,
     image_path: str,
     dataset_revision: str,
+    state_namespace: str | None = None,
 ) -> dict[str, Any]:
     if task == "vstar":
         question_id = str(row["question_id"])
@@ -115,10 +116,11 @@ def _manifest_payload(
         }
     if task == "chartqa":
         chart_type = str(row["type"])
+        namespace = state_namespace or "chartqa"
         return {
-            "state_id": f"chartqa:{source_index:05d}",
+            "state_id": f"{namespace}:{source_index:05d}",
             "image_id": image_id,
-            "source_id": f"chartqa:{source_index:05d}",
+            "source_id": f"{namespace}:{source_index:05d}",
             "image_path": image_path,
             "question": str(row["question"]).strip() + " Answer:",
             "target": str(row["answer"]).strip(),
@@ -139,6 +141,7 @@ def export_benchmark_manifest(
     dataset_revision: str,
     output_dir: str | Path,
     seed: int,
+    state_namespace: str | None = None,
 ) -> dict[str, Any]:
     """Save decoded images and a frozen manifest with a provenance sidecar."""
 
@@ -167,6 +170,7 @@ def export_benchmark_manifest(
                 image_id=image_id,
                 image_path=f"images/{image_name}",
                 dataset_revision=dataset_revision,
+                state_namespace=state_namespace,
             )
         )
     state_ids = [str(payload["state_id"]) for payload in payloads]
@@ -193,6 +197,7 @@ def export_benchmark_manifest(
         "source_indices": list(source_indices),
         "stratum_counts": dict(sorted(stratum_counts.items())),
         "unique_images": len({payload["image_id"] for payload in payloads}),
+        "state_namespace": state_namespace or task,
         "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "python": sys.version.split()[0],
         "packages": {},

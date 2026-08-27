@@ -78,6 +78,30 @@ def test_export_does_not_duplicate_existing_vstar_instruction(tmp_path):
     assert payload["question"].count(instruction) == 1
 
 
+def test_export_chartqa_supports_split_specific_state_namespace(tmp_path):
+    row = {
+        "image": Image.new("RGB", (10, 10), "white"),
+        "type": "human_val",
+        "question": "Which bar is highest?",
+        "answer": "blue",
+    }
+    result = export_benchmark_manifest(
+        [row],
+        source_indices=[0],
+        task="chartqa",
+        dataset_id="HuggingFaceM4/ChartQA",
+        dataset_revision="revision",
+        output_dir=tmp_path,
+        seed=0,
+        state_namespace="chartqa-val",
+    )
+    payload = json.loads((tmp_path / "manifest.jsonl").read_text())
+    assert payload["state_id"] == "chartqa-val:00000"
+    assert payload["source_id"] == "chartqa-val:00000"
+    assert payload["stratum"] == "human_val"
+    assert result["state_namespace"] == "chartqa-val"
+
+
 def test_collect_qwen_rejects_changed_manifest_before_model_load(tmp_path):
     manifest = tmp_path / "manifest.jsonl"
     manifest.write_text("{}\n", encoding="utf-8")
