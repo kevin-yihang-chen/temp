@@ -52,17 +52,20 @@ def validate_confirmation_inputs(
     provenance: dict[str, object],
     *,
     target_rollouts: Path,
+    expected_code_revision: str,
+    expected_manifest_sha256: str,
+    expected_examples: int,
 ) -> dict[str, object]:
     """Fail closed on incomplete or protocol-drifted confirmation inputs."""
 
     expected_provenance: dict[str, object] = {
-        "code_revision": "ff193264c295dca977c653b6d999290786bf3bba",
-        "manifest_sha256": "d3178218853b10447228963e839716f0eac768b51bdc0f5b4a83268d3819b58b",
+        "code_revision": expected_code_revision,
+        "manifest_sha256": expected_manifest_sha256,
         "model": "Qwen/Qwen2.5-VL-3B-Instruct",
         "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
         "scorer": "chartqa",
-        "examples": 1918,
-        "completed_examples": 1918,
+        "examples": expected_examples,
+        "completed_examples": expected_examples,
         "candidate_count": 4,
         "generation_seeds": [0],
         "max_new_tokens": 16,
@@ -88,7 +91,8 @@ def validate_confirmation_inputs(
         }
     if mismatches:
         raise ValueError(f"confirmation rollout provenance mismatch: {mismatches}")
-    if len(manifest) != 1918 or len(records) != 9590:
+    expected_records = expected_examples * 5
+    if len(manifest) != expected_examples or len(records) != expected_records:
         raise ValueError(
             f"confirmation input is incomplete: {len(manifest)} states, {len(records)} records"
         )
@@ -129,7 +133,7 @@ def write_json(value: object, path: Path) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def build_markdown(report: dict[str, object]) -> str:
+def build_markdown(report: dict[str, object], *, title: str) -> str:
     evaluation = report["evaluation"]
     assert isinstance(evaluation, dict)
     policies = evaluation["policies"]
@@ -137,7 +141,7 @@ def build_markdown(report: dict[str, object]) -> str:
     criterion = evaluation["primary_confirmation_criterion"]
     assert isinstance(criterion, dict)
     lines = [
-        "# Independent ChartQA validation confirmation",
+        f"# {title}",
         "",
         f"> Primary criterion passed: **{criterion['passed']}**.",
         "> The model, scaler, regularization, and absolute threshold were frozen before target outcomes were inspected.",
@@ -189,6 +193,12 @@ def main() -> None:
     parser.add_argument("--expected-secondary-source-report-sha256", required=True)
     parser.add_argument("--expected-secondary-text-model-sha256", required=True)
     parser.add_argument("--expected-secondary-text-report-sha256", required=True)
+    parser.add_argument("--expected-rollout-code-revision", required=True)
+    parser.add_argument("--expected-examples", type=int, required=True)
+    parser.add_argument(
+        "--report-title",
+        default="Independent ChartQA validation confirmation",
+    )
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
@@ -230,6 +240,9 @@ def main() -> None:
         manifest,
         target_provenance,
         target_rollouts=args.target_rollouts,
+        expected_code_revision=args.expected_rollout_code_revision,
+        expected_manifest_sha256=args.expected_target_manifest_sha256,
+        expected_examples=args.expected_examples,
     )
     target_strata = {
         state_id: str(row["stratum"])
@@ -447,7 +460,10 @@ def main() -> None:
     json_path = args.output_dir / "report.json"
     markdown_path = args.output_dir / "report.md"
     write_json(report, json_path)
-    markdown_path.write_text(build_markdown(report), encoding="utf-8")
+    markdown_path.write_text(
+        build_markdown(report, title=args.report_title),
+        encoding="utf-8",
+    )
     print(json.dumps({"json": str(json_path), "markdown": str(markdown_path)}, indent=2))
 
 

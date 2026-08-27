@@ -45,6 +45,8 @@ BE_CODE_REVISION=$(git rev-parse HEAD)
   --expected-secondary-source-report-sha256 c0510901bc351ea9bac799497775ff53f7bb42b23ad574b555a7995c9922f35c \
   --expected-secondary-text-model-sha256 175c044ceca6b755b8cc16b3f106604cfc1b54396b695bf9c685a81ffd162fa5 \
   --expected-secondary-text-report-sha256 ce1caa6bb08054d4ab30dea7af09e61f95d08eb91598e710275fe441adf43fc4 \
+  --expected-rollout-code-revision ff193264c295dca977c653b6d999290786bf3bba \
+  --expected-examples 1918 \
   --lambda-cost 0.05 \
   --bootstrap-resamples 5000 \
   --bootstrap-seed 0
