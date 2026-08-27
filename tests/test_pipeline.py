@@ -5,6 +5,7 @@ from beyond_entropy.dataset import write_jsonl
 from beyond_entropy.dataset import split_by_group
 from beyond_entropy.metrics import (
     bootstrap_entropy_diagnostic,
+    bootstrap_policy_evaluation,
     entropy_diagnostic,
     evaluate_policy,
 )
@@ -102,6 +103,41 @@ def test_entropy_bootstrap_resamples_whole_states_deterministically():
     assert isinstance(metrics, dict)
     mismatch = metrics["entropy_top1_mismatch_rate"]
     assert mismatch["ci_low"] <= mismatch["ci_high"]
+
+
+def test_policy_bootstrap_fixes_decisions_and_resamples_whole_states():
+    records = simulate_counterfactual_dataset(
+        n_states=12,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=13,
+    )
+    policy = EntropySearchPolicy()
+    first = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=0.05,
+        n_resamples=50,
+        seed=6,
+    )
+    second = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=0.05,
+        n_resamples=50,
+        seed=6,
+    )
+    point = evaluate_policy(records, policy, lambda_cost=0.05)
+    assert first == second
+    assert first["resampling_unit"] == "state_id"
+    assert first["n_states"] == 12
+    assert first["n_decisions"] == 12
+    metrics = first["metrics"]
+    assert isinstance(metrics, dict)
+    assert metrics["accuracy"]["estimate"] == point["accuracy"]
+    assert metrics["mean_policy_utility"]["ci_low"] <= metrics[
+        "mean_policy_utility"
+    ]["ci_high"]
 
 
 def test_fit_baseline_command_uses_grouped_real_split(tmp_path):

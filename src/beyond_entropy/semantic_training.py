@@ -9,7 +9,7 @@ from statistics import mean
 from typing import Any, Mapping, Sequence
 
 from .dataset import group_by_decision, read_jsonl, split_by_group
-from .metrics import evaluate_policy
+from .metrics import bootstrap_policy_evaluation, evaluate_policy
 from .model import LinearGainModel
 from .policies import (
     AnswerNowPolicy,
@@ -423,16 +423,32 @@ def build_semantic_markdown_report(report: Mapping[str, Any]) -> str:
         "",
         "> Diagnostic pilot only; test groups are held out by image/source.",
         "",
-        "| Lambda | Policy | Accuracy | Gain | Tool use | Mean utility |",
+        "| Lambda | Policy | Accuracy | Gain [95% CI] | Tool use | Utility [95% CI] |",
         "|---:|---|---:|---:|---:|---:|",
     ]
     for sweep in report["lambda_sweep"]:
         for result in sweep["policy_results"]:
+            bootstrap = result.get("bootstrap", {}).get("metrics", {})
+            gain_interval = bootstrap.get("accuracy_gain", {})
+            utility_interval = bootstrap.get("mean_policy_utility", {})
+            gain_text = "{:.4f}".format(result["accuracy_gain"])
+            utility_text = "{:.4f}".format(result["mean_policy_utility"])
+            if gain_interval.get("ci_low") is not None:
+                gain_text += " [{:.4f}, {:.4f}]".format(
+                    gain_interval["ci_low"], gain_interval["ci_high"]
+                )
+            if utility_interval.get("ci_low") is not None:
+                utility_text += " [{:.4f}, {:.4f}]".format(
+                    utility_interval["ci_low"], utility_interval["ci_high"]
+                )
             lines.append(
-                "| {lambda_cost:.3f} | {policy} | {accuracy:.4f} | "
-                "{accuracy_gain:.4f} | {tool_use_rate:.4f} | {mean_policy_utility:.4f} |".format(
-                    lambda_cost=sweep["lambda_cost"],
-                    **result,
+                "| {:.3f} | {} | {:.4f} | {} | {:.4f} | {} |".format(
+                    sweep["lambda_cost"],
+                    result["policy"],
+                    result["accuracy"],
+                    gain_text,
+                    result["tool_use_rate"],
+                    utility_text,
                 )
             )
     lines.extend(
@@ -466,6 +482,8 @@ def fit_semantic_gain_experiment(
     rank_weight: float = 1.0,
     nonzero_weight: float = 8.0,
     similarity_cv_folds: int = 5,
+    bootstrap_resamples: int = 2000,
+    bootstrap_seed: int = 0,
     max_epochs: int = 500,
     patience: int = 50,
     seed: int = 17,
@@ -487,6 +505,8 @@ def fit_semantic_gain_experiment(
         raise ValueError("optimizer and rank-loss settings must be non-negative")
     if not lambdas or any(value < 0.0 for value in lambdas):
         raise ValueError("lambdas must be non-empty and non-negative")
+    if bootstrap_resamples <= 0:
+        raise ValueError("bootstrap_resamples must be positive")
     records = read_jsonl(rollouts_path)
     feature_dataset = load_semantic_feature_dataset(feature_path)
     validate_semantic_feature_dataset(feature_dataset, records)
@@ -705,15 +725,25 @@ def fit_semantic_gain_experiment(
             ),
             OracleVOIPolicy(lambda_cost),
         ]
+        policy_results: list[dict[str, Any]] = []
+        for policy_index, policy in enumerate(policies):
+            result: dict[str, Any] = dict(
+                evaluate_policy(test_records, policy, lambda_cost=lambda_cost)
+            )
+            result["bootstrap"] = bootstrap_policy_evaluation(
+                test_records,
+                policy,
+                lambda_cost=lambda_cost,
+                n_resamples=bootstrap_resamples,
+                seed=bootstrap_seed + policy_index,
+            )
+            policy_results.append(result)
         lambda_sweep.append(
             {
                 "lambda_cost": lambda_cost,
                 "semantic_gain_validation_threshold": semantic_threshold,
                 "semantic_similarity_validation_threshold": similarity_threshold,
-                "policy_results": [
-                    evaluate_policy(test_records, policy, lambda_cost=lambda_cost)
-                    for policy in policies
-                ],
+                "policy_results": policy_results,
             }
         )
     output = Path(output_dir)
@@ -761,6 +791,8 @@ def fit_semantic_gain_experiment(
             "rank_weight": rank_weight,
             "nonzero_weight": nonzero_weight,
             "similarity_cv_folds": similarity_cv_folds,
+            "bootstrap_resamples": bootstrap_resamples,
+            "bootstrap_seed": bootstrap_seed,
             "max_epochs": max_epochs,
             "patience": patience,
             "best_epoch": best_epoch,
