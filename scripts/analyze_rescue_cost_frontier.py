@@ -39,7 +39,9 @@ def evaluated_policy(
     bootstrap_resamples: int,
     bootstrap_seed: int,
 ) -> dict[str, Any]:
-    result = dict(evaluate_policy(records, policy, lambda_cost=lambda_cost))
+    result: dict[str, Any] = dict(
+        evaluate_policy(records, policy, lambda_cost=lambda_cost)
+    )
     result["bootstrap"] = bootstrap_policy_evaluation(
         records,
         policy,
@@ -122,7 +124,7 @@ def main() -> None:
         (str(decision["state_id"]), str(decision["replicate_id"])): decision
         for decision in feature_data["decisions"]
     }
-    frontier = []
+    frontier: list[dict[str, Any]] = []
     for lambda_cost in args.lambda_costs:
         context, _ = fit_nested_oof_rescue_gate(
             records,
@@ -174,7 +176,7 @@ def main() -> None:
                 "entropy_gate_diagnostic": entropy_gate,
             }
         )
-    report = {
+    report: dict[str, object] = {
         "scientific_status": "exploratory cost frontier; lambda=0.05 is primary",
         "run": {
             "rollouts": str(args.rollouts.resolve()),

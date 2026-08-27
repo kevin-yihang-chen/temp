@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
-    from datasets import Dataset
+    from datasets import Dataset  # type: ignore[import-untyped]
 
     parquet_path = args.parquet.resolve()
     dataset = Dataset.from_parquet(str(parquet_path))

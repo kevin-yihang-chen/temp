@@ -81,7 +81,7 @@ def main() -> None:
         (str(decision["state_id"]), str(decision["replicate_id"])): decision
         for decision in feature_data["decisions"]
     }
-    evaluations = {}
+    evaluations: dict[str, object] = {}
     for feature_mode in args.feature_modes:
         evaluation, models = fit_nested_oof_rescue_gate(
             records,
@@ -96,7 +96,7 @@ def main() -> None:
         evaluations[feature_mode] = evaluation
         write_json(models, args.output_dir / feature_mode / "models.json")
         write_json(evaluation, args.output_dir / feature_mode / "report.json")
-    report = {
+    report: dict[str, object] = {
         "scientific_status": "exploratory nested grouped OOF diagnostic",
         "run": {
             "rollouts": str(args.rollouts.resolve()),

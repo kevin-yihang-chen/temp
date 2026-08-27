@@ -28,7 +28,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        from datasets import Dataset, load_dataset
+        from datasets import Dataset, load_dataset  # type: ignore[import-untyped]
     except ImportError as exc:
         raise SystemExit(
             "Install the benchmark dependency with: pip install -e '.[benchmark]'"
