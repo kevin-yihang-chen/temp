@@ -279,6 +279,37 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             )
         if args.output.stat().st_size:
             records = read_jsonl(args.output)
+            default_system_prompt = "You are a helpful assistant."
+            for record in records:
+                backend_names = ["baseline_backend"]
+                if record.action_type == "ZOOM":
+                    backend_names.append("action_backend")
+                for backend_name in backend_names:
+                    backend_metadata = record.metadata.get(backend_name)
+                    if not isinstance(backend_metadata, dict):
+                        raise ValueError(
+                            f"checkpoint record is missing {backend_name} metadata"
+                        )
+                    expected_backend_values = {
+                        "model_revision": args.model_revision,
+                        "max_new_tokens": args.max_new_tokens,
+                        "min_pixels": args.min_pixels,
+                        "max_pixels": args.max_pixels,
+                    }
+                    for name, expected in expected_backend_values.items():
+                        if backend_metadata.get(name) != expected:
+                            raise ValueError(
+                                f"checkpoint {backend_name} {name} mismatch: "
+                                f"expected {expected!r}, got {backend_metadata.get(name)!r}"
+                            )
+                    recorded_prompt = backend_metadata.get(
+                        "system_prompt",
+                        default_system_prompt,
+                    )
+                    if recorded_prompt != args.system_prompt:
+                        raise ValueError(
+                            f"checkpoint {backend_name} system_prompt mismatch"
+                        )
     initial_record_count = len(records)
     expected_per_state = (args.candidate_count + 1) * len(args.generation_seeds)
     checkpoint_counts: dict[str, int] = {}
@@ -311,6 +342,7 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
                 min_pixels=args.min_pixels,
                 max_pixels=args.max_pixels,
                 local_files_only=not args.allow_download,
+                system_prompt=args.system_prompt,
             )
         )
         for position, example in enumerate(pending, start=1):
@@ -379,6 +411,7 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         "device_map": args.device_map,
         "dtype": args.dtype,
         "attention_implementation": args.attention_implementation,
+        "system_prompt": args.system_prompt,
         "local_files_only": not args.allow_download,
         "packages": {
             "torch": package_version("torch"),
@@ -580,6 +613,10 @@ def build_parser() -> argparse.ArgumentParser:
     collect_qwen.add_argument("--device-map", default="cuda:0")
     collect_qwen.add_argument("--dtype", default="bfloat16")
     collect_qwen.add_argument("--attention-implementation", default="sdpa")
+    collect_qwen.add_argument(
+        "--system-prompt",
+        default="You are a helpful assistant.",
+    )
     collect_qwen.add_argument(
         "--allow-download",
         action="store_true",

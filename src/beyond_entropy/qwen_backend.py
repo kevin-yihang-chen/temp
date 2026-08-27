@@ -206,6 +206,7 @@ class Qwen25VLBackend:
                 "max_new_tokens": self.max_new_tokens,
                 "min_pixels": self.min_pixels,
                 "max_pixels": self.max_pixels,
+                "system_prompt": self.system_prompt,
                 "num_observations": len(observations),
                 "generated_tokens": len(token_entropies),
                 "normalized_token_entropies": token_entropies,
