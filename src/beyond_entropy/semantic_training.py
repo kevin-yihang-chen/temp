@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import random
+from dataclasses import replace as dataclass_replace
 from pathlib import Path
 from statistics import mean
 from typing import Any, Mapping, Sequence
@@ -60,6 +61,65 @@ def fit_affine_gain_calibration(
     return slope, intercept
 
 
+def _cosine(left: Any, right: Any) -> float:
+    import torch.nn.functional as functional  # type: ignore[import-not-found]
+
+    return float(functional.cosine_similarity(left.float(), right.float(), dim=0))
+
+
+def add_semantic_similarity_features(
+    records: Sequence[ActionRecord],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+) -> list[ActionRecord]:
+    """Add low-capacity frozen-space similarities without outcome leakage."""
+
+    import torch  # type: ignore[import-not-found]
+    import torch.nn.functional as functional  # type: ignore[import-not-found]
+
+    result: list[ActionRecord] = []
+    for record in records:
+        if record.action_type == "ANSWER":
+            result.append(record)
+            continue
+        key = (record.state_id, record.replicate_id)
+        decision = decision_by_key[key]
+        action_ids = [str(value) for value in decision["action_ids"]]
+        try:
+            index = action_ids.index(record.action_id)
+        except ValueError as exc:
+            raise ValueError(
+                f"semantic features are missing action {record.action_id!r} in {key!r}"
+            ) from exc
+        question = decision["question_embedding"].float()
+        global_visual = decision["global_visual_embedding"].float()
+        region = decision["region_embeddings"][index].float()
+        question_unit = functional.normalize(question, dim=0)
+        global_unit = functional.normalize(global_visual, dim=0)
+        region_unit = functional.normalize(region, dim=0)
+        semantic_features = {
+            "semantic_q_region_cosine": _cosine(question, region),
+            "semantic_q_global_cosine": _cosine(question, global_visual),
+            "semantic_global_region_cosine": _cosine(global_visual, region),
+            "semantic_q_region_contrast": float(
+                torch.dot(question_unit, region_unit - global_unit)
+            ),
+            "semantic_region_global_l2": float(torch.linalg.vector_norm(region_unit - global_unit)),
+            "semantic_question_norm": float(torch.linalg.vector_norm(question)),
+            "semantic_global_norm": float(torch.linalg.vector_norm(global_visual)),
+            "semantic_region_norm": float(torch.linalg.vector_norm(region)),
+        }
+        result.append(
+            dataclass_replace(
+                record,
+                pre_action_features={
+                    **record.pre_action_features,
+                    **semantic_features,
+                },
+            )
+        )
+    return result
+
+
 class PrecomputedGainPolicy:
     """Apply pre-action gain predictions to sibling rollout evaluation."""
 
@@ -69,12 +129,14 @@ class PrecomputedGainPolicy:
         *,
         lambda_cost: float,
         name: str,
+        decision_threshold: float = 0.0,
     ) -> None:
         if lambda_cost < 0.0:
             raise ValueError("lambda_cost must be non-negative")
         self.predictions = predictions
         self.lambda_cost = lambda_cost
         self.name = name
+        self.decision_threshold = decision_threshold
 
     def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
         answers = [record for record in siblings if record.action_type == "ANSWER"]
@@ -92,9 +154,59 @@ class PrecomputedGainPolicy:
             scored,
             key=lambda item: (item[0], item[1].action_id),
         )
-        if best_utility <= 0.0:
+        if best_utility <= self.decision_threshold:
             return PolicyDecision(answers[0], tool_calls=0, visual_cost=0.0)
         return PolicyDecision(selected, tool_calls=1, visual_cost=selected.tool_cost)
+
+
+def tune_precomputed_gain_threshold(
+    predictions: Mapping[tuple[str, str, str], float],
+    records: Sequence[ActionRecord],
+    *,
+    lambda_cost: float,
+) -> float:
+    grouped = group_by_decision(records)
+    best_utilities: list[float] = []
+    for siblings in grouped.values():
+        zooms = [record for record in siblings if record.action_type == "ZOOM"]
+        best_utilities.append(
+            max(
+                predictions[(record.state_id, record.replicate_id, record.action_id)]
+                - lambda_cost * record.tool_cost
+                for record in zooms
+            )
+        )
+    unique = sorted(set(best_utilities))
+    thresholds = [unique[0] - 1e-9]
+    thresholds.extend((left + right) / 2.0 for left, right in zip(unique, unique[1:]))
+    thresholds.append(unique[-1] + 1e-9)
+    best_threshold = thresholds[0]
+    best_score = (float("-inf"), float("-inf"))
+    for threshold in thresholds:
+        result = evaluate_policy(
+            records,
+            PrecomputedGainPolicy(
+                predictions,
+                lambda_cost=lambda_cost,
+                name="threshold_tuning",
+                decision_threshold=threshold,
+            ),
+            lambda_cost=lambda_cost,
+        )
+        mean_utility = result["mean_policy_utility"]
+        tool_use_rate = result["tool_use_rate"]
+        if not isinstance(mean_utility, (int, float)) or not isinstance(
+            tool_use_rate, (int, float)
+        ):
+            raise RuntimeError("policy evaluation returned non-numeric tuning metrics")
+        score = (
+            float(mean_utility),
+            -float(tool_use_rate),
+        )
+        if score > best_score:
+            best_score = score
+            best_threshold = threshold
+    return best_threshold
 
 
 def _keys(records: Sequence[ActionRecord]) -> set[DecisionKey]:
@@ -160,15 +272,28 @@ def _batch(
     }
 
 
-def _semantic_loss(predictions: Any, targets: Any, rank_weight: float) -> Any:
+def _semantic_loss(
+    predictions: Any,
+    targets: Any,
+    rank_weight: float,
+    nonzero_weight: float,
+) -> Any:
+    import torch  # type: ignore[import-not-found]
     import torch.nn.functional as functional  # type: ignore[import-not-found]
 
-    point_loss = functional.mse_loss(predictions, targets)
+    point_weights = 1.0 + nonzero_weight * targets.abs()
+    point_loss = ((predictions - targets).square() * point_weights).sum() / point_weights.sum()
     if rank_weight == 0.0:
         return point_loss
     predicted_differences = predictions[:, :, None] - predictions[:, None, :]
     target_differences = targets[:, :, None] - targets[:, None, :]
-    rank_loss = functional.mse_loss(predicted_differences, target_differences)
+    informative = target_differences.abs() > 1e-12
+    if not bool(torch.any(informative)):
+        return point_loss
+    rank_loss = functional.mse_loss(
+        predicted_differences[informative],
+        target_differences[informative],
+    )
     return point_loss + rank_weight * rank_loss
 
 
@@ -281,6 +406,7 @@ def fit_semantic_gain_experiment(
     learning_rate: float = 1e-3,
     weight_decay: float = 1e-3,
     rank_weight: float = 1.0,
+    nonzero_weight: float = 8.0,
     max_epochs: int = 500,
     patience: int = 50,
     seed: int = 17,
@@ -293,7 +419,12 @@ def fit_semantic_gain_experiment(
         raise ValueError("validation_fraction must be between zero and one")
     if hidden_dim <= 0 or max_epochs <= 0 or patience <= 0:
         raise ValueError("hidden_dim, max_epochs, and patience must be positive")
-    if learning_rate <= 0.0 or weight_decay < 0.0 or rank_weight < 0.0:
+    if (
+        learning_rate <= 0.0
+        or weight_decay < 0.0
+        or rank_weight < 0.0
+        or nonzero_weight < 0.0
+    ):
         raise ValueError("optimizer and rank-loss settings must be non-negative")
     if not lambdas or any(value < 0.0 for value in lambdas):
         raise ValueError("lambdas must be non-empty and non-negative")
@@ -371,6 +502,7 @@ def fit_semantic_gain_experiment(
             train_predictions,
             train_batch["targets"],
             rank_weight,
+            nonzero_weight,
         )
         train_loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
@@ -388,6 +520,7 @@ def fit_semantic_gain_experiment(
                 validation_predictions,
                 validation_batch["targets"],
                 rank_weight,
+                nonzero_weight,
             )
         train_value = float(train_loss.detach().cpu())
         validation_value = float(validation_loss.detach().cpu())
@@ -438,11 +571,52 @@ def fit_semantic_gain_experiment(
         slope=calibration_slope,
         intercept=calibration_intercept,
     )
+    validation_raw_prediction_map = _prediction_map(
+        validation_decisions,
+        validation_predictions,
+    )
+    semantic_train_records = add_semantic_similarity_features(
+        model_train_records,
+        decision_by_key,
+    )
+    semantic_validation_records = add_semantic_similarity_features(
+        validation_records,
+        decision_by_key,
+    )
+    semantic_test_records = add_semantic_similarity_features(
+        test_records,
+        decision_by_key,
+    )
+    similarity_model = LinearGainModel.fit(semantic_train_records)
+    validation_similarity_predictions = {
+        (record.state_id, record.replicate_id, record.action_id): similarity_model.predict_gain(
+            record
+        )
+        for record in semantic_validation_records
+        if record.action_type == "ZOOM"
+    }
+    test_similarity_predictions = {
+        (record.state_id, record.replicate_id, record.action_id): similarity_model.predict_gain(
+            record
+        )
+        for record in semantic_test_records
+        if record.action_type == "ZOOM"
+    }
     scalar_model = LinearGainModel.fit(model_train_records)
     lambda_sweep: list[dict[str, Any]] = []
     for lambda_cost in lambdas:
         entropy_threshold, entropy_reduction_threshold = tune_entropy_thresholds(
             validation_records,
+            lambda_cost=lambda_cost,
+        )
+        semantic_threshold = tune_precomputed_gain_threshold(
+            validation_raw_prediction_map,
+            validation_records,
+            lambda_cost=lambda_cost,
+        )
+        similarity_threshold = tune_precomputed_gain_threshold(
+            validation_similarity_predictions,
+            semantic_validation_records,
             lambda_cost=lambda_cost,
         )
         policies: list[Policy] = [
@@ -463,11 +637,25 @@ def fit_semantic_gain_experiment(
                 lambda_cost=lambda_cost,
                 name="semantic_gain_calibrated",
             ),
+            PrecomputedGainPolicy(
+                raw_prediction_map,
+                lambda_cost=lambda_cost,
+                name="semantic_gain_val_threshold",
+                decision_threshold=semantic_threshold,
+            ),
+            PrecomputedGainPolicy(
+                test_similarity_predictions,
+                lambda_cost=lambda_cost,
+                name="semantic_similarity_ridge",
+                decision_threshold=similarity_threshold,
+            ),
             OracleVOIPolicy(lambda_cost),
         ]
         lambda_sweep.append(
             {
                 "lambda_cost": lambda_cost,
+                "semantic_gain_validation_threshold": semantic_threshold,
+                "semantic_similarity_validation_threshold": similarity_threshold,
                 "policy_results": [
                     evaluate_policy(test_records, policy, lambda_cost=lambda_cost)
                     for policy in policies
@@ -476,6 +664,7 @@ def fit_semantic_gain_experiment(
         )
     output = Path(output_dir)
     model_path = output / "semantic_gain_model.pt"
+    similarity_model_path = output / "semantic_similarity_gain_model.json"
     report_path = output / "report.json"
     markdown_path = output / "report.md"
     checkpoint = {
@@ -516,6 +705,7 @@ def fit_semantic_gain_experiment(
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "rank_weight": rank_weight,
+            "nonzero_weight": nonzero_weight,
             "max_epochs": max_epochs,
             "patience": patience,
             "best_epoch": best_epoch,
@@ -533,6 +723,7 @@ def fit_semantic_gain_experiment(
         "lambda_sweep": lambda_sweep,
     }
     _atomic_torch_save(checkpoint, model_path)
+    similarity_model.save(similarity_model_path)
     _write_json(report, report_path)
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.write_text(build_semantic_markdown_report(report), encoding="utf-8")

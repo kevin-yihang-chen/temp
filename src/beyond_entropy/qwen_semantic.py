@@ -353,6 +353,7 @@ def extract_qwen_semantic_dataset(
         ):
             if existing_metadata.get(name) != metadata[name]:
                 raise ValueError(f"resume metadata mismatch for {name}")
+        metadata = dict(existing_metadata)
         decisions = list(existing["decisions"])
     completed = {
         (str(decision["state_id"]), str(decision["replicate_id"]))
@@ -363,6 +364,19 @@ def extract_qwen_semantic_dataset(
         raise ValueError(f"checkpoint has unexpected decisions: {sorted(unexpected)[:5]}")
     pending = [(key, grouped[key]) for key in sorted(grouped) if key not in completed]
     if pending:
+        current_revision = os.environ.get("BE_CODE_REVISION")
+        raw_revisions = metadata.get("extraction_code_revisions", [])
+        if not isinstance(raw_revisions, list):
+            raise ValueError("extraction_code_revisions metadata must be a list")
+        extraction_revisions = [str(value) for value in raw_revisions]
+        original_revision = metadata.get("code_revision")
+        if original_revision:
+            original_revision_text = str(original_revision)
+            if original_revision_text not in extraction_revisions:
+                extraction_revisions.append(original_revision_text)
+        if current_revision and current_revision not in extraction_revisions:
+            extraction_revisions.append(current_revision)
+        metadata["extraction_code_revisions"] = extraction_revisions
         extractor = Qwen25VLSemanticExtractor(
             model_name_or_path,
             revision=revision,

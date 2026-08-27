@@ -15,6 +15,7 @@ set -euo pipefail
 
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
+model_dir=${BE_SEMANTIC_MODEL_DIR:-"${BE_SEMANTIC_RUN_DIR}/semantic-model"}
 
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
@@ -40,7 +41,7 @@ mkdir -p "${BE_SEMANTIC_RUN_DIR}"
 "${python_bin}" -m beyond_entropy fit-semantic \
   --features "${BE_SEMANTIC_RUN_DIR}/features.pt" \
   --rollouts "${BE_SEMANTIC_ROLLOUTS}" \
-  --output-dir "${BE_SEMANTIC_RUN_DIR}/semantic-model" \
+  --output-dir "${model_dir}" \
   --split-group image_id \
   --train-fraction 0.7 \
   --validation-fraction 0.2 \
@@ -50,6 +51,7 @@ mkdir -p "${BE_SEMANTIC_RUN_DIR}"
   --learning-rate 0.001 \
   --weight-decay 0.001 \
   --rank-weight 1.0 \
+  --nonzero-weight 8.0 \
   --max-epochs 500 \
   --patience 50 \
   --seed 17 \
