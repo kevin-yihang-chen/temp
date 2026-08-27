@@ -132,9 +132,24 @@ question embedding
 -> predicted Delta success
 ```
 
-`roi_pool_spatial_tokens` extracts all candidate representations from one cached
-full-image spatial token grid. A Qwen/lmms-eval feature adapter is still required
-before this becomes a real frozen-VLM experiment.
+`extract-qwen-features` now runs the frozen Qwen vision encoder once per original
+image and restores its merged visual tokens to raster order. All candidate ROI
+embeddings are pooled from that one grid, so no counterfactual crop outcome is
+available to the head. `fit-semantic` uses an inner image-grouped validation split
+for early stopping and monotone gain calibration, then reports an untouched outer
+test split across a runtime lambda sweep.
+
+```bash
+PYTHONPATH=src python3 -m beyond_entropy extract-qwen-features \
+  --rollouts artifacts/gate1-vstar/rollouts.jsonl \
+  --output artifacts/gate2-vstar/features.pt \
+  --model-revision <pinned-hugging-face-revision>
+
+PYTHONPATH=src python3 -m beyond_entropy fit-semantic \
+  --features artifacts/gate2-vstar/features.pt \
+  --rollouts artifacts/gate1-vstar/rollouts.jsonl \
+  --output-dir artifacts/gate2-vstar/model
+```
 
 ## Project map
 

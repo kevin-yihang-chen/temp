@@ -402,6 +402,78 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     )
 
 
+def command_extract_qwen_features(args: argparse.Namespace) -> None:
+    from .qwen_semantic import extract_qwen_semantic_dataset
+
+    rollouts_sha256 = hashlib.sha256(args.rollouts.read_bytes()).hexdigest()
+    if (
+        args.expected_rollouts_sha256
+        and rollouts_sha256 != args.expected_rollouts_sha256
+    ):
+        raise ValueError(
+            "rollout SHA-256 mismatch: "
+            f"expected {args.expected_rollouts_sha256}, got {rollouts_sha256}"
+        )
+    result = extract_qwen_semantic_dataset(
+        rollouts_path=args.rollouts,
+        output_path=args.output,
+        model_name_or_path=args.model,
+        revision=args.model_revision,
+        device_map=args.device_map,
+        dtype=args.dtype,
+        attention_implementation=args.attention_implementation,
+        min_pixels=args.min_pixels,
+        max_pixels=args.max_pixels,
+        local_files_only=not args.allow_download,
+        resume=args.resume,
+    )
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "decisions": len(result["decisions"]),
+                "source_rollouts_sha256": rollouts_sha256,
+                "model_revision": args.model_revision,
+            },
+            indent=2,
+        )
+    )
+
+
+def command_fit_semantic(args: argparse.Namespace) -> None:
+    from .semantic_training import fit_semantic_gain_experiment
+
+    report = fit_semantic_gain_experiment(
+        feature_path=args.features,
+        rollouts_path=args.rollouts,
+        output_dir=args.output_dir,
+        split_group=args.split_group,
+        train_fraction=args.train_fraction,
+        validation_fraction=args.validation_fraction,
+        lambdas=args.lambda_costs,
+        hidden_dim=args.hidden_dim,
+        dropout=args.dropout,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        rank_weight=args.rank_weight,
+        max_epochs=args.max_epochs,
+        patience=args.patience,
+        seed=args.seed,
+        device_name=args.device,
+    )
+    print(
+        json.dumps(
+            {
+                "output_dir": str(args.output_dir),
+                "best_epoch": report["run"]["best_epoch"],
+                "epochs_ran": report["run"]["epochs_ran"],
+                "test_decisions": report["run"]["test_decisions"],
+            },
+            indent=2,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="beyond-entropy",
@@ -511,6 +583,62 @@ def build_parser() -> argparse.ArgumentParser:
         help="allow Hugging Face network access (offline cache is the default)",
     )
     collect_qwen.set_defaults(func=command_collect_qwen)
+
+    extract_qwen_features = subparsers.add_parser(
+        "extract-qwen-features",
+        help="extract one-pass frozen Qwen semantic ROI features",
+    )
+    extract_qwen_features.add_argument("--rollouts", type=Path, required=True)
+    extract_qwen_features.add_argument("--expected-rollouts-sha256")
+    extract_qwen_features.add_argument("--output", type=Path, required=True)
+    extract_qwen_features.add_argument(
+        "--resume",
+        action="store_true",
+        help="resume a feature checkpoint containing complete decisions",
+    )
+    extract_qwen_features.add_argument(
+        "--model",
+        default="Qwen/Qwen2.5-VL-3B-Instruct",
+    )
+    extract_qwen_features.add_argument("--model-revision", default="main")
+    extract_qwen_features.add_argument("--min-pixels", type=int, default=256 * 28 * 28)
+    extract_qwen_features.add_argument("--max-pixels", type=int, default=768 * 28 * 28)
+    extract_qwen_features.add_argument("--device-map", default="cuda:0")
+    extract_qwen_features.add_argument("--dtype", default="bfloat16")
+    extract_qwen_features.add_argument("--attention-implementation", default="sdpa")
+    extract_qwen_features.add_argument("--allow-download", action="store_true")
+    extract_qwen_features.set_defaults(func=command_extract_qwen_features)
+
+    fit_semantic = subparsers.add_parser(
+        "fit-semantic",
+        help="fit and evaluate the frozen-Qwen semantic ROI gain head",
+    )
+    fit_semantic.add_argument("--features", type=Path, required=True)
+    fit_semantic.add_argument("--rollouts", type=Path, required=True)
+    fit_semantic.add_argument("--output-dir", type=Path, required=True)
+    fit_semantic.add_argument("--train-fraction", type=float, default=0.7)
+    fit_semantic.add_argument("--validation-fraction", type=float, default=0.2)
+    fit_semantic.add_argument(
+        "--split-group",
+        choices=("source_id", "image_id", "state_id"),
+        default="image_id",
+    )
+    fit_semantic.add_argument(
+        "--lambda-costs",
+        type=float,
+        nargs="+",
+        default=[0.0, 0.01, 0.05, 0.1, 0.2],
+    )
+    fit_semantic.add_argument("--hidden-dim", type=int, default=64)
+    fit_semantic.add_argument("--dropout", type=float, default=0.2)
+    fit_semantic.add_argument("--learning-rate", type=float, default=1e-3)
+    fit_semantic.add_argument("--weight-decay", type=float, default=1e-3)
+    fit_semantic.add_argument("--rank-weight", type=float, default=1.0)
+    fit_semantic.add_argument("--max-epochs", type=int, default=500)
+    fit_semantic.add_argument("--patience", type=int, default=50)
+    fit_semantic.add_argument("--seed", type=int, default=17)
+    fit_semantic.add_argument("--device", default="cuda")
+    fit_semantic.set_defaults(func=command_fit_semantic)
     return parser
 
 
