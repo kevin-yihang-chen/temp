@@ -76,7 +76,7 @@ def main() -> None:
     )
 
     frontier = []
-    for index, lambda_cost in enumerate(args.lambda_costs):
+    for lambda_cost in args.lambda_costs:
         if lambda_cost < 0.0:
             raise ValueError("lambda costs must be non-negative")
         point: dict[str, object] = dict(
@@ -87,7 +87,7 @@ def main() -> None:
             policy,
             lambda_cost=lambda_cost,
             n_resamples=args.bootstrap_resamples,
-            seed=index,
+            seed=0,
             cluster_by="state_id",
         )
         image_bootstrap = bootstrap_policy_evaluation(
@@ -95,7 +95,7 @@ def main() -> None:
             policy,
             lambda_cost=lambda_cost,
             n_resamples=args.bootstrap_resamples,
-            seed=index,
+            seed=0,
             cluster_by="image_id",
         )
         frontier.append(
