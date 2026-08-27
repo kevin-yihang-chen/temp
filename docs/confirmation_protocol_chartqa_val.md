@@ -63,6 +63,17 @@ four-crop entropy search, answer-now, and oracle VOI are reported under the same
 target rollout table. A positive point estimate with an interval crossing zero
 does not pass.
 
+An exploratory secondary policy was frozen before target rollout completion and
+without reading target outcomes. It retains the identical primary state gate but
+uses a source-only question-type-by-quadrant logistic ranker to choose one crop.
+It cannot replace or change the primary criterion. The secondary action-model
+SHA-256 is
+`5989974482785b31868473e7a925708d15f6f1fbac3095906ded7a88def53bbd`,
+and its source-only fit report SHA-256 is
+`c0510901bc351ea9bac799497775ff53f7bb42b23ad574b555a7995c9922f35c`.
+The implementation was frozen at code revision
+`92de08347c4cb0c1e066e54365297f19df24a115`.
+
 ## Secondary analyses
 
 - Human and augmented validation strata are reported separately.

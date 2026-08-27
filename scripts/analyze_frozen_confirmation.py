@@ -9,6 +9,9 @@ from pathlib import Path
 from beyond_entropy.dataset import group_by_decision, read_jsonl
 from beyond_entropy.schema import ActionRecord
 from beyond_entropy.transfer_gate import evaluate_frozen_factorized_context_model
+from beyond_entropy.transfer_gate import (
+    evaluate_frozen_composed_context_quadrant_policy,
+)
 
 
 def sha256(path: Path) -> str:
@@ -167,10 +170,14 @@ def main() -> None:
     parser.add_argument("--target-provenance", type=Path, required=True)
     parser.add_argument("--frozen-model", type=Path, required=True)
     parser.add_argument("--source-report", type=Path, required=True)
+    parser.add_argument("--secondary-action-model", type=Path, required=True)
+    parser.add_argument("--secondary-source-report", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--expected-model-sha256", required=True)
     parser.add_argument("--expected-source-report-sha256", required=True)
     parser.add_argument("--expected-target-manifest-sha256", required=True)
+    parser.add_argument("--expected-secondary-action-model-sha256", required=True)
+    parser.add_argument("--expected-secondary-source-report-sha256", required=True)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
@@ -180,15 +187,20 @@ def main() -> None:
         "frozen_model": sha256(args.frozen_model),
         "source_report": sha256(args.source_report),
         "target_manifest": sha256(args.target_manifest),
+        "secondary_action_model": sha256(args.secondary_action_model),
+        "secondary_source_report": sha256(args.secondary_source_report),
     }
     expected_hashes = {
         "frozen_model": args.expected_model_sha256,
         "source_report": args.expected_source_report_sha256,
         "target_manifest": args.expected_target_manifest_sha256,
+        "secondary_action_model": args.expected_secondary_action_model_sha256,
+        "secondary_source_report": args.expected_secondary_source_report_sha256,
     }
     if actual_hashes != expected_hashes:
         raise ValueError(f"confirmation input hash mismatch: {actual_hashes}")
     model = read_json(args.frozen_model)
+    secondary_action_model = read_json(args.secondary_action_model)
     source_report = read_json(args.source_report)
     source_evaluation = source_report["evaluation"]
     if not isinstance(source_evaluation, dict):
@@ -216,6 +228,39 @@ def main() -> None:
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
     )
+    composed_result = evaluate_frozen_composed_context_quadrant_policy(
+        model,
+        secondary_action_model,
+        target_records,
+        lambda_cost=args.lambda_cost,
+        bootstrap_resamples=args.bootstrap_resamples,
+        bootstrap_seed=args.bootstrap_seed,
+    )
+    policies = evaluation["policies"]
+    if not isinstance(policies, dict):
+        raise RuntimeError("primary evaluation lacks policy results")
+    policies["frozen_factorized_context_quadrant"] = composed_result
+    strata = evaluation["strata"]
+    if not isinstance(strata, dict):
+        raise RuntimeError("primary evaluation lacks stratum results")
+    for stratum, stratum_results in strata.items():
+        if not isinstance(stratum_results, dict):
+            raise RuntimeError(f"invalid stratum result: {stratum}")
+        subset = [
+            record
+            for record in target_records
+            if target_strata[record.state_id] == stratum
+        ]
+        stratum_results["frozen_factorized_context_quadrant"] = (
+            evaluate_frozen_composed_context_quadrant_policy(
+                model,
+                secondary_action_model,
+                subset,
+                lambda_cost=args.lambda_cost,
+                bootstrap_resamples=args.bootstrap_resamples,
+                bootstrap_seed=args.bootstrap_seed,
+            )
+        )
     report: dict[str, object] = {
         "scientific_status": "independent confirmation with frozen source model",
         "run": {
@@ -229,6 +274,10 @@ def main() -> None:
             "frozen_model_sha256": actual_hashes["frozen_model"],
             "source_report": str(args.source_report.resolve()),
             "source_report_sha256": actual_hashes["source_report"],
+            "secondary_action_model": str(args.secondary_action_model.resolve()),
+            "secondary_action_model_sha256": actual_hashes["secondary_action_model"],
+            "secondary_source_report": str(args.secondary_source_report.resolve()),
+            "secondary_source_report_sha256": actual_hashes["secondary_source_report"],
             "code_revision": os.environ.get("BE_CODE_REVISION"),
             "lambda_cost": args.lambda_cost,
             "bootstrap_resamples": args.bootstrap_resamples,
