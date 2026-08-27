@@ -28,7 +28,9 @@ Version 0.3 adds the first frozen-VLM execution path to the v0.2 pipeline:
   capture, and a Slurm smoke job.
 
 The included smoke fixture is synthetic and validates execution only. It is not
-a benchmark result. Public V*Bench/ChartQA slices and RL remain future gates.
+a benchmark result. Frozen V*Bench/ChartQA diagnostics and independent ChartQA
+confirmation infrastructure are now implemented; large-scale RL remains a
+future gate.
 
 ## Quick start
 
@@ -111,6 +113,29 @@ scripts/submit_vstar_pilot.sh
 The submit wrapper reads the notification recipient from the private,
 git-ignored `.slurm-notify-email` file and requests email for all Slurm state
 changes. This keeps contact information out of the public repository.
+
+## Current scientific checkpoint
+
+The complete 2,500-state ChartQA development diagnostic establishes sparse
+counterfactual headroom: answer-now accuracy is 0.8128, exhaustive four-crop
+entropy search gains 0.0192 accuracy but has utility -0.1808 at
+`lambda=0.05`, while oracle VOI gains 0.0504 with utility 0.0479. Lower entropy
+is often not task improvement, and indiscriminate search is too expensive.
+
+A factorized pre-action stopping gate is positive under nested image-grouped OOF
+evaluation (utility 0.00662; state and image intervals both above zero). Its
+frozen transfer to 1,918 image-disjoint ChartQA validation states has utility
+0.00342, but the pre-registered state interval `[-0.00003, 0.00719]` narrowly
+crosses zero, so the primary confirmation is a failed near miss. A fixed-crop
+secondary is positive, but paired contrasts do not establish learned or fixed
+spatial action selection over random.
+
+The unchanged gate is undergoing a separately registered 4,500-image
+high-power replication. Gate 3 remains closed until that result is complete;
+spatial action selection is tracked as a distinct unresolved problem. See
+`docs/pilot_results_2026-08-28.md` and
+`docs/replication_protocol_chartqa_train.md` for the evidence hierarchy and
+frozen protocol.
 
 ## Semantic gain head
 
