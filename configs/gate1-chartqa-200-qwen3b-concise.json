@@ -1,0 +1,23 @@
+{
+  "attention_implementation": "sdpa",
+  "bootstrap_resamples": 5000,
+  "bootstrap_seed": 0,
+  "candidate_count": 4,
+  "dataset": "lmms-lab/ChartQA",
+  "dataset_revision": "9e63b7df1592a1c2158e735cc1725454aef0d6d9",
+  "generation_seeds": [0],
+  "manifest_count": 200,
+  "manifest_seed": 17,
+  "manifest_sha256": "f7e1616e3378f6c781ef166ebf78c8650cfcdd0d9d5f0d653a2f1ad4d573db17",
+  "max_new_tokens": 16,
+  "max_pixels": 602112,
+  "min_pixels": 200704,
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "scorer": "chartqa",
+  "scientific_status": "frozen Gate 1 ChartQA concise-answer diagnostic",
+  "system_prompt": "Answer with only the final answer: a single number, word, or short phrase. Do not explain.",
+  "ug_framework_revision": "13050ee49865e4330519108f42d1ccfccff1aee1",
+  "visual_crop_ratio": 2.0,
+  "visual_cost": 1.0
+}
