@@ -1,5 +1,7 @@
 import pytest
 
+from beyond_entropy.cli import main
+from beyond_entropy.dataset import write_jsonl
 from beyond_entropy.dataset import split_by_group
 from beyond_entropy.metrics import (
     bootstrap_entropy_diagnostic,
@@ -100,3 +102,31 @@ def test_entropy_bootstrap_resamples_whole_states_deterministically():
     assert isinstance(metrics, dict)
     mismatch = metrics["entropy_top1_mismatch_rate"]
     assert mismatch["ci_low"] <= mismatch["ci_high"]
+
+
+def test_fit_baseline_command_uses_grouped_real_split(tmp_path):
+    records = simulate_counterfactual_dataset(
+        n_states=20,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=19,
+    )
+    data_path = tmp_path / "rollouts.jsonl"
+    output_dir = tmp_path / "baseline"
+    write_jsonl(records, data_path)
+    main(
+        [
+            "fit-baseline",
+            "--data",
+            str(data_path),
+            "--output-dir",
+            str(output_dir),
+            "--split-group",
+            "image_id",
+            "--seed",
+            "3",
+        ]
+    )
+    report = (output_dir / "report.md").read_text()
+    assert "Frozen-rollout baseline report" in report
+    assert "not a final benchmark claim" in report

@@ -188,6 +188,67 @@ def command_demo(args: argparse.Namespace) -> None:
     )
 
 
+def command_fit_baseline(args: argparse.Namespace) -> None:
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    records = read_jsonl(args.data)
+    train, test = split_by_group(
+        records,
+        group=args.split_group,
+        train_fraction=args.train_fraction,
+        seed=args.seed,
+    )
+    train_path = output_dir / "train.jsonl"
+    test_path = output_dir / "test.jsonl"
+    model_path = output_dir / "gain_model.json"
+    report_path = output_dir / "report.json"
+    markdown_path = output_dir / "report.md"
+    write_jsonl(train, train_path)
+    write_jsonl(test, test_path)
+    model = LinearGainModel.fit(train, alpha=args.alpha)
+    model.save(model_path)
+    entropy_threshold, reduction_threshold = tune_entropy_thresholds(
+        train,
+        lambda_cost=args.lambda_cost,
+    )
+    report = _evaluate(
+        test,
+        lambda_cost=args.lambda_cost,
+        model=model,
+        seed=args.seed,
+        entropy_threshold=entropy_threshold,
+        entropy_reduction_threshold=reduction_threshold,
+    )
+    report["run"] = {
+        "synthetic": False,
+        "source_data": str(args.data.resolve()),
+        "seed": args.seed,
+        "train_fraction": args.train_fraction,
+        "split_group": args.split_group,
+        "train_decisions": len(group_by_decision(train)),
+        "test_decisions": len(group_by_decision(test)),
+        "train_records": len(train),
+        "test_records": len(test),
+        "model_target": "delta_success",
+        "model_features": list(model.encoder.names),
+    }
+    _write_json(report, report_path)
+    markdown_path.write_text(build_markdown_report(report), encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "output_dir": str(output_dir),
+                "train_data": str(train_path),
+                "test_data": str(test_path),
+                "model": str(model_path),
+                "report": str(report_path),
+                "markdown_report": str(markdown_path),
+            },
+            indent=2,
+        )
+    )
+
+
 def command_collect_qwen(args: argparse.Namespace) -> None:
     from .benchmarks import load_manifest, scorer_by_name
     from .crops import UGGridProposer
@@ -391,6 +452,23 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--alpha", type=float, default=1.0)
     demo.add_argument("--seed", type=int, default=7)
     demo.set_defaults(func=command_demo)
+
+    fit_baseline = subparsers.add_parser(
+        "fit-baseline",
+        help="fit and evaluate a leakage-safe scalar gain baseline",
+    )
+    fit_baseline.add_argument("--data", type=Path, required=True)
+    fit_baseline.add_argument("--output-dir", type=Path, required=True)
+    fit_baseline.add_argument("--train-fraction", type=float, default=0.7)
+    fit_baseline.add_argument(
+        "--split-group",
+        choices=("source_id", "image_id", "state_id"),
+        default="image_id",
+    )
+    fit_baseline.add_argument("--lambda-cost", type=float, default=0.05)
+    fit_baseline.add_argument("--alpha", type=float, default=1.0)
+    fit_baseline.add_argument("--seed", type=int, default=17)
+    fit_baseline.set_defaults(func=command_fit_baseline)
 
     collect_qwen = subparsers.add_parser(
         "collect-qwen",

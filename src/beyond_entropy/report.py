@@ -18,11 +18,17 @@ def build_markdown_report(report: Mapping[str, object]) -> str:
     policy_results = report["policy_results"]
     if not isinstance(policy_results, Sequence):
         raise ValueError("report policy_results must be a sequence")
+    run = report.get("run", {})
+    synthetic = not isinstance(run, Mapping) or bool(run.get("synthetic", True))
     lines = [
-        "# Beyond Entropy MVP Report",
+        "# Beyond Entropy MVP Report" if synthetic else "# Frozen-rollout baseline report",
         "",
-        "> This report uses synthetic counterfactual rollouts to validate the pipeline. "
-        "It is not an empirical paper result.",
+        (
+            "> This report uses synthetic counterfactual rollouts to validate the pipeline. "
+            "It is not an empirical paper result."
+            if synthetic
+            else "> This is a held-out baseline on frozen real-model rollouts, not a final benchmark claim."
+        ),
         "",
         "## Entropy diagnostic",
         "",
@@ -67,7 +73,11 @@ def build_markdown_report(report: Mapping[str, object]) -> str:
             "- `learned_voi` scores candidates using only fields available before execution, then "
             "subtracts runtime cost and either performs one zoom or stops.",
             "- `oracle_voi` reads counterfactual labels and is only a diagnostic upper bound.",
-            "- Replace synthetic rows with real paired VLM rollouts before making research claims.",
+            (
+                "- Replace synthetic rows with real paired VLM rollouts before making research claims."
+                if synthetic
+                else "- Keep the split, prompts, revisions, candidate set, and lambda fixed when comparing methods."
+            ),
             "",
         ]
     )
