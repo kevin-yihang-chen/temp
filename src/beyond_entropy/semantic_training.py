@@ -676,7 +676,20 @@ def fit_semantic_gain_experiment(
         for record in semantic_test_records
         if record.action_type == "ZOOM"
     }
-    scalar_model = LinearGainModel.fit(model_train_records)
+    scalar_model = LinearGainModel.fit(outer_train_records)
+    scalar_validation_predictions = cross_validated_linear_predictions(
+        outer_train_records,
+        group=split_group,
+        n_folds=similarity_cv_folds,
+        seed=seed + 3,
+    )
+    scalar_test_predictions = {
+        (record.state_id, record.replicate_id, record.action_id): scalar_model.predict_gain(
+            record
+        )
+        for record in test_records
+        if record.action_type == "ZOOM"
+    }
     lambda_sweep: list[dict[str, Any]] = []
     for lambda_cost in lambdas:
         entropy_threshold, entropy_reduction_threshold = tune_entropy_thresholds(
@@ -693,6 +706,11 @@ def fit_semantic_gain_experiment(
             semantic_train_records,
             lambda_cost=lambda_cost,
         )
+        scalar_threshold = tune_precomputed_gain_threshold(
+            scalar_validation_predictions,
+            outer_train_records,
+            lambda_cost=lambda_cost,
+        )
         policies: list[Policy] = [
             AnswerNowPolicy(),
             RandomZoomPolicy(seed=seed),
@@ -701,6 +719,12 @@ def fit_semantic_gain_experiment(
             EntropyThresholdPolicy(entropy_threshold),
             EntropyReductionThresholdPolicy(entropy_reduction_threshold),
             LearnedVOIPolicy(scalar_model, lambda_cost=lambda_cost),
+            PrecomputedGainPolicy(
+                scalar_test_predictions,
+                lambda_cost=lambda_cost,
+                name="scalar_gain_oof_threshold",
+                decision_threshold=scalar_threshold,
+            ),
             PrecomputedGainPolicy(
                 raw_prediction_map,
                 lambda_cost=lambda_cost,
@@ -743,6 +767,7 @@ def fit_semantic_gain_experiment(
                 "lambda_cost": lambda_cost,
                 "semantic_gain_validation_threshold": semantic_threshold,
                 "semantic_similarity_validation_threshold": similarity_threshold,
+                "scalar_gain_validation_threshold": scalar_threshold,
                 "policy_results": policy_results,
             }
         )
