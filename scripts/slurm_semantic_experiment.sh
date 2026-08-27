@@ -54,6 +54,7 @@ mkdir -p "${BE_SEMANTIC_RUN_DIR}"
   --weight-decay 0.001 \
   --rank-weight 1.0 \
   --nonzero-weight 8.0 \
+  --transition-weight 8.0 \
   --similarity-cv-folds 5 \
   --bootstrap-resamples 2000 \
   --bootstrap-seed 0 \

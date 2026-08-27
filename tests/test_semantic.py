@@ -46,6 +46,22 @@ def test_semantic_head_has_a_clear_optional_dependency_boundary():
     )
     assert gains.shape == (2, 2)
 
+    success_head = semantic.CounterfactualSuccessHead(
+        question_dim=8,
+        visual_dim=8,
+        state_signal_dim=2,
+        hidden_dim=16,
+    )
+    baseline_logits, action_logits = success_head(
+        question_embedding=torch.randn(2, 8),
+        global_visual_embedding=tokens.mean(dim=(1, 2)),
+        region_embeddings=regions,
+        bboxes=boxes,
+        state_signals=torch.randn(2, 2),
+    )
+    assert baseline_logits.shape == (2,)
+    assert action_logits.shape == (2, 2)
+
 
 def test_qwen_merged_tokens_restore_raster_grid():
     if semantic.torch is None:

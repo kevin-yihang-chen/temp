@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
@@ -32,7 +33,7 @@ from .qwen_semantic import (
     validate_semantic_feature_dataset,
 )
 from .schema import ActionRecord
-from .semantic import SemanticGainHead, require_torch
+from .semantic import CounterfactualSuccessHead, SemanticGainHead, require_torch
 
 
 DecisionKey = tuple[str, str]
@@ -330,6 +331,14 @@ def _batch(
                 for decision in decisions
             ]
         ).to(device),
+        "success_before": torch.tensor(
+            [float(decision["success_before"]) for decision in decisions],
+            dtype=torch.float32,
+            device=device,
+        ),
+        "success_after": torch.stack(
+            [decision["success_after"].float() for decision in decisions]
+        ).to(device),
     }
 
 
@@ -358,6 +367,48 @@ def _semantic_loss(
     return point_loss + rank_weight * rank_loss
 
 
+def _success_difference_loss(
+    baseline_logits: Any,
+    action_logits: Any,
+    success_before: Any,
+    success_after: Any,
+    *,
+    transition_weight: float,
+    rank_weight: float,
+) -> Any:
+    """Train dense success probabilities while emphasizing changed outcomes."""
+
+    import torch  # type: ignore[import-not-found]
+    import torch.nn.functional as functional  # type: ignore[import-not-found]
+
+    baseline_loss = functional.binary_cross_entropy_with_logits(
+        baseline_logits,
+        success_before,
+    )
+    transition = (success_after - success_before[:, None]).abs()
+    action_weights = 1.0 + transition_weight * transition
+    action_losses = functional.binary_cross_entropy_with_logits(
+        action_logits,
+        success_after,
+        reduction="none",
+    )
+    action_loss = (action_losses * action_weights).sum() / action_weights.sum()
+    if rank_weight == 0.0:
+        return baseline_loss + action_loss
+    predicted_gain = torch.sigmoid(action_logits) - torch.sigmoid(baseline_logits)[:, None]
+    target_gain = success_after - success_before[:, None]
+    predicted_differences = predicted_gain[:, :, None] - predicted_gain[:, None, :]
+    target_differences = target_gain[:, :, None] - target_gain[:, None, :]
+    informative = target_differences.abs() > 1e-12
+    if not bool(torch.any(informative)):
+        return baseline_loss + action_loss
+    rank_loss = functional.mse_loss(
+        predicted_differences[informative],
+        target_differences[informative],
+    )
+    return baseline_loss + action_loss + rank_weight * rank_loss
+
+
 def _predict(
     model: Any,
     decisions: Sequence[Mapping[str, Any]],
@@ -383,6 +434,35 @@ def _predict(
             bboxes=batch["bboxes"],
             state_signals=batch["state_signals"],
         )
+    return predictions.detach().cpu(), batch["targets"].detach().cpu()
+
+
+def _predict_success_difference(
+    model: Any,
+    decisions: Sequence[Mapping[str, Any]],
+    *,
+    signal_means: Any,
+    signal_scales: Any,
+    device: Any,
+) -> tuple[Any, Any]:
+    import torch  # type: ignore[import-not-found]
+
+    batch = _batch(
+        decisions,
+        signal_means=signal_means,
+        signal_scales=signal_scales,
+        device=device,
+    )
+    model.eval()
+    with torch.inference_mode():
+        baseline_logits, action_logits = model(
+            question_embedding=batch["question_embedding"],
+            global_visual_embedding=batch["global_visual_embedding"],
+            region_embeddings=batch["region_embeddings"],
+            bboxes=batch["bboxes"],
+            state_signals=batch["state_signals"],
+        )
+        predictions = torch.sigmoid(action_logits) - torch.sigmoid(baseline_logits)[:, None]
     return predictions.detach().cpu(), batch["targets"].detach().cpu()
 
 
@@ -484,6 +564,7 @@ def fit_semantic_gain_experiment(
     weight_decay: float = 1e-3,
     rank_weight: float = 1.0,
     nonzero_weight: float = 8.0,
+    transition_weight: float = 8.0,
     similarity_cv_folds: int = 5,
     bootstrap_resamples: int = 2000,
     bootstrap_seed: int = 0,
@@ -504,6 +585,7 @@ def fit_semantic_gain_experiment(
         or weight_decay < 0.0
         or rank_weight < 0.0
         or nonzero_weight < 0.0
+        or transition_weight < 0.0
     ):
         raise ValueError("optimizer and rank-loss settings must be non-negative")
     if not lambdas or any(value < 0.0 for value in lambdas):
@@ -657,6 +739,110 @@ def fit_semantic_gain_experiment(
         validation_decisions,
         validation_predictions,
     )
+    torch.manual_seed(seed + 1000)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed + 1000)
+    success_model = CounterfactualSuccessHead(
+        question_dim=int(exemplar["question_embedding"].shape[-1]),
+        visual_dim=int(exemplar["global_visual_embedding"].shape[-1]),
+        state_signal_dim=int(exemplar["state_signals"].shape[-1]),
+        hidden_dim=hidden_dim,
+        dropout=dropout,
+    ).to(device)
+    success_optimizer = torch.optim.AdamW(
+        success_model.parameters(),
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
+    success_best_validation_loss = math.inf
+    success_best_epoch = 0
+    success_best_state: dict[str, Any] | None = None
+    success_epochs_without_improvement = 0
+    success_history: list[dict[str, float | int]] = []
+    for epoch in range(1, max_epochs + 1):
+        success_model.train()
+        success_optimizer.zero_grad(set_to_none=True)
+        train_baseline_logits, train_action_logits = success_model(
+            question_embedding=train_batch["question_embedding"],
+            global_visual_embedding=train_batch["global_visual_embedding"],
+            region_embeddings=train_batch["region_embeddings"],
+            bboxes=train_batch["bboxes"],
+            state_signals=train_batch["state_signals"],
+        )
+        success_train_loss = _success_difference_loss(
+            train_baseline_logits,
+            train_action_logits,
+            train_batch["success_before"],
+            train_batch["success_after"],
+            transition_weight=transition_weight,
+            rank_weight=rank_weight,
+        )
+        success_train_loss.backward()
+        torch.nn.utils.clip_grad_norm_(success_model.parameters(), max_norm=5.0)
+        success_optimizer.step()
+        success_model.eval()
+        with torch.inference_mode():
+            validation_baseline_logits, validation_action_logits = success_model(
+                question_embedding=validation_batch["question_embedding"],
+                global_visual_embedding=validation_batch["global_visual_embedding"],
+                region_embeddings=validation_batch["region_embeddings"],
+                bboxes=validation_batch["bboxes"],
+                state_signals=validation_batch["state_signals"],
+            )
+            success_validation_loss = _success_difference_loss(
+                validation_baseline_logits,
+                validation_action_logits,
+                validation_batch["success_before"],
+                validation_batch["success_after"],
+                transition_weight=transition_weight,
+                rank_weight=rank_weight,
+            )
+        success_train_value = float(success_train_loss.detach().cpu())
+        success_validation_value = float(success_validation_loss.detach().cpu())
+        success_history.append(
+            {
+                "epoch": epoch,
+                "train_loss": success_train_value,
+                "validation_loss": success_validation_value,
+            }
+        )
+        if success_validation_value < success_best_validation_loss - 1e-7:
+            success_best_validation_loss = success_validation_value
+            success_best_epoch = epoch
+            success_best_state = {
+                name: value.detach().cpu().clone()
+                for name, value in success_model.state_dict().items()
+            }
+            success_epochs_without_improvement = 0
+        else:
+            success_epochs_without_improvement += 1
+            if success_epochs_without_improvement >= patience:
+                break
+    if success_best_state is None:
+        raise RuntimeError("semantic success training did not produce a checkpoint")
+    success_model.load_state_dict(success_best_state)
+    success_validation_predictions, _ = _predict_success_difference(
+        success_model,
+        validation_decisions,
+        signal_means=signal_means,
+        signal_scales=signal_scales,
+        device=device,
+    )
+    success_test_predictions, _ = _predict_success_difference(
+        success_model,
+        test_decisions,
+        signal_means=signal_means,
+        signal_scales=signal_scales,
+        device=device,
+    )
+    validation_success_prediction_map = _prediction_map(
+        validation_decisions,
+        success_validation_predictions,
+    )
+    test_success_prediction_map = _prediction_map(
+        test_decisions,
+        success_test_predictions,
+    )
     semantic_train_records = add_semantic_similarity_features(
         outer_train_records,
         decision_by_key,
@@ -711,6 +897,11 @@ def fit_semantic_gain_experiment(
             validation_records,
             lambda_cost=lambda_cost,
         )
+        success_difference_threshold = tune_precomputed_gain_threshold(
+            validation_success_prediction_map,
+            validation_records,
+            lambda_cost=lambda_cost,
+        )
         similarity_threshold = tune_precomputed_gain_threshold(
             validation_similarity_predictions,
             semantic_train_records,
@@ -754,6 +945,12 @@ def fit_semantic_gain_experiment(
                 decision_threshold=semantic_threshold,
             ),
             PrecomputedGainPolicy(
+                test_success_prediction_map,
+                lambda_cost=lambda_cost,
+                name="semantic_success_difference",
+                decision_threshold=success_difference_threshold,
+            ),
+            PrecomputedGainPolicy(
                 test_similarity_predictions,
                 lambda_cost=lambda_cost,
                 name="semantic_similarity_ridge",
@@ -778,6 +975,7 @@ def fit_semantic_gain_experiment(
             {
                 "lambda_cost": lambda_cost,
                 "semantic_gain_validation_threshold": semantic_threshold,
+                "semantic_success_validation_threshold": success_difference_threshold,
                 "semantic_similarity_validation_threshold": similarity_threshold,
                 "scalar_gain_validation_threshold": scalar_threshold,
                 "entropy_random_validation_threshold": entropy_random_threshold,
@@ -787,6 +985,7 @@ def fit_semantic_gain_experiment(
         )
     output = Path(output_dir)
     model_path = output / "semantic_gain_model.pt"
+    success_model_path = output / "semantic_success_model.pt"
     similarity_model_path = output / "semantic_similarity_gain_model.json"
     report_path = output / "report.json"
     markdown_path = output / "report.md"
@@ -808,12 +1007,32 @@ def fit_semantic_gain_experiment(
             "intercept": calibration_intercept,
         },
         "feature_metadata": feature_dataset["metadata"],
+        "training_code_revision": os.environ.get("BE_CODE_REVISION"),
+    }
+    success_checkpoint = {
+        "format_version": 1,
+        "model_type": "qwen_roi_counterfactual_success_difference",
+        "state_dict": success_best_state,
+        "model_config": {
+            "question_dim": int(exemplar["question_embedding"].shape[-1]),
+            "visual_dim": int(exemplar["global_visual_embedding"].shape[-1]),
+            "state_signal_dim": int(exemplar["state_signals"].shape[-1]),
+            "hidden_dim": hidden_dim,
+            "dropout": dropout,
+        },
+        "signal_means": signal_means,
+        "signal_scales": signal_scales,
+        "transition_weight": transition_weight,
+        "rank_weight": rank_weight,
+        "feature_metadata": feature_dataset["metadata"],
+        "training_code_revision": os.environ.get("BE_CODE_REVISION"),
     }
     report: dict[str, Any] = {
         "scientific_status": "diagnostic; not a benchmark claim",
         "run": {
             "features": str(Path(feature_path).resolve()),
             "rollouts": str(Path(rollouts_path).resolve()),
+            "training_code_revision": os.environ.get("BE_CODE_REVISION"),
             "split_group": split_group,
             "train_fraction": train_fraction,
             "validation_fraction_within_train": validation_fraction,
@@ -829,6 +1048,7 @@ def fit_semantic_gain_experiment(
             "weight_decay": weight_decay,
             "rank_weight": rank_weight,
             "nonzero_weight": nonzero_weight,
+            "transition_weight": transition_weight,
             "similarity_cv_folds": similarity_cv_folds,
             "bootstrap_resamples": bootstrap_resamples,
             "bootstrap_seed": bootstrap_seed,
@@ -844,11 +1064,19 @@ def fit_semantic_gain_experiment(
                 "slope": calibration_slope,
                 "intercept": calibration_intercept,
             },
+            "success_best_epoch": success_best_epoch,
+            "success_epochs_ran": len(success_history),
+            "success_best_validation_loss": success_best_validation_loss,
+            "success_test_action_mse": float(
+                torch.nn.functional.mse_loss(success_test_predictions, test_targets)
+            ),
         },
         "training_history": history,
+        "success_training_history": success_history,
         "lambda_sweep": lambda_sweep,
     }
     _atomic_torch_save(checkpoint, model_path)
+    _atomic_torch_save(success_checkpoint, success_model_path)
     similarity_model.save(similarity_model_path)
     _write_json(report, report_path)
     markdown_path.parent.mkdir(parents=True, exist_ok=True)

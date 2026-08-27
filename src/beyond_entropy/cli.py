@@ -520,6 +520,7 @@ def command_fit_semantic(args: argparse.Namespace) -> None:
         weight_decay=args.weight_decay,
         rank_weight=args.rank_weight,
         nonzero_weight=args.nonzero_weight,
+        transition_weight=args.transition_weight,
         similarity_cv_folds=args.similarity_cv_folds,
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
@@ -711,6 +712,7 @@ def build_parser() -> argparse.ArgumentParser:
     fit_semantic.add_argument("--weight-decay", type=float, default=1e-3)
     fit_semantic.add_argument("--rank-weight", type=float, default=1.0)
     fit_semantic.add_argument("--nonzero-weight", type=float, default=8.0)
+    fit_semantic.add_argument("--transition-weight", type=float, default=8.0)
     fit_semantic.add_argument("--similarity-cv-folds", type=int, default=5)
     fit_semantic.add_argument("--bootstrap-resamples", type=int, default=2000)
     fit_semantic.add_argument("--bootstrap-seed", type=int, default=0)
