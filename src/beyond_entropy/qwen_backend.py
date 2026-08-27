@@ -163,6 +163,8 @@ class Qwen25VLBackend:
             generated = self.model.generate(
                 **inputs,
                 do_sample=False,
+                temperature=None,
+                top_p=None,
                 max_new_tokens=self.max_new_tokens,
                 use_cache=True,
                 return_dict_in_generate=True,
