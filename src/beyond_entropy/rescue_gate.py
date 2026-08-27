@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from statistics import mean, median
 from typing import Any, Mapping, Sequence
 
@@ -243,6 +244,200 @@ def fit_rescue_gate_split(
         "scaler_scale": [float(value) for value in scaler.scale_.tolist()],
         "coefficient": [float(value) for value in model.coef_[0].tolist()],
         "intercept": float(model.intercept_[0]),
+    }
+    return report, model_payload
+
+
+def _grouped_crossfit_records(
+    records: Sequence[ActionRecord],
+    *,
+    split_group: str,
+    n_folds: int,
+    seed: int,
+) -> list[tuple[list[ActionRecord], list[ActionRecord]]]:
+    if split_group not in ("source_id", "image_id", "state_id"):
+        raise ValueError(f"unsupported split group: {split_group}")
+    group_ids = sorted({str(getattr(record, split_group)) for record in records})
+    if n_folds < 2 or n_folds > len(group_ids):
+        raise ValueError("n_folds must be between 2 and the number of groups")
+    random.Random(seed).shuffle(group_ids)
+    fold_ids = [set(group_ids[index::n_folds]) for index in range(n_folds)]
+    folds = []
+    for validation_ids in fold_ids:
+        training = [
+            record
+            for record in records
+            if str(getattr(record, split_group)) not in validation_ids
+        ]
+        validation = [
+            record
+            for record in records
+            if str(getattr(record, split_group)) in validation_ids
+        ]
+        folds.append((training, validation))
+    return folds
+
+
+def fit_crossfit_rescue_gate_split(
+    records: Sequence[ActionRecord],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+    *,
+    split_group: str = "image_id",
+    train_fraction: float = 0.7,
+    n_folds: int = 5,
+    lambda_cost: float = 0.05,
+    c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
+    bootstrap_resamples: int = 2000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Tune on grouped OOF scores and deploy an ensemble of the fold models."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if not c_values or any(value <= 0.0 for value in c_values):
+        raise ValueError("c_values must contain positive regularization values")
+    outer_train, test = split_by_group(
+        records,
+        group=split_group,  # type: ignore[arg-type]
+        train_fraction=train_fraction,
+        seed=seed,
+    )
+    outer_keys = _keys(outer_train)
+    test_keys = _keys(test)
+    missing = set(outer_keys + test_keys) - set(decision_by_key)
+    if missing:
+        raise ValueError(f"semantic features are missing decisions: {sorted(missing)[:5]}")
+    outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    raw_features = {
+        key: compact_rescue_features(decision_by_key[key])
+        for key in outer_keys + test_keys
+    }
+    labels = {key: int(bool(outcomes[key]["helpful"])) for key in outer_keys + test_keys}
+    folds = _grouped_crossfit_records(
+        outer_train,
+        split_group=split_group,
+        n_folds=n_folds,
+        seed=seed + 1,
+    )
+    candidate_models: list[
+        tuple[float, float, float, float, list[tuple[Any, Any]], dict[DecisionKey, float]]
+    ] = []
+    for c_value in c_values:
+        oof_scores: dict[DecisionKey, float] = {}
+        ensemble: list[tuple[Any, Any]] = []
+        test_fold_scores: list[Any] = []
+        for fold_train, fold_validation in folds:
+            train_keys = _keys(fold_train)
+            validation_keys = _keys(fold_validation)
+            scaler = StandardScaler().fit(
+                np.asarray([raw_features[key] for key in train_keys], dtype=np.float64)
+            )
+            model = LogisticRegression(
+                C=float(c_value),
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=seed,
+            ).fit(
+                scaler.transform(
+                    np.asarray([raw_features[key] for key in train_keys], dtype=np.float64)
+                ),
+                np.asarray([labels[key] for key in train_keys], dtype=np.int64),
+            )
+            validation_scores = model.decision_function(
+                scaler.transform(
+                    np.asarray(
+                        [raw_features[key] for key in validation_keys],
+                        dtype=np.float64,
+                    )
+                )
+            )
+            for key, score in zip(validation_keys, validation_scores.tolist()):
+                if key in oof_scores:
+                    raise RuntimeError(f"duplicate rescue-gate OOF score for {key!r}")
+                oof_scores[key] = float(score)
+            test_fold_scores.append(
+                model.decision_function(
+                    scaler.transform(
+                        np.asarray([raw_features[key] for key in test_keys], dtype=np.float64)
+                    )
+                )
+            )
+            ensemble.append((scaler, model))
+        if set(oof_scores) != set(outer_keys):
+            raise RuntimeError("rescue-gate OOF scores do not cover every outer-train decision")
+        threshold, utility, tool_rate = tune_rescue_gate_threshold(
+            [oof_scores[key] for key in outer_keys],
+            [float(outcomes[key]["expected_utility"]) for key in outer_keys],
+        )
+        test_scores_array = np.stack(test_fold_scores).mean(axis=0)
+        test_scores = {
+            key: float(score) for key, score in zip(test_keys, test_scores_array.tolist())
+        }
+        candidate_models.append(
+            (utility, -tool_rate, -float(c_value), threshold, ensemble, test_scores)
+        )
+    oof_utility, negative_tool_rate, negative_c, threshold, ensemble, test_scores = max(
+        candidate_models,
+        key=lambda value: value[:3],
+    )
+    policy = PrecomputedRescueGatePolicy(test_scores, threshold=threshold)
+    policy_result: dict[str, Any] = dict(
+        evaluate_policy(test, policy, lambda_cost=lambda_cost)
+    )
+    policy_result["bootstrap"] = bootstrap_policy_evaluation(
+        test,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+    )
+    test_scores_array = np.asarray([test_scores[key] for key in test_keys])
+    test_labels = np.asarray([labels[key] for key in test_keys], dtype=np.int64)
+    report = {
+        "seed": seed,
+        "selection_mode": "grouped_oof_fold_ensemble",
+        "split_group": split_group,
+        "train_fraction": train_fraction,
+        "outer_train_decisions": len(outer_keys),
+        "test_decisions": len(test_keys),
+        "n_folds": n_folds,
+        "feature_count": len(raw_features[outer_keys[0]]),
+        "selected_c": -negative_c,
+        "oof_threshold": threshold,
+        "oof_utility": oof_utility,
+        "oof_tool_rate": -negative_tool_rate,
+        "test_helpful_rate": float(test_labels.mean()),
+        "test_helpful_roc_auc": float(roc_auc_score(test_labels, test_scores_array)),
+        "test_helpful_average_precision": float(
+            average_precision_score(test_labels, test_scores_array)
+        ),
+        "policy_result": policy_result,
+    }
+    ensemble_payload = []
+    for scaler, model in ensemble:
+        ensemble_payload.append(
+            {
+                "scaler_mean": [float(value) for value in scaler.mean_.tolist()],
+                "scaler_scale": [float(value) for value in scaler.scale_.tolist()],
+                "coefficient": [float(value) for value in model.coef_[0].tolist()],
+                "intercept": float(model.intercept_[0]),
+            }
+        )
+    model_payload = {
+        "model_type": "compact_rescue_gate_grouped_fold_ensemble",
+        "seed": seed,
+        "selected_c": -negative_c,
+        "threshold": threshold,
+        "n_folds": n_folds,
+        "fold_models": ensemble_payload,
     }
     return report, model_payload
 

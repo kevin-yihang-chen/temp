@@ -3,6 +3,7 @@ import pytest
 from beyond_entropy.dataset import group_by_decision
 from beyond_entropy.metrics import evaluate_policy
 from beyond_entropy.rescue_gate import (
+    _grouped_crossfit_records,
     PrecomputedRescueGatePolicy,
     aggregate_rescue_gate_splits,
     tune_rescue_gate_threshold,
@@ -55,3 +56,25 @@ def test_rescue_gate_split_aggregation_does_not_claim_independent_ci():
     assert aggregate["positive_utility_splits"] == 1
     assert aggregate["mean_policy_utility"]["mean"] == pytest.approx(0.00125)
     assert "not independent" in aggregate["scientific_status"]
+
+
+def test_grouped_crossfit_never_leaks_image_groups():
+    records = simulate_counterfactual_dataset(
+        n_states=12,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=33,
+    )
+    folds = _grouped_crossfit_records(
+        records,
+        split_group="image_id",
+        n_folds=3,
+        seed=5,
+    )
+    validation_keys = set()
+    for training, validation in folds:
+        train_images = {record.image_id for record in training}
+        validation_images = {record.image_id for record in validation}
+        assert train_images.isdisjoint(validation_images)
+        validation_keys.update(group_by_decision(validation))
+    assert validation_keys == set(group_by_decision(records))

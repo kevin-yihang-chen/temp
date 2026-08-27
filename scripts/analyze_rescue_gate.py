@@ -14,6 +14,7 @@ from beyond_entropy.qwen_semantic import (
 from beyond_entropy.rescue_gate import (
     aggregate_rescue_gate_splits,
     build_rescue_gate_markdown,
+    fit_crossfit_rescue_gate_split,
     fit_rescue_gate_split,
 )
 
@@ -32,6 +33,12 @@ def main() -> None:
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
+    parser.add_argument(
+        "--selection-mode",
+        choices=("inner-validation", "grouped-crossfit"),
+        default="inner-validation",
+    )
+    parser.add_argument("--cv-folds", type=int, default=5)
     args = parser.parse_args()
 
     records = read_jsonl(args.rollouts)
@@ -43,14 +50,25 @@ def main() -> None:
     }
     split_reports = []
     for seed in args.seeds:
-        split_report, model = fit_rescue_gate_split(
-            records,
-            decision_by_key,
-            lambda_cost=args.lambda_cost,
-            bootstrap_resamples=args.bootstrap_resamples,
-            bootstrap_seed=args.bootstrap_seed,
-            seed=seed,
-        )
+        if args.selection_mode == "grouped-crossfit":
+            split_report, model = fit_crossfit_rescue_gate_split(
+                records,
+                decision_by_key,
+                lambda_cost=args.lambda_cost,
+                n_folds=args.cv_folds,
+                bootstrap_resamples=args.bootstrap_resamples,
+                bootstrap_seed=args.bootstrap_seed,
+                seed=seed,
+            )
+        else:
+            split_report, model = fit_rescue_gate_split(
+                records,
+                decision_by_key,
+                lambda_cost=args.lambda_cost,
+                bootstrap_resamples=args.bootstrap_resamples,
+                bootstrap_seed=args.bootstrap_seed,
+                seed=seed,
+            )
         split_reports.append(split_report)
         write_json(model, args.output_dir / f"seed-{seed}" / "model.json")
         write_json(split_report, args.output_dir / f"seed-{seed}" / "report.json")
@@ -65,6 +83,8 @@ def main() -> None:
             "lambda_cost": args.lambda_cost,
             "bootstrap_resamples": args.bootstrap_resamples,
             "bootstrap_seed": args.bootstrap_seed,
+            "selection_mode": args.selection_mode,
+            "cv_folds": args.cv_folds,
         },
         "splits": split_reports,
         "aggregate": aggregate_rescue_gate_splits(split_reports),
