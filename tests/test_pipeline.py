@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from beyond_entropy.cli import main
@@ -198,8 +200,13 @@ def test_fit_baseline_command_uses_grouped_real_split(tmp_path):
             "image_id",
             "--seed",
             "3",
+            "--bootstrap-resamples",
+            "10",
         ]
     )
-    report = (output_dir / "report.md").read_text()
-    assert "Frozen-rollout baseline report" in report
-    assert "not a final benchmark claim" in report
+    markdown = (output_dir / "report.md").read_text()
+    report = json.loads((output_dir / "report.json").read_text())
+    assert "Frozen-rollout baseline report" in markdown
+    assert "not a final benchmark claim" in markdown
+    assert report["bootstrap_resamples"] == 10
+    assert all("bootstrap" in result for result in report["policy_results"])

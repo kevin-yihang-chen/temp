@@ -11,6 +11,7 @@ from typing import Sequence
 from .dataset import group_by_decision, read_jsonl, split_by_group, write_jsonl
 from .metrics import (
     bootstrap_entropy_diagnostic,
+    bootstrap_policy_evaluation,
     diagnostic_to_dict,
     entropy_diagnostic,
     evaluate_policy,
@@ -56,6 +57,8 @@ def _evaluate(
     entropy_random_threshold: float | None = None,
     entropy_fixed_threshold: float | None = None,
     entropy_expected_random_threshold: float | None = None,
+    bootstrap_resamples: int = 0,
+    bootstrap_seed: int = 0,
 ) -> dict[str, object]:
     if lambda_cost < 0.0:
         raise ValueError("lambda_cost must be non-negative")
@@ -81,8 +84,26 @@ def _evaluate(
     if model is not None:
         policies.append(LearnedVOIPolicy(model, lambda_cost=lambda_cost))
     policies.append(OracleVOIPolicy(lambda_cost))
+    if bootstrap_resamples < 0:
+        raise ValueError("bootstrap_resamples must be non-negative")
+    policy_results: list[dict[str, object]] = []
+    for policy_index, policy in enumerate(policies):
+        result: dict[str, object] = dict(
+            evaluate_policy(records, policy, lambda_cost=lambda_cost)
+        )
+        if bootstrap_resamples:
+            result["bootstrap"] = bootstrap_policy_evaluation(
+                records,
+                policy,
+                lambda_cost=lambda_cost,
+                n_resamples=bootstrap_resamples,
+                seed=bootstrap_seed + policy_index,
+            )
+        policy_results.append(result)
     return {
         "lambda_cost": lambda_cost,
+        "bootstrap_resamples": bootstrap_resamples,
+        "bootstrap_seed": bootstrap_seed,
         "baseline_thresholds": {
             "entropy": entropy_threshold,
             "entropy_reduction": entropy_reduction_threshold,
@@ -91,9 +112,7 @@ def _evaluate(
             "entropy_uniform_random_expectation": entropy_expected_random_threshold,
         },
         "entropy_diagnostic": diagnostic_to_dict(entropy_diagnostic(records)),
-        "policy_results": [
-            evaluate_policy(records, policy, lambda_cost=lambda_cost) for policy in policies
-        ],
+        "policy_results": policy_results,
     }
 
 
@@ -267,6 +286,8 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
         entropy_random_threshold=entropy_random_threshold,
         entropy_fixed_threshold=entropy_fixed_threshold,
         entropy_expected_random_threshold=entropy_expected_random_threshold,
+        bootstrap_resamples=args.bootstrap_resamples,
+        bootstrap_seed=args.bootstrap_seed,
     )
     report["run"] = {
         "synthetic": False,
@@ -280,6 +301,8 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
         "test_records": len(test),
         "model_target": "delta_success",
         "model_features": list(model.encoder.names),
+        "bootstrap_resamples": args.bootstrap_resamples,
+        "bootstrap_seed": args.bootstrap_seed,
     }
     _write_json(report, report_path)
     markdown_path.write_text(build_markdown_report(report), encoding="utf-8")
@@ -653,6 +676,8 @@ def build_parser() -> argparse.ArgumentParser:
     fit_baseline.add_argument("--lambda-cost", type=float, default=0.05)
     fit_baseline.add_argument("--alpha", type=float, default=1.0)
     fit_baseline.add_argument("--seed", type=int, default=17)
+    fit_baseline.add_argument("--bootstrap-resamples", type=int, default=0)
+    fit_baseline.add_argument("--bootstrap-seed", type=int, default=0)
     fit_baseline.set_defaults(func=command_fit_baseline)
 
     collect_qwen = subparsers.add_parser(
