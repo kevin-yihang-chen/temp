@@ -32,4 +32,5 @@ mkdir -p "${run_dir}"
   --model-revision 66285546d2b821cf421d4f5eb2576359d3770cd3 \
   --min-pixels 200704 \
   --max-pixels 602112 \
-  --attention-implementation sdpa
+  --attention-implementation sdpa \
+  --question-feature-mode contextual_text_mean

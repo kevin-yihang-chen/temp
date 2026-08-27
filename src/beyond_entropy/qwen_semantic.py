@@ -66,6 +66,7 @@ class Qwen25VLSemanticExtractor:
         min_pixels: int = 256 * 28 * 28,
         max_pixels: int = 768 * 28 * 28,
         local_files_only: bool = True,
+        question_feature_mode: str = "input_mean",
     ) -> None:
         require_torch()
         try:
@@ -82,6 +83,8 @@ class Qwen25VLSemanticExtractor:
             raise ValueError(f"unsupported torch dtype: {dtype}")
         if min_pixels <= 0 or max_pixels < min_pixels:
             raise ValueError("pixel limits must be positive and ordered")
+        if question_feature_mode not in ("input_mean", "contextual_text_mean"):
+            raise ValueError(f"unsupported question_feature_mode: {question_feature_mode}")
         model_kwargs: dict[str, Any] = {
             "dtype": getattr(torch, dtype),
             "device_map": device_map,
@@ -108,6 +111,7 @@ class Qwen25VLSemanticExtractor:
         self.attention_implementation = attention_implementation
         self.min_pixels = min_pixels
         self.max_pixels = max_pixels
+        self.question_feature_mode = question_feature_mode
 
     def encode(
         self,
@@ -139,6 +143,7 @@ class Qwen25VLSemanticExtractor:
             return_tensors="pt",
         )
         question_ids = tokenized.input_ids.to(target_device)
+        question_attention_mask = tokenized.attention_mask.to(target_device)
         if question_ids.shape[1] == 0:
             raise ValueError("question tokenization produced no tokens")
         with torch.inference_mode():
@@ -163,9 +168,18 @@ class Qwen25VLSemanticExtractor:
                 spatial_tokens.unsqueeze(0),
                 bbox_tensor.unsqueeze(0),
             )[0]
-            question_embedding = self.model.model.get_input_embeddings()(
-                question_ids
-            ).mean(dim=1)[0]
+            if self.question_feature_mode == "input_mean":
+                question_embedding = self.model.model.get_input_embeddings()(
+                    question_ids
+                ).mean(dim=1)[0]
+            else:
+                question_outputs = self.model.model.language_model(
+                    input_ids=question_ids,
+                    attention_mask=question_attention_mask,
+                    use_cache=False,
+                    return_dict=True,
+                )
+                question_embedding = question_outputs.last_hidden_state.mean(dim=1)[0]
         return {
             "question_embedding": question_embedding.detach().to(torch.float32).cpu(),
             "global_visual_embedding": spatial_tokens.mean(dim=(0, 1)).detach().to(
@@ -303,6 +317,7 @@ def extract_qwen_semantic_dataset(
     min_pixels: int = 256 * 28 * 28,
     max_pixels: int = 768 * 28 * 28,
     local_files_only: bool = True,
+    question_feature_mode: str = "input_mean",
     resume: bool = False,
 ) -> dict[str, Any]:
     """Checkpoint frozen Qwen semantic features for every rollout decision."""
@@ -325,7 +340,12 @@ def extract_qwen_semantic_dataset(
         "max_pixels": max_pixels,
         "local_files_only": local_files_only,
         "code_revision": os.environ.get("BE_CODE_REVISION"),
-        "question_feature": "mean frozen Qwen input-token embedding",
+        "question_feature_mode": question_feature_mode,
+        "question_feature": (
+            "mean frozen Qwen input-token embedding"
+            if question_feature_mode == "input_mean"
+            else "mean final hidden state from frozen Qwen text-only contextualization"
+        ),
         "visual_feature": "raster-restored Qwen vision merger output",
         "region_feature": "mean ROI pool from the single full-image token grid",
         "packages": {
@@ -348,6 +368,7 @@ def extract_qwen_semantic_dataset(
             "model_revision",
             "dtype",
             "attention_implementation",
+            "question_feature_mode",
             "min_pixels",
             "max_pixels",
         ):
@@ -386,6 +407,7 @@ def extract_qwen_semantic_dataset(
             min_pixels=min_pixels,
             max_pixels=max_pixels,
             local_files_only=local_files_only,
+            question_feature_mode=question_feature_mode,
         )
         state_cache: dict[str, dict[str, Any]] = {}
         for position, (key, siblings) in enumerate(pending, start=1):

@@ -425,6 +425,7 @@ def command_extract_qwen_features(args: argparse.Namespace) -> None:
         min_pixels=args.min_pixels,
         max_pixels=args.max_pixels,
         local_files_only=not args.allow_download,
+        question_feature_mode=args.question_feature_mode,
         resume=args.resume,
     )
     print(
@@ -608,6 +609,11 @@ def build_parser() -> argparse.ArgumentParser:
     extract_qwen_features.add_argument("--device-map", default="cuda:0")
     extract_qwen_features.add_argument("--dtype", default="bfloat16")
     extract_qwen_features.add_argument("--attention-implementation", default="sdpa")
+    extract_qwen_features.add_argument(
+        "--question-feature-mode",
+        choices=("input_mean", "contextual_text_mean"),
+        default="input_mean",
+    )
     extract_qwen_features.add_argument("--allow-download", action="store_true")
     extract_qwen_features.set_defaults(func=command_extract_qwen_features)
 

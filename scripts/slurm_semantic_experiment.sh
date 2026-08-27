@@ -16,6 +16,7 @@ set -euo pipefail
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
 model_dir=${BE_SEMANTIC_MODEL_DIR:-"${BE_SEMANTIC_RUN_DIR}/semantic-model"}
+question_feature_mode=${BE_SEMANTIC_QUESTION_FEATURE_MODE:-input_mean}
 
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
@@ -36,7 +37,8 @@ mkdir -p "${BE_SEMANTIC_RUN_DIR}"
   --model-revision 66285546d2b821cf421d4f5eb2576359d3770cd3 \
   --min-pixels 200704 \
   --max-pixels 602112 \
-  --attention-implementation sdpa
+  --attention-implementation sdpa \
+  --question-feature-mode "${question_feature_mode}"
 
 "${python_bin}" -m beyond_entropy fit-semantic \
   --features "${BE_SEMANTIC_RUN_DIR}/features.pt" \
