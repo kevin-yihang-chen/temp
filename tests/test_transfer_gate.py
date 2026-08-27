@@ -3,6 +3,7 @@ from beyond_entropy.simulate import simulate_counterfactual_dataset
 import pytest
 
 from beyond_entropy.transfer_gate import (
+    evaluate_frozen_factorized_context_model,
     fit_factorized_context_transfer,
     threshold_for_target_rate,
 )
@@ -46,3 +47,15 @@ def test_factorized_context_transfer_never_tunes_on_target_labels():
     ] == 80
     assert sum(value["n_decisions"] for value in report["strata"].values()) == 80
     assert model["model_type"] == "factorized_context_cross_benchmark_transfer"
+    frozen = evaluate_frozen_factorized_context_model(
+        model,
+        target,
+        source_entropy_threshold=report["source_entropy_threshold"],
+        target_strata=target_strata,
+        bootstrap_resamples=20,
+    )
+    assert frozen["policies"]["frozen_factorized_context"][
+        "mean_policy_utility"
+    ] == pytest.approx(
+        report["policies"]["factorized_context_transfer"]["mean_policy_utility"]
+    )

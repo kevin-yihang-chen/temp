@@ -29,6 +29,67 @@ def threshold_for_target_rate(scores: Sequence[float], target_rate: float) -> fl
     return (ordered[selected_count - 1] + ordered[selected_count]) / 2.0
 
 
+def score_frozen_factorized_context_model(
+    model: Mapping[str, Any],
+    records: Sequence[ActionRecord],
+) -> dict[DecisionKey, float]:
+    """Score states from serialized scaler/logistic parameters without refitting."""
+
+    import math
+
+    if model.get("model_type") != "factorized_context_cross_benchmark_transfer":
+        raise ValueError("unsupported frozen factorized model type")
+    baselines = _baselines(records)
+    keys = sorted(baselines)
+    error_mean = [float(value) for value in model["error_scaler_mean"]]
+    error_scale = [float(value) for value in model["error_scaler_scale"]]
+    error_coefficient = [float(value) for value in model["error_coefficient"]]
+    rescue_mean = [float(value) for value in model["rescue_scaler_mean"]]
+    rescue_scale = [float(value) for value in model["rescue_scaler_scale"]]
+    rescue_coefficient = [float(value) for value in model["rescue_coefficient"]]
+    dimensions = {
+        len(error_mean),
+        len(error_scale),
+        len(error_coefficient),
+        len(rescue_mean),
+        len(rescue_scale),
+        len(rescue_coefficient),
+    }
+    if dimensions != {27} or any(value <= 0.0 for value in error_scale + rescue_scale):
+        raise ValueError("frozen factorized model has inconsistent feature dimensions")
+
+    def sigmoid(value: float) -> float:
+        if value >= 0.0:
+            inverse = math.exp(-value)
+            return 1.0 / (1.0 + inverse)
+        exponent = math.exp(value)
+        return exponent / (1.0 + exponent)
+
+    scores = {}
+    for key in keys:
+        features = pre_action_context_features(baselines[key])
+        error_logit = float(model["error_intercept"]) + sum(
+            coefficient * (feature - center) / scale
+            for coefficient, feature, center, scale in zip(
+                error_coefficient,
+                features,
+                error_mean,
+                error_scale,
+            )
+        )
+        rescue_logit = float(model["rescue_intercept"]) + sum(
+            coefficient * (feature - center) / scale
+            for coefficient, feature, center, scale in zip(
+                rescue_coefficient,
+                features,
+                rescue_mean,
+                rescue_scale,
+            )
+        )
+        scores[key] = sigmoid(error_logit) * sigmoid(rescue_logit)
+    return scores
+
+
 def _baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
     result = {}
     for key, siblings in group_by_decision(records).items():
@@ -75,6 +136,151 @@ def _evaluated(
         seed=bootstrap_seed,
     )
     return result
+
+
+def evaluate_frozen_factorized_context_model(
+    model: Mapping[str, Any],
+    target_records: Sequence[ActionRecord],
+    *,
+    source_entropy_threshold: float,
+    lambda_cost: float = 0.05,
+    target_strata: Mapping[str, str] | None = None,
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+) -> dict[str, Any]:
+    """Evaluate a serialized source-only model without any target-label fitting."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+
+    target_baselines = _baselines(target_records)
+    target_outcomes = _outcomes(target_records, lambda_cost=lambda_cost)
+    target_keys = sorted(target_baselines)
+    target_scores = score_frozen_factorized_context_model(model, target_records)
+    transfer_policy = PrecomputedRescueGatePolicy(
+        target_scores,
+        threshold=float(model["threshold"]),
+        name="frozen_factorized_context_uniform_random_expectation",
+    )
+    entropy_policy = PrecomputedRescueGatePolicy(
+        {key: target_baselines[key].entropy_before for key in target_keys},
+        threshold=source_entropy_threshold,
+        name="frozen_source_entropy_uniform_random_expectation",
+    )
+    policies = {
+        "frozen_factorized_context": _evaluated(
+            target_records,
+            transfer_policy,
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+        "frozen_source_entropy": _evaluated(
+            target_records,
+            entropy_policy,
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+        "always_random": _evaluated(
+            target_records,
+            ExpectedRandomZoomPolicy(),
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+        "exhaustive_entropy": _evaluated(
+            target_records,
+            EntropySearchPolicy(),
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+        "oracle": _evaluated(
+            target_records,
+            OracleVOIPolicy(lambda_cost),
+            lambda_cost=lambda_cost,
+            bootstrap_resamples=bootstrap_resamples,
+            bootstrap_seed=bootstrap_seed,
+        ),
+    }
+    error_labels = np.asarray(
+        [target_baselines[key].correct_before < 0.5 for key in target_keys],
+        dtype=np.int64,
+    )
+    helpful_labels = np.asarray(
+        [bool(target_outcomes[key]["helpful"]) for key in target_keys],
+        dtype=np.int64,
+    )
+    score_array = np.asarray([target_scores[key] for key in target_keys])
+    diagnostics = {
+        "target_error_rate": float(error_labels.mean()),
+        "target_helpful_rate": float(helpful_labels.mean()),
+        "target_helpful_roc_auc": float(roc_auc_score(helpful_labels, score_array)),
+        "target_helpful_average_precision": float(
+            average_precision_score(helpful_labels, score_array)
+        ),
+    }
+    strata = {}
+    if target_strata is not None:
+        missing_strata = {
+            baseline.state_id for baseline in target_baselines.values()
+        } - set(target_strata)
+        if missing_strata:
+            raise ValueError(f"target strata are missing states: {sorted(missing_strata)[:5]}")
+        for stratum in sorted(set(target_strata.values())):
+            subset = [
+                record
+                for record in target_records
+                if target_strata[record.state_id] == stratum
+            ]
+            strata[stratum] = {
+                "n_decisions": len(group_by_decision(subset)),
+                "frozen_factorized_context": _evaluated(
+                    subset,
+                    transfer_policy,
+                    lambda_cost=lambda_cost,
+                    bootstrap_resamples=bootstrap_resamples,
+                    bootstrap_seed=bootstrap_seed,
+                ),
+                "frozen_source_entropy": _evaluated(
+                    subset,
+                    entropy_policy,
+                    lambda_cost=lambda_cost,
+                    bootstrap_resamples=bootstrap_resamples,
+                    bootstrap_seed=bootstrap_seed,
+                ),
+                "oracle": _evaluated(
+                    subset,
+                    OracleVOIPolicy(lambda_cost),
+                    lambda_cost=lambda_cost,
+                    bootstrap_resamples=bootstrap_resamples,
+                    bootstrap_seed=bootstrap_seed,
+                ),
+            }
+    primary = policies["frozen_factorized_context"]
+    interval = primary["bootstrap"]["metrics"]["mean_policy_utility"]
+    criterion = {
+        "positive_utility": primary["mean_policy_utility"] > 0.0,
+        "utility_ci_lower_above_zero": interval["ci_low"] > 0.0,
+        "positive_accuracy_gain": primary["accuracy_gain"] > 0.0,
+        "lower_tool_rate_than_unconditional_policies": primary["tool_use_rate"] < 1.0,
+    }
+    criterion["passed"] = all(criterion.values())
+    return {
+        "scientific_status": "frozen source-model target evaluation; no target fitting",
+        "lambda_cost": lambda_cost,
+        "target_decisions": len(target_keys),
+        "frozen_threshold": float(model["threshold"]),
+        "source_entropy_threshold": source_entropy_threshold,
+        "diagnostics": diagnostics,
+        "policies": policies,
+        "strata": strata,
+        "primary_confirmation_criterion": criterion,
+    }
 
 
 def fit_factorized_context_transfer(

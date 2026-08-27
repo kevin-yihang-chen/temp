@@ -42,6 +42,13 @@ The primary cost coefficient remains `lambda=0.05`. Target labels may be used
 only after the policy, scaler, regularization, and threshold have been frozen on
 development data.
 
+The serialized source-only deployment model was frozen before confirmation
+rollout completion. Its SHA-256 is
+`5d5c0f781a7141726e786d6ad87b861a6395c489bcf9ad8567a2e9ca825c3330`;
+it uses error `C=0.001`, conditional-rescue `C=0.1`, seed 17, and absolute
+threshold `0.45069723964195885`. The paired source report SHA-256 is
+`1f05ddeef52fa9abced549479cdb8fa386578d12600fb874a964a12a4d927462`.
+
 ## Primary criterion
 
 The confirmation succeeds only if the transferred factorized policy has:
