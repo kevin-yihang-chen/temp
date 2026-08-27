@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import math
 import random
+import re
 from statistics import mean, median
 from typing import Any, Mapping, Sequence
 
@@ -71,7 +73,67 @@ def tune_rescue_gate_threshold(
     return best_threshold, best_score[0], best_tool_rate
 
 
-def compact_rescue_features(decision: Mapping[str, Any]) -> list[float]:
+def pre_action_context_features(record: ActionRecord) -> list[float]:
+    """Extract low-capacity text/confidence features available before tool use."""
+
+    question = record.question.lower().strip()
+    answer = record.answer_before.lower().strip()
+    backend = record.metadata.get("baseline_backend", {})
+    raw_entropies = backend.get("normalized_token_entropies", []) if isinstance(
+        backend, Mapping
+    ) else []
+    token_entropies = []
+    if isinstance(raw_entropies, (list, tuple)):
+        for value in raw_entropies:
+            if isinstance(value, (int, float)) and math.isfinite(float(value)):
+                token_entropies.append(float(value))
+    entropy_mean = mean(token_entropies) if token_entropies else record.entropy_before
+    entropy_variance = (
+        mean((value - entropy_mean) ** 2 for value in token_entropies)
+        if token_entropies
+        else 0.0
+    )
+    numeric_answer = bool(
+        re.fullmatch(r"\s*[$€£]?\s*[+-]?(?:\d+(?:[,.]\d+)*|\.\d+)\s*%?\s*", answer)
+    )
+    keyword_patterns = (
+        r"\bhow many\b",
+        r"\b(?:percentage|percent)\b",
+        r"\b(?:difference|differ)\b",
+        r"\b(?:sum|total)\b",
+        r"\b(?:average|mean)\b",
+        r"\b(?:ratio|proportion)\b",
+        r"\b(?:highest|most|largest|maximum|max)\b",
+        r"\b(?:lowest|least|smallest|minimum|min)\b",
+        r"\b(?:increase|decrease|change|growth|decline)\b",
+        r"\bwhich\b",
+        r"\bwhat\b",
+        r"\b(?:when|year)\b",
+        r"\b(?:yes|no)\b",
+    )
+    return [
+        float(len(question)),
+        float(len(question.split())),
+        float(len(answer)),
+        float(len(answer.split())),
+        float(any(character.isdigit() for character in answer)),
+        float(numeric_answer),
+        float("%" in answer or "percent" in answer),
+        float(answer in {"yes", "no"}),
+        float(len(token_entropies)),
+        float(entropy_mean),
+        float(max(token_entropies, default=record.entropy_before)),
+        float(math.sqrt(entropy_variance)),
+        float(token_entropies[0] if token_entropies else record.entropy_before),
+        float(token_entropies[-1] if token_entropies else record.entropy_before),
+        *(float(bool(re.search(pattern, question))) for pattern in keyword_patterns),
+    ]
+
+
+def compact_rescue_features(
+    decision: Mapping[str, Any],
+    baseline: ActionRecord | None = None,
+) -> list[float]:
     """Build low-capacity state features from frozen pre-action representations."""
 
     import torch  # type: ignore[import-not-found]
@@ -92,7 +154,39 @@ def compact_rescue_features(decision: Mapping[str, Any]) -> list[float]:
             decision["bboxes"].float().reshape(-1),
         )
     )
-    return [float(value) for value in features.tolist()]
+    result = [float(value) for value in features.tolist()]
+    if baseline is not None:
+        result.extend(pre_action_context_features(baseline))
+    return result
+
+
+def _decision_baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
+    baselines: dict[DecisionKey, ActionRecord] = {}
+    for key, siblings in group_by_decision(records).items():
+        answers = [record for record in siblings if record.action_type == "ANSWER"]
+        if len(answers) != 1:
+            raise ValueError(f"decision {key!r} must contain exactly one ANSWER")
+        baselines[key] = answers[0]
+    return baselines
+
+
+def _rescue_feature_map(
+    keys: Sequence[DecisionKey],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+    baselines: Mapping[DecisionKey, ActionRecord],
+    *,
+    feature_mode: str,
+) -> dict[DecisionKey, list[float]]:
+    if feature_mode not in ("semantic", "semantic-context"):
+        raise ValueError(f"unsupported rescue feature mode: {feature_mode}")
+    include_context = feature_mode == "semantic-context"
+    return {
+        key: compact_rescue_features(
+            decision_by_key[key],
+            baselines[key] if include_context else None,
+        )
+        for key in keys
+    }
 
 
 def _decision_outcomes(
@@ -125,6 +219,7 @@ def fit_rescue_gate_split(
     train_fraction: float = 0.7,
     validation_fraction: float = 0.2,
     lambda_cost: float = 0.05,
+    feature_mode: str = "semantic",
     c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
     bootstrap_resamples: int = 2000,
     bootstrap_seed: int = 0,
@@ -163,9 +258,16 @@ def fit_rescue_gate_split(
     if missing:
         raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
     outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    baselines = _decision_baselines(records)
+    feature_by_key = _rescue_feature_map(
+        [key for keys in split_keys.values() for key in keys],
+        decision_by_key,
+        baselines,
+        feature_mode=feature_mode,
+    )
     features = {
         name: np.asarray(
-            [compact_rescue_features(decision_by_key[key]) for key in keys],
+            [feature_by_key[key] for key in keys],
             dtype=np.float64,
         )
         for name, keys in split_keys.items()
@@ -219,6 +321,7 @@ def fit_rescue_gate_split(
     test_labels = labels["test"]
     report = {
         "seed": seed,
+        "feature_mode": feature_mode,
         "split_group": split_group,
         "train_fraction": train_fraction,
         "validation_fraction_within_train": validation_fraction,
@@ -239,6 +342,7 @@ def fit_rescue_gate_split(
     }
     model_payload = {
         "model_type": "compact_rescue_gate_logistic",
+        "feature_mode": feature_mode,
         "seed": seed,
         "selected_c": -negative_c,
         "threshold": threshold,
@@ -288,6 +392,7 @@ def fit_crossfit_rescue_gate_split(
     train_fraction: float = 0.7,
     n_folds: int = 5,
     lambda_cost: float = 0.05,
+    feature_mode: str = "semantic",
     c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
     bootstrap_resamples: int = 2000,
     bootstrap_seed: int = 0,
@@ -317,10 +422,12 @@ def fit_crossfit_rescue_gate_split(
     if missing:
         raise ValueError(f"semantic features are missing decisions: {sorted(missing)[:5]}")
     outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
-    raw_features = {
-        key: compact_rescue_features(decision_by_key[key])
-        for key in outer_keys + test_keys
-    }
+    raw_features = _rescue_feature_map(
+        outer_keys + test_keys,
+        decision_by_key,
+        _decision_baselines(records),
+        feature_mode=feature_mode,
+    )
     labels = {key: int(bool(outcomes[key]["helpful"])) for key in outer_keys + test_keys}
     folds = _grouped_crossfit_records(
         outer_train,
@@ -406,6 +513,7 @@ def fit_crossfit_rescue_gate_split(
     report = {
         "seed": seed,
         "selection_mode": "grouped_oof_fold_ensemble",
+        "feature_mode": feature_mode,
         "split_group": split_group,
         "train_fraction": train_fraction,
         "outer_train_decisions": len(outer_keys),
@@ -435,6 +543,7 @@ def fit_crossfit_rescue_gate_split(
         )
     model_payload = {
         "model_type": "compact_rescue_gate_grouped_fold_ensemble",
+        "feature_mode": feature_mode,
         "seed": seed,
         "selected_c": -negative_c,
         "threshold": threshold,
@@ -452,6 +561,7 @@ def fit_expected_gain_rescue_gate_split(
     train_fraction: float = 0.7,
     validation_fraction: float = 0.2,
     lambda_cost: float = 0.05,
+    feature_mode: str = "semantic",
     alpha_values: Sequence[float] = (0.01, 0.1, 1.0, 10.0, 100.0),
     bootstrap_resamples: int = 2000,
     bootstrap_seed: int = 0,
@@ -490,9 +600,16 @@ def fit_expected_gain_rescue_gate_split(
     if missing:
         raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
     outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    baselines = _decision_baselines(records)
+    feature_by_key = _rescue_feature_map(
+        [key for keys in split_keys.values() for key in keys],
+        decision_by_key,
+        baselines,
+        feature_mode=feature_mode,
+    )
     features = {
         name: np.asarray(
-            [compact_rescue_features(decision_by_key[key]) for key in keys],
+            [feature_by_key[key] for key in keys],
             dtype=np.float64,
         )
         for name, keys in split_keys.items()
@@ -548,6 +665,7 @@ def fit_expected_gain_rescue_gate_split(
     report = {
         "seed": seed,
         "selection_mode": "inner_validation_expected_gain_ridge",
+        "feature_mode": feature_mode,
         "split_group": split_group,
         "train_fraction": train_fraction,
         "validation_fraction_within_train": validation_fraction,
@@ -568,6 +686,7 @@ def fit_expected_gain_rescue_gate_split(
     }
     model_payload = {
         "model_type": "compact_expected_random_gain_ridge",
+        "feature_mode": feature_mode,
         "seed": seed,
         "selected_alpha": -negative_alpha,
         "threshold": threshold,

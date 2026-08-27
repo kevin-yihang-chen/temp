@@ -13,6 +13,7 @@ set -euo pipefail
 : "${BE_RESCUE_FEATURES:?missing BE_RESCUE_FEATURES}"
 : "${BE_RESCUE_OUTPUT_DIR:?missing BE_RESCUE_OUTPUT_DIR}"
 : "${BE_RESCUE_ESTIMATOR:?missing BE_RESCUE_ESTIMATOR}"
+: "${BE_RESCUE_FEATURE_MODE:?missing BE_RESCUE_FEATURE_MODE}"
 
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
@@ -31,4 +32,5 @@ BE_CODE_REVISION=$(git rev-parse HEAD)
   --bootstrap-resamples 2000 \
   --bootstrap-seed 0 \
   --selection-mode inner-validation \
-  --estimator "${BE_RESCUE_ESTIMATOR}"
+  --estimator "${BE_RESCUE_ESTIMATOR}" \
+  --feature-mode "${BE_RESCUE_FEATURE_MODE}"

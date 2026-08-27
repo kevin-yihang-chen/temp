@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from beyond_entropy.dataset import group_by_decision
@@ -6,6 +8,7 @@ from beyond_entropy.rescue_gate import (
     _grouped_crossfit_records,
     PrecomputedRescueGatePolicy,
     aggregate_rescue_gate_splits,
+    pre_action_context_features,
     tune_rescue_gate_threshold,
 )
 from beyond_entropy.simulate import simulate_counterfactual_dataset
@@ -78,3 +81,29 @@ def test_grouped_crossfit_never_leaks_image_groups():
         assert train_images.isdisjoint(validation_images)
         validation_keys.update(group_by_decision(validation))
     assert validation_keys == set(group_by_decision(records))
+
+
+def test_context_features_use_only_pre_action_text_and_confidence():
+    baseline = next(
+        record
+        for record in simulate_counterfactual_dataset(n_states=2, num_candidates=4, seed=2)
+        if record.action_type == "ANSWER"
+    )
+    baseline = replace(
+        baseline,
+        question="What percentage had the highest growth?",
+        answer_before="42%",
+        entropy_before=0.2,
+        metadata={"baseline_backend": {"normalized_token_entropies": [0.1, 0.3]}},
+    )
+    changed_outcomes = replace(
+        baseline,
+        answer_after="unrelated",
+        entropy_after=99.0,
+        correct_after=1.0 - baseline.correct_after,
+    )
+    features = pre_action_context_features(baseline)
+    assert features == pre_action_context_features(changed_outcomes)
+    assert len(features) == 27
+    assert features[4:8] == [1.0, 1.0, 1.0, 0.0]
+    assert features[8:14] == pytest.approx([2.0, 0.2, 0.3, 0.1, 0.1, 0.3])

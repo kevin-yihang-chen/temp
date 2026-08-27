@@ -45,6 +45,11 @@ def main() -> None:
         choices=("helpful-logistic", "expected-gain-ridge"),
         default="helpful-logistic",
     )
+    parser.add_argument(
+        "--feature-mode",
+        choices=("semantic", "semantic-context"),
+        default="semantic",
+    )
     args = parser.parse_args()
 
     records = read_jsonl(args.rollouts)
@@ -63,6 +68,7 @@ def main() -> None:
                 records,
                 decision_by_key,
                 lambda_cost=args.lambda_cost,
+                feature_mode=args.feature_mode,
                 bootstrap_resamples=args.bootstrap_resamples,
                 bootstrap_seed=args.bootstrap_seed,
                 seed=seed,
@@ -72,6 +78,7 @@ def main() -> None:
                 records,
                 decision_by_key,
                 lambda_cost=args.lambda_cost,
+                feature_mode=args.feature_mode,
                 n_folds=args.cv_folds,
                 bootstrap_resamples=args.bootstrap_resamples,
                 bootstrap_seed=args.bootstrap_seed,
@@ -82,6 +89,7 @@ def main() -> None:
                 records,
                 decision_by_key,
                 lambda_cost=args.lambda_cost,
+                feature_mode=args.feature_mode,
                 bootstrap_resamples=args.bootstrap_resamples,
                 bootstrap_seed=args.bootstrap_seed,
                 seed=seed,
@@ -103,6 +111,7 @@ def main() -> None:
             "selection_mode": args.selection_mode,
             "cv_folds": args.cv_folds,
             "estimator": args.estimator,
+            "feature_mode": args.feature_mode,
         },
         "splits": split_reports,
         "aggregate": aggregate_rescue_gate_splits(split_reports),

@@ -6,7 +6,7 @@ repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 mail_file="${repo_dir}/.slurm-notify-email"
 rollouts="${repo_dir}/artifacts/gate1-chartqa-2500/qwen3b-c4-concise-seed0/rollouts.jsonl"
 features="${repo_dir}/artifacts/gate2-chartqa-2500/qwen3b-roi-concise-seed17/features.pt"
-output_dir="${repo_dir}/artifacts/gate2-chartqa-2500/compact-expected-gain-ridge-v3"
+output_dir="${repo_dir}/artifacts/gate2-chartqa-2500/compact-context-helpful-v4"
 
 if [[ ! -r "${mail_file}" ]]; then
   echo "Missing private Slurm email file: ${mail_file}" >&2
@@ -28,8 +28,8 @@ if [[ "${actual_rows}" -ne 12500 ]]; then
 fi
 
 exec sbatch \
-  --job-name=be-gain-ridge2500 \
+  --job-name=be-context-gate2500 \
   --mail-user="${notify_email}" \
   --mail-type=ALL \
-  --export=ALL,BE_RESCUE_FEATURES="${features}",BE_RESCUE_ROLLOUTS="${rollouts}",BE_RESCUE_OUTPUT_DIR="${output_dir}",BE_RESCUE_ESTIMATOR=expected-gain-ridge,BE_RESCUE_FEATURE_MODE=semantic \
+  --export=ALL,BE_RESCUE_FEATURES="${features}",BE_RESCUE_ROLLOUTS="${rollouts}",BE_RESCUE_OUTPUT_DIR="${output_dir}",BE_RESCUE_ESTIMATOR=helpful-logistic,BE_RESCUE_FEATURE_MODE=semantic-context \
   "${repo_dir}/scripts/slurm_rescue_gate.sh"
