@@ -96,6 +96,14 @@ unconfirmed. Gate 3 remains closed until the replication passes; even then,
 action-localized RL must be framed as a separate ablation rather than as a
 solved crop-ranking result.
 
+A separately frozen chart-layout proposer also fails image-disjoint
+confirmation. Its 200-state development advantage over matched UG crops is
+0.01625, but the 2,137-state confirmation difference shrinks to 0.00175 with
+state interval `[-0.00152, 0.00503]` and image interval
+`[-0.00142, 0.00495]`. The pre-registered go/no-go therefore stops the planned
+4,500-image treatment. This reinforces the separation between stopping and
+action proposal: no current spatial selector has confirmed improvement.
+
 ## Gate 3 — VTool-R1 post-training
 
 - Integrate only after Gate 2 succeeds.

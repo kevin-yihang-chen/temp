@@ -61,6 +61,12 @@ replication is frozen with unchanged model and criterion. Until it completes,
 the correct status is: stopping promising but not independently confirmed;
 action selection unresolved; VTool-R1 integration gated.
 
+The chart-layout proposal follow-up is now closed by its pre-registered no-go:
+the image-disjoint treatment-minus-UG point estimate is +0.00175, but both state
+and image intervals cross zero. The conditional 4,500-image chart-layout run is
+not launched. Future action-selection work needs a new hypothesis and untouched
+target rather than additional tuning on these ChartQA outcomes.
+
 The default helpful-assistant ChartQA prompt is retained only as a protocol
 negative control because verbose generations hit the token cap and polluted
 entropy. No synthetic result or prompt-polluted result should support the method

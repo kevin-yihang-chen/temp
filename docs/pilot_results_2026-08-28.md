@@ -320,6 +320,27 @@ The model, threshold, four-crop UG proposal, cost, prompt, and pass criteria are
 unchanged. This is explicitly a post-near-miss replication; its protocol is in
 `docs/replication_protocol_chartqa_train.md`.
 
+## Image-disjoint chart-layout confirmation
+
+A chart-specific four-crop proposer appeared promising on a 200-state
+development slice: its uniform-random one-crop utility exceeded the matched UG
+candidate set by 0.01625 with interval `[0.00625, 0.02750]`. The proposer and a
+go/no-go rule were therefore frozen before collection on a target excluding all
+189 development images.
+
+The 2,137-state, 1,320-image confirmation **does not pass**. The treatment-minus-
+UG uniform-random difference is 0.001755, with state interval
+`[-0.001524, 0.005030]` and image interval `[-0.001420, 0.004951]`. Fixed-center,
+entropy-search, and oracle candidate-set differences also cross zero. The large
+development effect therefore does not replicate; the small positive target
+point estimate is unresolved. The report SHA-256 is
+`e87e16f0f6da83efe0efb4fcf893a9e67ae010ab02269561b47743c7c832e1e3`.
+
+The pre-frozen follow-up rule required both state and image lower endpoints
+above zero before launching a 4,500-image chart-layout treatment. Because the
+rule fails, that treatment is not launched. Proposal design and per-question
+action localization remain open.
+
 ## Failure localization
 
 - Across 1,000 states there are 50 helpful states and 39 harmful states. Crop
@@ -353,10 +374,11 @@ is the first method with positive nested OOF state- and image-bootstrap interval
 and its independent validation point estimate transfers, but the registered
 validation interval narrowly crosses zero. A fixed-crop secondary passes on
 validation, while paired contrasts provide no evidence that fixed or learned
-action selection beats random. Gate 2 is therefore partially supported for
-stopping and still open for both independent replication and spatial action
+action selection beats random. The independently tested chart-layout proposer
+also fails its state/image confirmation. Gate 2 is therefore partially supported
+for stopping and still open for both independent replication and spatial action
 selection. The frozen 4,500-image replication must finish before the stopping
-claim is upgraded.
+claim is upgraded; no chart-layout follow-up is launched.
 
 ## Artifacts
 
@@ -371,6 +393,7 @@ claim is upgraded.
 - `artifacts/gate2-chartqa-2500/composed-factorized-context-quadrant-v13-image-bootstrap/report.json`
 - `artifacts/confirmation-chartqa-val-1918/frozen-factorized-context-v1/report.json`
 - `artifacts/confirmation-chartqa-val-1918/posthoc-action-contrasts-v1/report.json`
+- `artifacts/confirmation-chart-layout-2137/matched-comparison-v1/report.json`
 - `docs/replication_protocol_chartqa_train.md`
 - `artifacts/gate1-chartqa-200/qwen3b-c9-concise-seed0/pilot_report.json`
 - `artifacts/gate1-chartqa-200/c4-vs-c9-concise-seed0/candidate_ablation.json`

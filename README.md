@@ -130,6 +130,11 @@ crosses zero, so the primary confirmation is a failed near miss. A fixed-crop
 secondary is positive, but paired contrasts do not establish learned or fixed
 spatial action selection over random.
 
+A separately frozen chart-layout proposal advantage also fails to replicate:
+its image-disjoint treatment-minus-UG estimate is +0.00175, with both state and
+image intervals crossing zero. Its pre-registered follow-up is therefore not
+launched.
+
 The unchanged gate is undergoing a separately registered 4,500-image
 high-power replication. Gate 3 remains closed until that result is complete;
 spatial action selection is tracked as a distinct unresolved problem. See
