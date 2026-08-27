@@ -13,7 +13,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "mypy>=1.8"]
-semantic = ["torch>=2.2"]
+semantic = ["torch>=2.2", "scikit-learn>=1.3"]
 benchmark = ["datasets>=2.18", "Pillow>=10"]
 qwen = [
   "accelerate>=0.26",
