@@ -11,6 +11,7 @@ from .rescue_gate import (
     PrecomputedActionGatePolicy,
     PrecomputedRescueGatePolicy,
     context_quadrant_action_features,
+    pre_action_context_feature_subset,
     pre_action_context_features,
     tune_rescue_gate_threshold,
 )
@@ -49,16 +50,16 @@ def score_frozen_factorized_context_model(
     rescue_mean = [float(value) for value in model["rescue_scaler_mean"]]
     rescue_scale = [float(value) for value in model["rescue_scaler_scale"]]
     rescue_coefficient = [float(value) for value in model["rescue_coefficient"]]
-    dimensions = {
-        len(error_mean),
-        len(error_scale),
-        len(error_coefficient),
-        len(rescue_mean),
-        len(rescue_scale),
-        len(rescue_coefficient),
-    }
-    if dimensions != {27} or any(value <= 0.0 for value in error_scale + rescue_scale):
+    error_dimensions = {len(error_mean), len(error_scale), len(error_coefficient)}
+    rescue_dimensions = {len(rescue_mean), len(rescue_scale), len(rescue_coefficient)}
+    if (
+        len(error_dimensions) != 1
+        or len(rescue_dimensions) != 1
+        or any(value <= 0.0 for value in error_scale + rescue_scale)
+    ):
         raise ValueError("frozen factorized model has inconsistent feature dimensions")
+    error_feature_mode = str(model.get("error_feature_mode", "context"))
+    rescue_feature_mode = str(model.get("rescue_feature_mode", "context"))
 
     def sigmoid(value: float) -> float:
         if value >= 0.0:
@@ -69,12 +70,21 @@ def score_frozen_factorized_context_model(
 
     scores = {}
     for key in keys:
-        features = pre_action_context_features(baselines[key])
+        error_features = pre_action_context_feature_subset(
+            baselines[key],
+            error_feature_mode,
+        )
+        rescue_features = pre_action_context_feature_subset(
+            baselines[key],
+            rescue_feature_mode,
+        )
+        if len(error_features) != len(error_mean) or len(rescue_features) != len(rescue_mean):
+            raise ValueError("frozen factorized feature modes differ from model dimensions")
         error_logit = float(model["error_intercept"]) + sum(
             coefficient * (feature - center) / scale
             for coefficient, feature, center, scale in zip(
                 error_coefficient,
-                features,
+                error_features,
                 error_mean,
                 error_scale,
             )
@@ -83,7 +93,7 @@ def score_frozen_factorized_context_model(
             coefficient * (feature - center) / scale
             for coefficient, feature, center, scale in zip(
                 rescue_coefficient,
-                features,
+                rescue_features,
                 rescue_mean,
                 rescue_scale,
             )
@@ -541,6 +551,8 @@ def fit_factorized_context_transfer(
     source_split_group: str = "image_id",
     source_train_fraction: float = 0.8,
     lambda_cost: float = 0.05,
+    error_feature_mode: str = "context",
+    rescue_feature_mode: str = "context",
     c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
     target_strata: Mapping[str, str] | None = None,
     bootstrap_resamples: int = 5000,
@@ -572,27 +584,49 @@ def fit_factorized_context_transfer(
     wrong_train_keys = [
         key for key in train_keys if source_baselines[key].correct_before < 0.5
     ]
-    source_features = {
-        key: pre_action_context_features(source_baselines[key])
+    source_error_features = {
+        key: pre_action_context_feature_subset(
+            source_baselines[key],
+            error_feature_mode,
+        )
+        for key in train_keys + validation_keys
+    }
+    source_rescue_features = {
+        key: pre_action_context_feature_subset(
+            source_baselines[key],
+            rescue_feature_mode,
+        )
         for key in train_keys + validation_keys
     }
     error_scaler = StandardScaler().fit(
-        np.asarray([source_features[key] for key in train_keys], dtype=np.float64)
+        np.asarray([source_error_features[key] for key in train_keys], dtype=np.float64)
     )
     rescue_scaler = StandardScaler().fit(
-        np.asarray([source_features[key] for key in wrong_train_keys], dtype=np.float64)
+        np.asarray(
+            [source_rescue_features[key] for key in wrong_train_keys],
+            dtype=np.float64,
+        )
     )
     error_train = error_scaler.transform(
-        np.asarray([source_features[key] for key in train_keys], dtype=np.float64)
+        np.asarray([source_error_features[key] for key in train_keys], dtype=np.float64)
     )
     rescue_train = rescue_scaler.transform(
-        np.asarray([source_features[key] for key in wrong_train_keys], dtype=np.float64)
+        np.asarray(
+            [source_rescue_features[key] for key in wrong_train_keys],
+            dtype=np.float64,
+        )
     )
     error_validation = error_scaler.transform(
-        np.asarray([source_features[key] for key in validation_keys], dtype=np.float64)
+        np.asarray(
+            [source_error_features[key] for key in validation_keys],
+            dtype=np.float64,
+        )
     )
     rescue_validation = rescue_scaler.transform(
-        np.asarray([source_features[key] for key in validation_keys], dtype=np.float64)
+        np.asarray(
+            [source_rescue_features[key] for key in validation_keys],
+            dtype=np.float64,
+        )
     )
     error_train_labels = np.asarray(
         [source_baselines[key].correct_before < 0.5 for key in train_keys],
@@ -668,15 +702,25 @@ def fit_factorized_context_transfer(
     target_baselines = _baselines(target_records)
     target_outcomes = _outcomes(target_records, lambda_cost=lambda_cost)
     target_keys = sorted(group_by_decision(target_records))
-    target_features = np.asarray(
-        [pre_action_context_features(target_baselines[key]) for key in target_keys],
+    target_error_features = np.asarray(
+        [
+            pre_action_context_feature_subset(target_baselines[key], error_feature_mode)
+            for key in target_keys
+        ],
+        dtype=np.float64,
+    )
+    target_rescue_features = np.asarray(
+        [
+            pre_action_context_feature_subset(target_baselines[key], rescue_feature_mode)
+            for key in target_keys
+        ],
         dtype=np.float64,
     )
     target_error_probabilities = error_model.predict_proba(
-        error_scaler.transform(target_features)
+        error_scaler.transform(target_error_features)
     )[:, 1]
     target_rescue_probabilities = rescue_model.predict_proba(
-        rescue_scaler.transform(target_features)
+        rescue_scaler.transform(target_rescue_features)
     )[:, 1]
     target_scores_array = target_error_probabilities * target_rescue_probabilities
     target_scores = {
@@ -868,6 +912,8 @@ def fit_factorized_context_transfer(
         "lambda_cost": lambda_cost,
         "source_split_group": source_split_group,
         "source_train_fraction": source_train_fraction,
+        "error_feature_mode": error_feature_mode,
+        "rescue_feature_mode": rescue_feature_mode,
         "source_model_train_decisions": len(train_keys),
         "source_model_train_wrong_decisions": len(wrong_train_keys),
         "source_validation_decisions": len(validation_keys),
@@ -889,6 +935,8 @@ def fit_factorized_context_transfer(
     model_payload = {
         "model_type": "factorized_context_cross_benchmark_transfer",
         "seed": seed,
+        "error_feature_mode": error_feature_mode,
+        "rescue_feature_mode": rescue_feature_mode,
         "selected_error_c": -negative_error_c,
         "selected_rescue_c": -negative_rescue_c,
         "threshold": threshold,

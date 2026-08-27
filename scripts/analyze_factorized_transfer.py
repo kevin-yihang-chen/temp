@@ -67,6 +67,8 @@ def main() -> None:
     parser.add_argument("--target-manifest", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
+    parser.add_argument("--error-feature-mode", default="context")
+    parser.add_argument("--rescue-feature-mode", default="context")
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -79,12 +81,14 @@ def main() -> None:
         source_records,
         target_records,
         lambda_cost=args.lambda_cost,
+        error_feature_mode=args.error_feature_mode,
+        rescue_feature_mode=args.rescue_feature_mode,
         target_strata=target_strata,
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
         seed=args.seed,
     )
-    report = {
+    report: dict[str, object] = {
         "scientific_status": "cross-benchmark transfer diagnostic",
         "run": {
             "source_rollouts": str(args.source_rollouts.resolve()),
@@ -101,6 +105,8 @@ def main() -> None:
             ).hexdigest(),
             "code_revision": os.environ.get("BE_CODE_REVISION"),
             "lambda_cost": args.lambda_cost,
+            "error_feature_mode": args.error_feature_mode,
+            "rescue_feature_mode": args.rescue_feature_mode,
             "bootstrap_resamples": args.bootstrap_resamples,
             "bootstrap_seed": args.bootstrap_seed,
             "seed": args.seed,

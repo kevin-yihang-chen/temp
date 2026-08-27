@@ -76,3 +76,21 @@ def test_factorized_context_transfer_never_tunes_on_target_labels():
     )
     assert action_report["source_validation_decisions"] > 0
     assert composed["n_decisions"] == 80
+    text_report, text_model = fit_factorized_context_transfer(
+        source,
+        target,
+        rescue_feature_mode="context-text",
+        c_values=(0.1,),
+        target_strata=target_strata,
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    assert text_model["rescue_feature_mode"] == "context-text"
+    assert len(text_model["rescue_coefficient"]) == 21
+    text_frozen = evaluate_frozen_factorized_context_model(
+        text_model,
+        target,
+        source_entropy_threshold=text_report["source_entropy_threshold"],
+        bootstrap_resamples=20,
+    )
+    assert text_frozen["target_decisions"] == 80
