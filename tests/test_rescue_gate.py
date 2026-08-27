@@ -8,6 +8,7 @@ from beyond_entropy.rescue_gate import (
     _grouped_crossfit_records,
     PrecomputedRescueGatePolicy,
     aggregate_rescue_gate_splits,
+    fit_nested_oof_rescue_gate,
     pre_action_context_features,
     tune_rescue_gate_threshold,
 )
@@ -107,3 +108,26 @@ def test_context_features_use_only_pre_action_text_and_confidence():
     assert len(features) == 27
     assert features[4:8] == [1.0, 1.0, 1.0, 0.0]
     assert features[8:14] == pytest.approx([2.0, 0.2, 0.3, 0.1, 0.1, 0.3])
+
+
+def test_nested_oof_context_gate_evaluates_each_decision_once():
+    records = simulate_counterfactual_dataset(
+        n_states=80,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=9,
+    )
+    decisions = {key: {} for key in group_by_decision(records)}
+    report, model = fit_nested_oof_rescue_gate(
+        records,
+        decisions,
+        feature_mode="context",
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    assert report["n_decisions"] == 80
+    assert sum(fold["test_decisions"] for fold in report["folds"]) == 80
+    assert report["policy_result"]["n_decisions"] == 80
+    assert report["policy_result"]["bootstrap"]["n_decisions"] == 80
+    assert report["feature_count"] == 27
+    assert len(model["fold_models"]) == 5

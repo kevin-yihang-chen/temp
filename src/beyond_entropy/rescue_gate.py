@@ -177,8 +177,10 @@ def _rescue_feature_map(
     *,
     feature_mode: str,
 ) -> dict[DecisionKey, list[float]]:
-    if feature_mode not in ("semantic", "semantic-context"):
+    if feature_mode not in ("semantic", "context", "semantic-context"):
         raise ValueError(f"unsupported rescue feature mode: {feature_mode}")
+    if feature_mode == "context":
+        return {key: pre_action_context_features(baselines[key]) for key in keys}
     include_context = feature_mode == "semantic-context"
     return {
         key: compact_rescue_features(
@@ -694,6 +696,203 @@ def fit_expected_gain_rescue_gate_split(
         "scaler_scale": [float(value) for value in scaler.scale_.tolist()],
         "coefficient": [float(value) for value in model.coef_.tolist()],
         "intercept": float(model.intercept_),
+    }
+    return report, model_payload
+
+
+def fit_nested_oof_rescue_gate(
+    records: Sequence[ActionRecord],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+    *,
+    split_group: str = "image_id",
+    n_outer_folds: int = 5,
+    validation_fraction: float = 0.2,
+    lambda_cost: float = 0.05,
+    feature_mode: str = "semantic-context",
+    c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Evaluate a logistic rescue gate with disjoint nested outer test folds."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if not c_values or any(value <= 0.0 for value in c_values):
+        raise ValueError("c_values must contain positive regularization values")
+    all_keys = _keys(records)
+    missing = set(all_keys) - set(decision_by_key)
+    if missing:
+        raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
+    outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    raw_features = _rescue_feature_map(
+        all_keys,
+        decision_by_key,
+        _decision_baselines(records),
+        feature_mode=feature_mode,
+    )
+    labels = {key: int(bool(outcomes[key]["helpful"])) for key in all_keys}
+    outer_folds = _grouped_crossfit_records(
+        records,
+        split_group=split_group,
+        n_folds=n_outer_folds,
+        seed=seed,
+    )
+    pooled_actions: dict[DecisionKey, float] = {}
+    pooled_margins: dict[DecisionKey, float] = {}
+    fold_reports: list[dict[str, Any]] = []
+    fold_models: list[dict[str, Any]] = []
+    for fold_index, (outer_train, outer_test) in enumerate(outer_folds):
+        model_train, validation = split_by_group(
+            outer_train,
+            group=split_group,  # type: ignore[arg-type]
+            train_fraction=1.0 - validation_fraction,
+            seed=seed + 101 + fold_index,
+        )
+        train_keys = _keys(model_train)
+        validation_keys = _keys(validation)
+        test_keys = _keys(outer_test)
+        scaler = StandardScaler().fit(
+            np.asarray([raw_features[key] for key in train_keys], dtype=np.float64)
+        )
+        train_features = scaler.transform(
+            np.asarray([raw_features[key] for key in train_keys], dtype=np.float64)
+        )
+        validation_features = scaler.transform(
+            np.asarray([raw_features[key] for key in validation_keys], dtype=np.float64)
+        )
+        test_features = scaler.transform(
+            np.asarray([raw_features[key] for key in test_keys], dtype=np.float64)
+        )
+        train_labels = np.asarray([labels[key] for key in train_keys], dtype=np.int64)
+        validation_utilities = [
+            float(outcomes[key]["expected_utility"]) for key in validation_keys
+        ]
+        candidates: list[tuple[float, float, float, float, Any]] = []
+        for c_value in c_values:
+            model = LogisticRegression(
+                C=float(c_value),
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=seed + fold_index,
+            ).fit(train_features, train_labels)
+            validation_scores = model.decision_function(validation_features)
+            threshold, utility, tool_rate = tune_rescue_gate_threshold(
+                validation_scores.tolist(),
+                validation_utilities,
+            )
+            candidates.append((utility, -tool_rate, -float(c_value), threshold, model))
+        validation_utility, negative_tool_rate, negative_c, threshold, model = max(
+            candidates,
+            key=lambda value: value[:3],
+        )
+        test_scores_array = model.decision_function(test_features)
+        test_scores = {
+            key: float(score)
+            for key, score in zip(test_keys, test_scores_array.tolist())
+        }
+        overlap = set(test_scores) & set(pooled_actions)
+        if overlap:
+            raise RuntimeError(f"nested OOF test decisions overlap: {sorted(overlap)[:5]}")
+        for key, score in test_scores.items():
+            pooled_actions[key] = float(score >= threshold)
+            pooled_margins[key] = score - threshold
+        fold_policy = PrecomputedRescueGatePolicy(
+            test_scores,
+            threshold=threshold,
+            name=f"nested_oof_{feature_mode}_uniform_random_expectation",
+        )
+        fold_result = dict(evaluate_policy(outer_test, fold_policy, lambda_cost=lambda_cost))
+        test_labels = np.asarray([labels[key] for key in test_keys], dtype=np.int64)
+        has_both_test_classes = len(set(test_labels.tolist())) == 2
+        fold_reports.append(
+            {
+                "fold": fold_index,
+                "model_train_decisions": len(train_keys),
+                "validation_decisions": len(validation_keys),
+                "test_decisions": len(test_keys),
+                "selected_c": -negative_c,
+                "validation_threshold": threshold,
+                "validation_utility": validation_utility,
+                "validation_tool_rate": -negative_tool_rate,
+                "test_helpful_roc_auc": (
+                    float(roc_auc_score(test_labels, test_scores_array))
+                    if has_both_test_classes
+                    else None
+                ),
+                "test_helpful_average_precision": (
+                    float(average_precision_score(test_labels, test_scores_array))
+                    if has_both_test_classes
+                    else None
+                ),
+                "policy_result": fold_result,
+            }
+        )
+        fold_models.append(
+            {
+                "fold": fold_index,
+                "selected_c": -negative_c,
+                "threshold": threshold,
+                "scaler_mean": [float(value) for value in scaler.mean_.tolist()],
+                "scaler_scale": [float(value) for value in scaler.scale_.tolist()],
+                "coefficient": [float(value) for value in model.coef_[0].tolist()],
+                "intercept": float(model.intercept_[0]),
+            }
+        )
+    if set(pooled_actions) != set(all_keys):
+        missing_oof = sorted(set(all_keys) - set(pooled_actions))
+        raise RuntimeError(f"nested OOF predictions are incomplete: {missing_oof[:5]}")
+    pooled_policy = PrecomputedRescueGatePolicy(
+        pooled_actions,
+        threshold=0.5,
+        name=f"nested_oof_{feature_mode}_uniform_random_expectation",
+    )
+    pooled_result: dict[str, Any] = dict(
+        evaluate_policy(records, pooled_policy, lambda_cost=lambda_cost)
+    )
+    pooled_result["bootstrap"] = bootstrap_policy_evaluation(
+        records,
+        pooled_policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+    )
+    pooled_labels = np.asarray([labels[key] for key in all_keys], dtype=np.int64)
+    pooled_margin_array = np.asarray([pooled_margins[key] for key in all_keys])
+    report = {
+        "scientific_status": (
+            "nested grouped OOF diagnostic; each decision is evaluated once by a model "
+            "that excluded its image group"
+        ),
+        "seed": seed,
+        "feature_mode": feature_mode,
+        "feature_count": len(raw_features[all_keys[0]]),
+        "split_group": split_group,
+        "n_outer_folds": n_outer_folds,
+        "validation_fraction_within_outer_train": validation_fraction,
+        "n_decisions": len(all_keys),
+        "pooled_helpful_roc_auc_of_fold_margin": float(
+            roc_auc_score(pooled_labels, pooled_margin_array)
+        ),
+        "pooled_helpful_average_precision_of_fold_margin": float(
+            average_precision_score(pooled_labels, pooled_margin_array)
+        ),
+        "folds": fold_reports,
+        "policy_result": pooled_result,
+    }
+    model_payload = {
+        "model_type": "compact_rescue_gate_nested_grouped_oof",
+        "seed": seed,
+        "feature_mode": feature_mode,
+        "n_outer_folds": n_outer_folds,
+        "fold_models": fold_models,
     }
     return report, model_payload
 

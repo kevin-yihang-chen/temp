@@ -47,7 +47,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--feature-mode",
-        choices=("semantic", "semantic-context"),
+        choices=("semantic", "context", "semantic-context"),
         default="semantic",
     )
     args = parser.parse_args()
