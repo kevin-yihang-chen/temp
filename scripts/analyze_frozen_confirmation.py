@@ -199,6 +199,11 @@ def main() -> None:
         "--report-title",
         default="Independent ChartQA validation confirmation",
     )
+    parser.add_argument(
+        "--require-image-ci",
+        action="store_true",
+        help="include the image-cluster utility lower bound in the primary criterion",
+    )
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
@@ -427,6 +432,23 @@ def main() -> None:
             cluster_by="image_id",
         ),
     }
+    if args.require_image_ci:
+        criterion = evaluation["primary_confirmation_criterion"]
+        if not isinstance(criterion, dict):
+            raise RuntimeError("primary confirmation criterion is malformed")
+        primary_image = image_cluster_robustness["frozen_factorized_context"]
+        image_metrics = primary_image["metrics"]
+        if not isinstance(image_metrics, dict):
+            raise RuntimeError("image-cluster bootstrap metrics are malformed")
+        image_utility = image_metrics["mean_policy_utility"]
+        if not isinstance(image_utility, dict):
+            raise RuntimeError("image-cluster utility interval is malformed")
+        criterion["image_utility_ci_lower_above_zero"] = (
+            float(image_utility["ci_low"]) > 0.0
+        )
+        criterion["passed"] = all(
+            bool(value) for name, value in criterion.items() if name != "passed"
+        )
     report: dict[str, object] = {
         "scientific_status": "independent confirmation with frozen source model",
         "run": {
