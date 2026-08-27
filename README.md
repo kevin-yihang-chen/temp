@@ -81,11 +81,31 @@ PYTHONPATH=src python -m beyond_entropy collect-qwen \
 
 The command defaults to offline model loading, deterministic decoding, the UG
 crop ratio of two, and four spatially balanced candidates. It writes sibling
-rollouts plus `.diagnostic.json` and `.provenance.json` sidecars. To validate the
-locally cached 7B model on one synthetic image through Slurm:
+rollouts plus `.diagnostic.json` and `.provenance.json` sidecars. `--resume`
+checkpoints every completed state and continues safely after preemption or a
+time limit. Formal runs should also pass `--expected-manifest-sha256` so a
+changed frozen slice fails before model loading.
+
+Freeze a category-balanced V*Bench slice with:
+
+```bash
+HF_HOME=/userhome/cs3/yihangc/Data/hf_cache PYTHONPATH=src \
+  python scripts/export_benchmark_manifest.py \
+  --task vstar --output-dir data/vstar-frozen-64 \
+  --count 64 --seed 17 \
+  --dataset-revision b44023b4dca749ed8a76b85eb576627d05a1c174
+```
+
+To validate the locally cached 7B model on one synthetic image through Slurm:
 
 ```bash
 scripts/submit_qwen_smoke.sh
+```
+
+The frozen 64-state Qwen-3B V*Bench pilot is submitted with:
+
+```bash
+scripts/submit_vstar_pilot.sh
 ```
 
 The submit wrapper reads the notification recipient from the private,

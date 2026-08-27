@@ -1,0 +1,22 @@
+{
+  "attention_implementation": "sdpa",
+  "bootstrap_resamples": 2000,
+  "bootstrap_seed": 0,
+  "candidate_count": 4,
+  "dataset": "lmms-lab/vstar-bench",
+  "dataset_revision": "b44023b4dca749ed8a76b85eb576627d05a1c174",
+  "generation_seeds": [0],
+  "manifest_count": 64,
+  "manifest_seed": 17,
+  "manifest_sha256": "3c0b93e94cd4fd925d4b9cbadddd559ec497a375d045cef842af0a5299e99900",
+  "max_new_tokens": 16,
+  "max_pixels": 602112,
+  "min_pixels": 200704,
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "scorer": "vstar",
+  "scientific_status": "frozen Gate 1 pilot",
+  "ug_framework_revision": "13050ee49865e4330519108f42d1ccfccff1aee1",
+  "visual_crop_ratio": 2.0,
+  "visual_cost": 1.0
+}

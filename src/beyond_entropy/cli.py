@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.metadata
 import json
+import os
 from pathlib import Path
 from typing import Sequence
 
@@ -192,32 +194,87 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     from .qwen_backend import Qwen25VLBackend
     from .rollout import CachedVisualBackend, collect_sibling_rollouts
 
-    examples = load_manifest(args.manifest, limit=args.limit)
-    backend = CachedVisualBackend(
-        Qwen25VLBackend(
-            args.model,
-            revision=args.model_revision,
-            device_map=args.device_map,
-            dtype=args.dtype,
-            attention_implementation=args.attention_implementation,
-            max_new_tokens=args.max_new_tokens,
-            min_pixels=args.min_pixels,
-            max_pixels=args.max_pixels,
-            local_files_only=not args.allow_download,
+    manifest_sha256 = hashlib.sha256(args.manifest.read_bytes()).hexdigest()
+    if (
+        args.expected_manifest_sha256
+        and manifest_sha256 != args.expected_manifest_sha256
+    ):
+        raise ValueError(
+            "manifest SHA-256 mismatch: "
+            f"expected {args.expected_manifest_sha256}, got {manifest_sha256}"
         )
+    examples = load_manifest(args.manifest, limit=args.limit)
+    proposer = UGGridProposer(
+        candidate_count=args.candidate_count,
+        visual_crop_ratio=args.visual_crop_ratio,
+        visual_cost=args.visual_cost,
     )
-    records = collect_sibling_rollouts(
-        examples,
-        proposals=UGGridProposer(
-            candidate_count=args.candidate_count,
-            visual_crop_ratio=args.visual_crop_ratio,
-            visual_cost=args.visual_cost,
-        ),
-        backend=backend,
-        scorer=scorer_by_name(args.scorer),
-        generation_seeds=args.generation_seeds,
-    )
-    write_jsonl(records, args.output)
+    scorer = scorer_by_name(args.scorer)
+    records: list[ActionRecord] = []
+    if args.output.exists():
+        if not args.resume:
+            raise FileExistsError(
+                f"output already exists: {args.output}; pass --resume to continue"
+            )
+        if args.output.stat().st_size:
+            records = read_jsonl(args.output)
+    initial_record_count = len(records)
+    expected_per_state = (args.candidate_count + 1) * len(args.generation_seeds)
+    checkpoint_counts: dict[str, int] = {}
+    for record in records:
+        checkpoint_counts[record.state_id] = checkpoint_counts.get(record.state_id, 0) + 1
+    for state_id, count in checkpoint_counts.items():
+        if count != expected_per_state:
+            raise ValueError(
+                f"checkpoint state {state_id!r} has {count} records; "
+                f"expected {expected_per_state}"
+            )
+    manifest_state_ids = {example.state.state_id for example in examples}
+    unexpected_states = set(checkpoint_counts) - manifest_state_ids
+    if unexpected_states:
+        raise ValueError(
+            f"checkpoint contains states outside the manifest: {sorted(unexpected_states)}"
+        )
+    pending = [
+        example for example in examples if example.state.state_id not in checkpoint_counts
+    ]
+    if pending:
+        backend = CachedVisualBackend(
+            Qwen25VLBackend(
+                args.model,
+                revision=args.model_revision,
+                device_map=args.device_map,
+                dtype=args.dtype,
+                attention_implementation=args.attention_implementation,
+                max_new_tokens=args.max_new_tokens,
+                min_pixels=args.min_pixels,
+                max_pixels=args.max_pixels,
+                local_files_only=not args.allow_download,
+            )
+        )
+        for position, example in enumerate(pending, start=1):
+            records.extend(
+                collect_sibling_rollouts(
+                    [example],
+                    proposals=proposer,
+                    backend=backend,
+                    scorer=scorer,
+                    generation_seeds=args.generation_seeds,
+                )
+            )
+            write_jsonl(records, args.output)
+            print(
+                json.dumps(
+                    {
+                        "checkpoint": str(args.output),
+                        "completed_this_run": position,
+                        "pending_this_run": len(pending) - position,
+                        "total_completed": len(checkpoint_counts) + position,
+                        "total_examples": len(examples),
+                    }
+                ),
+                flush=True,
+            )
     diagnostic_path = args.output.with_suffix(".diagnostic.json")
     diagnostic = {
         "point_estimate": diagnostic_to_dict(entropy_diagnostic(records)),
@@ -238,13 +295,17 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     provenance_path = args.output.with_suffix(".provenance.json")
     provenance = {
         "scientific_status": "diagnostic; not a benchmark claim",
+        "code_revision": os.environ.get("BE_CODE_REVISION"),
         "manifest": str(args.manifest.resolve()),
+        "manifest_sha256": manifest_sha256,
         "output": str(args.output.resolve()),
         "model": args.model,
         "model_revision": args.model_revision,
         "ug_framework_revision": args.ug_revision,
         "scorer": args.scorer,
         "examples": len(examples),
+        "completed_examples": len(examples),
+        "resumed_from_records": initial_record_count,
         "candidate_count": args.candidate_count,
         "visual_crop_ratio": args.visual_crop_ratio,
         "visual_cost": args.visual_cost,
@@ -336,7 +397,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="collect frozen Qwen2.5-VL sibling rollouts from a JSONL manifest",
     )
     collect_qwen.add_argument("--manifest", type=Path, required=True)
+    collect_qwen.add_argument("--expected-manifest-sha256")
     collect_qwen.add_argument("--output", type=Path, required=True)
+    collect_qwen.add_argument(
+        "--resume",
+        action="store_true",
+        help="resume from a checkpoint containing only complete states",
+    )
     collect_qwen.add_argument(
         "--model",
         default="Qwen/Qwen2.5-VL-3B-Instruct",
