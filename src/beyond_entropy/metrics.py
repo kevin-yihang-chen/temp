@@ -34,6 +34,7 @@ class _PolicyOutcome:
     changed.
     """
 
+    decision_key: tuple[str, str]
     state_id: str
     outcome: float
     baseline_outcome: float
@@ -139,6 +140,7 @@ def _policy_outcomes(
         did_stop = decision.tool_calls == 0
         outcomes.append(
             _PolicyOutcome(
+                decision_key=decision_key,
                 state_id=answer.state_id,
                 outcome=selected.correct_after,
                 baseline_outcome=answer.correct_after,
@@ -348,6 +350,125 @@ def bootstrap_policy_evaluation(
         "n_states": len(state_ids),
         "n_decisions": len(outcomes),
         "metrics": intervals,
+    }
+
+
+def paired_bootstrap_policy_difference(
+    left_records: Sequence[ActionRecord],
+    left_policy: Policy,
+    right_records: Sequence[ActionRecord],
+    right_policy: Policy,
+    *,
+    lambda_cost: float,
+    n_resamples: int = 2000,
+    confidence: float = 0.95,
+    seed: int = 0,
+) -> dict[str, object]:
+    """Estimate right-minus-left policy differences on matched state clusters."""
+
+    if n_resamples <= 0:
+        raise ValueError("n_resamples must be positive")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between zero and one")
+    left_outcomes = _policy_outcomes(
+        left_records,
+        left_policy,
+        lambda_cost=lambda_cost,
+    )
+    right_outcomes = _policy_outcomes(
+        right_records,
+        right_policy,
+        lambda_cost=lambda_cost,
+    )
+    left_by_key = {outcome.decision_key: outcome for outcome in left_outcomes}
+    right_by_key = {outcome.decision_key: outcome for outcome in right_outcomes}
+    if set(left_by_key) != set(right_by_key):
+        raise ValueError("paired policy inputs contain different decision keys")
+    for decision_key in left_by_key:
+        left = left_by_key[decision_key]
+        right = right_by_key[decision_key]
+        if abs(left.baseline_outcome - right.baseline_outcome) > 1e-12:
+            raise ValueError(f"paired decision {decision_key!r} has different baseline outcome")
+
+    left_by_state: dict[str, list[_PolicyOutcome]] = {}
+    right_by_state: dict[str, list[_PolicyOutcome]] = {}
+    for decision_key in sorted(left_by_key):
+        left = left_by_key[decision_key]
+        right = right_by_key[decision_key]
+        left_by_state.setdefault(left.state_id, []).append(left)
+        right_by_state.setdefault(right.state_id, []).append(right)
+    state_ids = sorted(left_by_state)
+    if set(state_ids) != set(right_by_state):
+        raise ValueError("paired policy inputs contain different state clusters")
+
+    left_vectors = {
+        state_id: _policy_sufficient_vector(outcomes)
+        for state_id, outcomes in left_by_state.items()
+    }
+    right_vectors = {
+        state_id: _policy_sufficient_vector(right_by_state[state_id])
+        for state_id in state_ids
+    }
+    left_point = _summarize_policy_outcomes(
+        left_outcomes,
+        policy_name=left_policy.name,
+    )
+    right_point = _summarize_policy_outcomes(
+        right_outcomes,
+        policy_name=right_policy.name,
+    )
+    numeric_metrics = sorted(
+        name
+        for name in set(left_point) & set(right_point)
+        if name not in ("n_decisions", "marginal_accuracy_gain_per_tool_call")
+        and isinstance(left_point[name], (int, float))
+        and not isinstance(left_point[name], bool)
+        and isinstance(right_point[name], (int, float))
+        and not isinstance(right_point[name], bool)
+    )
+    rng = random.Random(seed)
+    samples: dict[str, list[float]] = {name: [] for name in numeric_metrics}
+    vector_width = len(next(iter(left_vectors.values())))
+    for _ in range(n_resamples):
+        left_total = [0.0] * vector_width
+        right_total = [0.0] * vector_width
+        for state_id in rng.choices(state_ids, k=len(state_ids)):
+            for index in range(vector_width):
+                left_total[index] += left_vectors[state_id][index]
+                right_total[index] += right_vectors[state_id][index]
+        left_summary = _summarize_policy_vector(
+            left_total,
+            policy_name=left_policy.name,
+        )
+        right_summary = _summarize_policy_vector(
+            right_total,
+            policy_name=right_policy.name,
+        )
+        for name in numeric_metrics:
+            samples[name].append(
+                float(right_summary[name]) - float(left_summary[name])  # type: ignore[arg-type]
+            )
+
+    alpha = (1.0 - confidence) / 2.0
+    return {
+        "comparison": "right_minus_left",
+        "resampling_unit": "state_id",
+        "confidence": confidence,
+        "n_resamples": n_resamples,
+        "seed": seed,
+        "lambda_cost": lambda_cost,
+        "n_states": len(state_ids),
+        "n_decisions": len(left_outcomes),
+        "left_policy": left_policy.name,
+        "right_policy": right_policy.name,
+        "metrics": {
+            name: {
+                "estimate": float(right_point[name]) - float(left_point[name]),  # type: ignore[arg-type]
+                "ci_low": _percentile(samples[name], alpha),
+                "ci_high": _percentile(samples[name], 1.0 - alpha),
+            }
+            for name in numeric_metrics
+        },
     }
 
 
