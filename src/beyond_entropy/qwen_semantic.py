@@ -273,6 +273,8 @@ def load_semantic_feature_dataset(path: str | Path) -> dict[str, Any]:
 def validate_semantic_feature_dataset(
     value: Mapping[str, Any],
     records: Sequence[ActionRecord],
+    *,
+    allow_partial: bool = False,
 ) -> None:
     require_torch()
     import torch  # type: ignore[import-not-found]
@@ -300,9 +302,54 @@ def validate_semantic_feature_dataset(
         )
         if not torch.equal(decision["success_after"], expected_after):
             raise ValueError(f"semantic labels differ for decision {key!r}")
-    if seen != set(grouped):
+    if not allow_partial and seen != set(grouped):
         missing = sorted(set(grouped) - seen)
         raise ValueError(f"semantic features are missing rollout decisions: {missing[:5]}")
+
+
+def initialize_semantic_feature_checkpoint(
+    *,
+    source_feature_path: str | Path,
+    target_rollouts_path: str | Path,
+    output_path: str | Path,
+) -> dict[str, Any]:
+    """Rebase a validated partial feature set onto a larger rollout superset."""
+
+    source_path = Path(source_feature_path).resolve()
+    target_path = Path(target_rollouts_path).resolve()
+    destination = Path(output_path)
+    if destination.exists():
+        raise FileExistsError(f"output already exists: {destination}")
+    source = load_semantic_feature_dataset(source_path)
+    target_records = read_jsonl(target_path)
+    validate_semantic_feature_dataset(source, target_records, allow_partial=True)
+    source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    target_digest = hashlib.sha256(target_path.read_bytes()).hexdigest()
+    metadata = dict(source["metadata"])
+    previous_rollouts = metadata.get("source_rollouts")
+    previous_rollouts_sha256 = metadata.get("source_rollouts_sha256")
+    metadata.update(
+        {
+            "source_rollouts": str(target_path),
+            "source_rollouts_sha256": target_digest,
+            "checkpoint_initialization": {
+                "source_features": str(source_path),
+                "source_features_sha256": source_digest,
+                "source_rollouts": previous_rollouts,
+                "source_rollouts_sha256": previous_rollouts_sha256,
+                "initialized_decisions": len(source["decisions"]),
+                "target_decisions": len(group_by_decision(target_records)),
+                "code_revision": os.environ.get("BE_CODE_REVISION"),
+            },
+        }
+    )
+    result = {
+        "format_version": SEMANTIC_FEATURE_FORMAT_VERSION,
+        "metadata": metadata,
+        "decisions": list(source["decisions"]),
+    }
+    _atomic_torch_save(result, destination)
+    return result
 
 
 def extract_qwen_semantic_dataset(

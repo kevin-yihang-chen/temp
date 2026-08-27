@@ -562,6 +562,31 @@ def command_fit_semantic(args: argparse.Namespace) -> None:
     )
 
 
+def command_initialize_semantic_checkpoint(args: argparse.Namespace) -> None:
+    from .qwen_semantic import initialize_semantic_feature_checkpoint
+
+    result = initialize_semantic_feature_checkpoint(
+        source_feature_path=args.source_features,
+        target_rollouts_path=args.target_rollouts,
+        output_path=args.output,
+    )
+    initialization = result["metadata"]["checkpoint_initialization"]
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "initialized_decisions": initialization["initialized_decisions"],
+                "target_decisions": initialization["target_decisions"],
+                "source_features_sha256": initialization["source_features_sha256"],
+                "target_rollouts_sha256": result["metadata"][
+                    "source_rollouts_sha256"
+                ],
+            },
+            indent=2,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="beyond-entropy",
@@ -741,6 +766,15 @@ def build_parser() -> argparse.ArgumentParser:
     fit_semantic.add_argument("--seed", type=int, default=17)
     fit_semantic.add_argument("--device", default="cuda")
     fit_semantic.set_defaults(func=command_fit_semantic)
+
+    initialize_semantic = subparsers.add_parser(
+        "initialize-semantic-checkpoint",
+        help="validate and rebase partial semantic features onto larger rollouts",
+    )
+    initialize_semantic.add_argument("--source-features", type=Path, required=True)
+    initialize_semantic.add_argument("--target-rollouts", type=Path, required=True)
+    initialize_semantic.add_argument("--output", type=Path, required=True)
+    initialize_semantic.set_defaults(func=command_initialize_semantic_checkpoint)
     return parser
 
 
