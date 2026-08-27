@@ -7,6 +7,7 @@ from typing import Mapping, Sequence
 from .dataset import group_by_decision
 from .metrics import (
     bootstrap_entropy_diagnostic,
+    bootstrap_policy_evaluation,
     diagnostic_to_dict,
     entropy_diagnostic,
     evaluate_policy,
@@ -55,6 +56,19 @@ def _analyze_slice(
         EntropySearchPolicy(),
         OracleVOIPolicy(lambda_cost),
     ]
+    policy_results: list[dict[str, object]] = []
+    for policy_index, policy in enumerate(policies):
+        result: dict[str, object] = dict(
+            evaluate_policy(records, policy, lambda_cost=lambda_cost)
+        )
+        result["bootstrap"] = bootstrap_policy_evaluation(
+            records,
+            policy,
+            lambda_cost=lambda_cost,
+            n_resamples=bootstrap_resamples,
+            seed=seed + policy_index,
+        )
+        policy_results.append(result)
     return {
         "n_records": len(records),
         "n_states": len({record.state_id for record in records}),
@@ -70,10 +84,7 @@ def _analyze_slice(
             n_resamples=bootstrap_resamples,
             seed=seed,
         ),
-        "policy_results": [
-            evaluate_policy(records, policy, lambda_cost=lambda_cost)
-            for policy in policies
-        ],
+        "policy_results": policy_results,
     }
 
 
@@ -132,21 +143,40 @@ def build_pilot_markdown(report: Mapping[str, object]) -> str:
         if isinstance(value, Mapping)
     )
 
-    def policy_accuracy(slice_report: Mapping[str, object], name: str) -> float:
+    def policy_result(
+        slice_report: Mapping[str, object], name: str
+    ) -> Mapping[str, object]:
         policies = slice_report["policy_results"]
         if not isinstance(policies, Sequence):
             raise ValueError("policy_results must be a sequence")
         for policy in policies:
             if isinstance(policy, Mapping) and policy.get("policy") == name:
-                return float(policy["accuracy"])
+                return policy
         raise ValueError(f"missing policy result: {name}")
+
+    def policy_accuracy_cell(slice_report: Mapping[str, object], name: str) -> str:
+        policy = policy_result(slice_report, name)
+        point = policy["accuracy"]
+        if not isinstance(point, (int, float)):
+            raise ValueError("policy accuracy must be numeric")
+        result = f"{float(point):.4f}"
+        bootstrap = policy.get("bootstrap")
+        if isinstance(bootstrap, Mapping):
+            metrics = bootstrap.get("metrics")
+            if isinstance(metrics, Mapping):
+                accuracy = metrics.get("accuracy")
+                if isinstance(accuracy, Mapping) and accuracy.get("ci_low") is not None:
+                    result += " [{:.4f}, {:.4f}]".format(
+                        float(accuracy["ci_low"]), float(accuracy["ci_high"])
+                    )
+        return result
 
     lines = [
         "# Frozen counterfactual pilot report",
         "",
         "> Diagnostic pilot only; do not cite these numbers as a final benchmark result.",
         "",
-        "| Slice | States | Answer now | Entropy search | Oracle VOI | Strict SCGR | Non-beneficial confidence | Entropy Top-1 mismatch |",
+        "| Slice | States | Answer now [95% CI] | Entropy search [95% CI] | Oracle VOI [95% CI] | Strict SCGR | Non-beneficial confidence | Entropy Top-1 mismatch |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for name, slice_report in slices:
@@ -157,13 +187,13 @@ def build_pilot_markdown(report: Mapping[str, object]) -> str:
         if not isinstance(n_states, (int, float)):
             raise ValueError("n_states must be numeric")
         lines.append(
-            "| {name} | {states} | {answer:.4f} | {entropy:.4f} | {oracle:.4f} | "
+            "| {name} | {states} | {answer} | {entropy} | {oracle} | "
             "{scgr:.4f} | {nonbeneficial:.4f} | {mismatch:.4f} |".format(
                 name=name,
                 states=int(n_states),
-                answer=policy_accuracy(slice_report, "answer_now"),
-                entropy=policy_accuracy(slice_report, "entropy_search"),
-                oracle=policy_accuracy(slice_report, "oracle_voi"),
+                answer=policy_accuracy_cell(slice_report, "answer_now"),
+                entropy=policy_accuracy_cell(slice_report, "entropy_search"),
+                oracle=policy_accuracy_cell(slice_report, "oracle_voi"),
                 scgr=float(diagnostic["spurious_confidence_gain_rate"]),
                 nonbeneficial=float(
                     diagnostic["nonbeneficial_confidence_gain_rate"]
