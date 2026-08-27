@@ -9,7 +9,13 @@ from beyond_entropy.benchmarks import (
     load_manifest,
     vstar_match,
 )
-from beyond_entropy.crops import UGGridProposer, spatially_balanced_subset, ug_grid_boxes
+from beyond_entropy.crops import (
+    ChartLayoutProposer,
+    UGGridProposer,
+    chart_layout_boxes,
+    spatially_balanced_subset,
+    ug_grid_boxes,
+)
 from beyond_entropy.qwen_backend import Qwen25VLBackend
 from beyond_entropy.rollout import AgentState, GroundTruth
 from beyond_entropy.rollout import VisualObservation
@@ -39,6 +45,27 @@ def test_proposer_reads_dimensions_without_ground_truth(tmp_path):
     assert len(proposals) == 4
     assert all(proposal.bbox.area == pytest.approx(1 / 6) for proposal in proposals)
     assert all(proposal.pre_action_features["ug_grid_size"] == 15.0 for proposal in proposals)
+
+
+def test_chart_layout_proposer_covers_axes_center_and_right_without_labels(tmp_path):
+    boxes = chart_layout_boxes(600, 400, visual_crop_ratio=2)
+    assert [box.to_list() for box in boxes] == [
+        [0.0, 0.0, 1 / 3, 0.5],
+        [0.0, 0.25, 1 / 3, 0.75],
+        [1 / 3, 0.25, 2 / 3, 0.75],
+        [2 / 3, 0.25, 1.0, 0.75],
+    ]
+    image_path = tmp_path / "chart.png"
+    Image.new("RGB", (600, 400), "white").save(image_path)
+    state = AgentState("s1", "i1", "src1", str(image_path), "Question?")
+    proposals = ChartLayoutProposer()(state)
+    assert [proposal.action_id for proposal in proposals] == [
+        "chart-layout-00",
+        "chart-layout-01",
+        "chart-layout-02",
+        "chart-layout-03",
+    ]
+    assert all(proposal.pre_action_features["chart_layout"] == 1.0 for proposal in proposals)
 
 
 def test_manifest_and_reference_scorers(tmp_path):

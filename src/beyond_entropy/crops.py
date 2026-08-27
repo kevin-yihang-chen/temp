@@ -89,6 +89,40 @@ def spatially_balanced_subset(boxes: Sequence[BBox], count: int) -> list[BBox]:
     return selected
 
 
+def chart_layout_boxes(
+    width: int,
+    height: int,
+    *,
+    visual_crop_ratio: float = 2.0,
+) -> list[BBox]:
+    """Four square crops covering chart axes, center, and right-side legend."""
+
+    if width <= 0 or height <= 0:
+        raise ValueError("image dimensions must be positive")
+    if visual_crop_ratio <= 0.0:
+        raise ValueError("visual_crop_ratio must be positive")
+    box_size = int(min(width, height) / visual_crop_ratio)
+    if box_size < 2:
+        raise ValueError("visual_crop_ratio produces a crop smaller than two pixels")
+    middle_x = (width - box_size) // 2
+    middle_y = (height - box_size) // 2
+    pixel_boxes = (
+        (0, 0),
+        (0, middle_y),
+        (middle_x, middle_y),
+        (width - box_size, middle_y),
+    )
+    return [
+        BBox(
+            x / width,
+            y / height,
+            (x + box_size) / width,
+            (y + box_size) / height,
+        )
+        for x, y in pixel_boxes
+    ]
+
+
 @dataclass(frozen=True)
 class UGGridProposer:
     """Ground-truth-free crop proposer based on the official UG geometry."""
@@ -128,6 +162,46 @@ class UGGridProposer:
                     "bbox_center_x": (box.x1 + box.x2) / 2.0,
                     "bbox_center_y": (box.y1 + box.y2) / 2.0,
                     "ug_grid_size": float(len(full_grid)),
+                },
+            )
+            for index, box in enumerate(boxes)
+        ]
+
+
+@dataclass(frozen=True)
+class ChartLayoutProposer:
+    """Ground-truth-free four-crop layout specialized for chart structure."""
+
+    visual_crop_ratio: float = 2.0
+    visual_cost: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.visual_cost < 0.0:
+            raise ValueError("visual_cost must be non-negative")
+
+    def __call__(self, state: AgentState) -> list[ActionSpec]:
+        try:
+            from PIL import Image
+        except ImportError as exc:  # pragma: no cover - optional runtime dependency
+            raise RuntimeError("ChartLayoutProposer requires Pillow") from exc
+
+        with Image.open(Path(state.image_path)) as image:
+            width, height = image.size
+        boxes = chart_layout_boxes(
+            width,
+            height,
+            visual_crop_ratio=self.visual_crop_ratio,
+        )
+        return [
+            ActionSpec(
+                action_id=f"chart-layout-{index:02d}",
+                bbox=box,
+                visual_cost=self.visual_cost,
+                pre_action_features={
+                    "bbox_area": box.area,
+                    "bbox_center_x": (box.x1 + box.x2) / 2.0,
+                    "bbox_center_y": (box.y1 + box.y2) / 2.0,
+                    "chart_layout": 1.0,
                 },
             )
             for index, box in enumerate(boxes)

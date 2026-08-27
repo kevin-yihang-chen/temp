@@ -325,7 +325,7 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
 
 def command_collect_qwen(args: argparse.Namespace) -> None:
     from .benchmarks import load_manifest, scorer_by_name
-    from .crops import UGGridProposer
+    from .crops import ChartLayoutProposer, UGGridProposer
     from .qwen_backend import Qwen25VLBackend
     from .rollout import CachedVisualBackend, collect_sibling_rollouts
 
@@ -339,11 +339,20 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             f"expected {args.expected_manifest_sha256}, got {manifest_sha256}"
         )
     examples = load_manifest(args.manifest, limit=args.limit)
-    proposer = UGGridProposer(
-        candidate_count=args.candidate_count,
-        visual_crop_ratio=args.visual_crop_ratio,
-        visual_cost=args.visual_cost,
-    )
+    proposer: ChartLayoutProposer | UGGridProposer
+    if args.proposer == "chart-layout":
+        if args.candidate_count != 4:
+            raise ValueError("chart-layout proposer requires candidate-count=4")
+        proposer = ChartLayoutProposer(
+            visual_crop_ratio=args.visual_crop_ratio,
+            visual_cost=args.visual_cost,
+        )
+    else:
+        proposer = UGGridProposer(
+            candidate_count=args.candidate_count,
+            visual_crop_ratio=args.visual_crop_ratio,
+            visual_cost=args.visual_cost,
+        )
     scorer = scorer_by_name(args.scorer)
     records: list[ActionRecord] = []
     if args.output.exists():
@@ -476,6 +485,7 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         "completed_examples": len(examples),
         "resumed_from_records": initial_record_count,
         "candidate_count": args.candidate_count,
+        "proposer": args.proposer,
         "visual_crop_ratio": args.visual_crop_ratio,
         "visual_cost": args.visual_cost,
         "generation_seeds": list(args.generation_seeds),
@@ -707,6 +717,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     collect_qwen.add_argument("--scorer", choices=("vstar", "chartqa"), required=True)
     collect_qwen.add_argument("--candidate-count", type=int, default=4)
+    collect_qwen.add_argument(
+        "--proposer",
+        choices=("ug-grid", "chart-layout"),
+        default="ug-grid",
+    )
     collect_qwen.add_argument("--visual-crop-ratio", type=float, default=2.0)
     collect_qwen.add_argument("--visual-cost", type=float, default=1.0)
     collect_qwen.add_argument("--generation-seeds", type=int, nargs="+", default=[0])
