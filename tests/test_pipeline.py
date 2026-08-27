@@ -12,9 +12,11 @@ from beyond_entropy.metrics import (
 from beyond_entropy.model import LinearGainModel
 from beyond_entropy.policies import (
     EntropySearchPolicy,
+    EntropyRandomZoomPolicy,
     EntropyThresholdPolicy,
     LearnedVOIPolicy,
     tune_entropy_thresholds,
+    tune_entropy_single_crop_thresholds,
 )
 from beyond_entropy.simulate import simulate_counterfactual_dataset
 
@@ -85,6 +87,24 @@ def test_entropy_thresholds_are_tuned_without_test_labels():
         lambda_cost=0.05,
     )
     assert result["avg_tool_calls"] <= 4.0
+
+
+def test_entropy_single_crop_gate_never_pays_for_candidate_search():
+    records = simulate_counterfactual_dataset(n_states=40, num_candidates=4, seed=12)
+    train, test = split_by_group(records, group="image_id", seed=12)
+    random_threshold, fixed_threshold = tune_entropy_single_crop_thresholds(
+        train,
+        lambda_cost=0.05,
+        seed=12,
+    )
+    assert isinstance(fixed_threshold, float)
+    result = evaluate_policy(
+        test,
+        EntropyRandomZoomPolicy(random_threshold, seed=12),
+        lambda_cost=0.05,
+    )
+    assert result["avg_tool_calls"] <= 1.0
+    assert result["avg_visual_cost"] == result["avg_tool_calls"]
 
 
 def test_entropy_bootstrap_resamples_whole_states_deterministically():

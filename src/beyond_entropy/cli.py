@@ -19,6 +19,8 @@ from .model import LinearGainModel
 from .policies import (
     AnswerNowPolicy,
     EntropyReductionThresholdPolicy,
+    EntropyFixedZoomPolicy,
+    EntropyRandomZoomPolicy,
     EntropySearchPolicy,
     EntropyThresholdPolicy,
     FixedCenterZoomPolicy,
@@ -27,6 +29,7 @@ from .policies import (
     Policy,
     RandomZoomPolicy,
     tune_entropy_thresholds,
+    tune_entropy_single_crop_thresholds,
 )
 from .report import build_markdown_report
 from .schema import ActionRecord
@@ -47,6 +50,8 @@ def _evaluate(
     seed: int,
     entropy_threshold: float | None = None,
     entropy_reduction_threshold: float | None = None,
+    entropy_random_threshold: float | None = None,
+    entropy_fixed_threshold: float | None = None,
 ) -> dict[str, object]:
     if lambda_cost < 0.0:
         raise ValueError("lambda_cost must be non-negative")
@@ -60,6 +65,10 @@ def _evaluate(
         policies.append(EntropyThresholdPolicy(entropy_threshold))
     if entropy_reduction_threshold is not None:
         policies.append(EntropyReductionThresholdPolicy(entropy_reduction_threshold))
+    if entropy_random_threshold is not None:
+        policies.append(EntropyRandomZoomPolicy(entropy_random_threshold, seed=seed))
+    if entropy_fixed_threshold is not None:
+        policies.append(EntropyFixedZoomPolicy(entropy_fixed_threshold))
     if model is not None:
         policies.append(LearnedVOIPolicy(model, lambda_cost=lambda_cost))
     policies.append(OracleVOIPolicy(lambda_cost))
@@ -68,6 +77,8 @@ def _evaluate(
         "baseline_thresholds": {
             "entropy": entropy_threshold,
             "entropy_reduction": entropy_reduction_threshold,
+            "entropy_random_zoom": entropy_random_threshold,
+            "entropy_fixed_zoom": entropy_fixed_threshold,
         },
         "entropy_diagnostic": diagnostic_to_dict(entropy_diagnostic(records)),
         "policy_results": [
@@ -152,6 +163,13 @@ def command_demo(args: argparse.Namespace) -> None:
         train,
         lambda_cost=args.lambda_cost,
     )
+    entropy_random_threshold, entropy_fixed_threshold = (
+        tune_entropy_single_crop_thresholds(
+            train,
+            lambda_cost=args.lambda_cost,
+            seed=args.seed,
+        )
+    )
     report = _evaluate(
         test,
         lambda_cost=args.lambda_cost,
@@ -159,6 +177,8 @@ def command_demo(args: argparse.Namespace) -> None:
         seed=args.seed,
         entropy_threshold=entropy_threshold,
         entropy_reduction_threshold=reduction_threshold,
+        entropy_random_threshold=entropy_random_threshold,
+        entropy_fixed_threshold=entropy_fixed_threshold,
     )
     report["run"] = {
         "synthetic": True,
@@ -211,6 +231,13 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
         train,
         lambda_cost=args.lambda_cost,
     )
+    entropy_random_threshold, entropy_fixed_threshold = (
+        tune_entropy_single_crop_thresholds(
+            train,
+            lambda_cost=args.lambda_cost,
+            seed=args.seed,
+        )
+    )
     report = _evaluate(
         test,
         lambda_cost=args.lambda_cost,
@@ -218,6 +245,8 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
         seed=args.seed,
         entropy_threshold=entropy_threshold,
         entropy_reduction_threshold=reduction_threshold,
+        entropy_random_threshold=entropy_random_threshold,
+        entropy_fixed_threshold=entropy_fixed_threshold,
     )
     report["run"] = {
         "synthetic": False,

@@ -112,6 +112,37 @@ class EntropyThresholdPolicy:
         return EntropySearchPolicy().select(siblings)
 
 
+class EntropyRandomZoomPolicy:
+    """Use baseline entropy to stop, otherwise execute one random crop."""
+
+    name = "entropy_random_zoom"
+
+    def __init__(self, threshold: float, *, seed: int = 0) -> None:
+        self.threshold = threshold
+        self.random_zoom = RandomZoomPolicy(seed=seed)
+
+    def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
+        answer, _ = _partition(siblings)
+        if answer.entropy_before < self.threshold:
+            return PolicyDecision(answer, tool_calls=0, visual_cost=0.0)
+        return self.random_zoom.select(siblings)
+
+
+class EntropyFixedZoomPolicy:
+    """Use baseline entropy to stop, otherwise execute one center crop."""
+
+    name = "entropy_fixed_zoom"
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
+        answer, _ = _partition(siblings)
+        if answer.entropy_before < self.threshold:
+            return PolicyDecision(answer, tool_calls=0, visual_cost=0.0)
+        return FixedCenterZoomPolicy().select(siblings)
+
+
 class EntropyReductionThresholdPolicy:
     """Post-action stopping diagnostic; candidate evaluation cost is already sunk."""
 
@@ -222,4 +253,59 @@ def tune_entropy_thresholds(
     return (
         _tune_threshold(records, lambda_cost=lambda_cost, reduction=False),
         _tune_threshold(records, lambda_cost=lambda_cost, reduction=True),
+    )
+
+
+def _tune_single_crop_entropy_threshold(
+    records: Sequence[ActionRecord],
+    *,
+    lambda_cost: float,
+    fixed: bool,
+    seed: int,
+) -> float:
+    grouped = group_by_decision(records)
+    values = [
+        next(record.entropy_before for record in siblings if record.action_type == "ANSWER")
+        for siblings in grouped.values()
+    ]
+    best_threshold = values[0]
+    best_score = (float("-inf"), float("-inf"))
+    for threshold in _threshold_candidates(values):
+        policy: Policy
+        if fixed:
+            policy = EntropyFixedZoomPolicy(threshold)
+        else:
+            policy = EntropyRandomZoomPolicy(threshold, seed=seed)
+        decisions = [policy.select(siblings) for siblings in grouped.values()]
+        score = (
+            mean(realized_policy_utility(decision, lambda_cost) for decision in decisions),
+            -mean(decision.tool_calls for decision in decisions),
+        )
+        if score > best_score:
+            best_score = score
+            best_threshold = threshold
+    return best_threshold
+
+
+def tune_entropy_single_crop_thresholds(
+    records: Sequence[ActionRecord],
+    *,
+    lambda_cost: float,
+    seed: int = 0,
+) -> tuple[float, float]:
+    """Tune deployable one-crop entropy gates for random and center actions."""
+
+    return (
+        _tune_single_crop_entropy_threshold(
+            records,
+            lambda_cost=lambda_cost,
+            fixed=False,
+            seed=seed,
+        ),
+        _tune_single_crop_entropy_threshold(
+            records,
+            lambda_cost=lambda_cost,
+            fixed=True,
+            seed=seed,
+        ),
     )

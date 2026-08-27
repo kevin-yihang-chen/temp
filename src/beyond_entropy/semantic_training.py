@@ -13,6 +13,8 @@ from .metrics import bootstrap_policy_evaluation, evaluate_policy
 from .model import LinearGainModel
 from .policies import (
     AnswerNowPolicy,
+    EntropyFixedZoomPolicy,
+    EntropyRandomZoomPolicy,
     EntropyReductionThresholdPolicy,
     EntropySearchPolicy,
     EntropyThresholdPolicy,
@@ -23,6 +25,7 @@ from .policies import (
     PolicyDecision,
     RandomZoomPolicy,
     tune_entropy_thresholds,
+    tune_entropy_single_crop_thresholds,
 )
 from .qwen_semantic import (
     load_semantic_feature_dataset,
@@ -696,6 +699,13 @@ def fit_semantic_gain_experiment(
             validation_records,
             lambda_cost=lambda_cost,
         )
+        entropy_random_threshold, entropy_fixed_threshold = (
+            tune_entropy_single_crop_thresholds(
+                validation_records,
+                lambda_cost=lambda_cost,
+                seed=seed,
+            )
+        )
         semantic_threshold = tune_precomputed_gain_threshold(
             validation_raw_prediction_map,
             validation_records,
@@ -718,6 +728,8 @@ def fit_semantic_gain_experiment(
             EntropySearchPolicy(),
             EntropyThresholdPolicy(entropy_threshold),
             EntropyReductionThresholdPolicy(entropy_reduction_threshold),
+            EntropyRandomZoomPolicy(entropy_random_threshold, seed=seed),
+            EntropyFixedZoomPolicy(entropy_fixed_threshold),
             LearnedVOIPolicy(scalar_model, lambda_cost=lambda_cost),
             PrecomputedGainPolicy(
                 scalar_test_predictions,
@@ -768,6 +780,8 @@ def fit_semantic_gain_experiment(
                 "semantic_gain_validation_threshold": semantic_threshold,
                 "semantic_similarity_validation_threshold": similarity_threshold,
                 "scalar_gain_validation_threshold": scalar_threshold,
+                "entropy_random_validation_threshold": entropy_random_threshold,
+                "entropy_fixed_validation_threshold": entropy_fixed_threshold,
                 "policy_results": policy_results,
             }
         )
