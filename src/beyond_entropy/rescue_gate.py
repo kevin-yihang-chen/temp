@@ -157,6 +157,25 @@ def pre_action_context_features(record: ActionRecord) -> list[float]:
     ]
 
 
+def pre_action_context_feature_subset(
+    record: ActionRecord,
+    feature_mode: str,
+) -> list[float]:
+    """Return registered context ablations without introducing new signals."""
+
+    features = pre_action_context_features(record)
+    indices = {
+        "context": tuple(range(27)),
+        "context-uncertainty": tuple(range(8, 14)),
+        "context-text": (*range(0, 8), *range(14, 27)),
+        "context-question": (0, 1, *range(14, 27)),
+        "context-answer-uncertainty": tuple(range(2, 14)),
+    }
+    if feature_mode not in indices:
+        raise ValueError(f"unsupported context feature mode: {feature_mode}")
+    return [features[index] for index in indices[feature_mode]]
+
+
 def compact_rescue_features(
     decision: Mapping[str, Any],
     baseline: ActionRecord | None = None,
@@ -271,10 +290,20 @@ def _rescue_feature_map(
     *,
     feature_mode: str,
 ) -> dict[DecisionKey, list[float]]:
-    if feature_mode not in ("semantic", "context", "semantic-context"):
+    context_modes = {
+        "context",
+        "context-uncertainty",
+        "context-text",
+        "context-question",
+        "context-answer-uncertainty",
+    }
+    if feature_mode not in ("semantic", "semantic-context", *context_modes):
         raise ValueError(f"unsupported rescue feature mode: {feature_mode}")
-    if feature_mode == "context":
-        return {key: pre_action_context_features(baselines[key]) for key in keys}
+    if feature_mode in context_modes:
+        return {
+            key: pre_action_context_feature_subset(baselines[key], feature_mode)
+            for key in keys
+        }
     include_context = feature_mode == "semantic-context"
     return {
         key: compact_rescue_features(

@@ -14,6 +14,7 @@ from beyond_entropy.rescue_gate import (
     fit_nested_oof_rescue_gate,
     fit_nested_oof_two_stage_gate,
     context_quadrant_action_features,
+    pre_action_context_feature_subset,
     pre_action_context_features,
     tune_rescue_gate_threshold,
 )
@@ -240,3 +241,15 @@ def test_context_quadrant_action_features_do_not_use_action_outcomes():
         1,
         action_count=4,
     )
+
+
+def test_registered_context_feature_ablations_partition_pre_action_signals():
+    records = simulate_counterfactual_dataset(n_states=2, num_candidates=4, seed=14)
+    baseline = next(record for record in records if record.action_type == "ANSWER")
+    assert len(pre_action_context_feature_subset(baseline, "context")) == 27
+    assert len(pre_action_context_feature_subset(baseline, "context-uncertainty")) == 6
+    assert len(pre_action_context_feature_subset(baseline, "context-text")) == 21
+    assert len(pre_action_context_feature_subset(baseline, "context-question")) == 15
+    assert len(
+        pre_action_context_feature_subset(baseline, "context-answer-uncertainty")
+    ) == 12

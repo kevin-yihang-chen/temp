@@ -17,6 +17,7 @@ repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
 
 export PYTHONPATH="${repo_dir}/src"
+read -r -a rescue_feature_modes <<< "${BE_RESCUE_FEATURE_MODES:-semantic context semantic-context}"
 
 cd "${repo_dir}"
 export BE_CODE_REVISION
@@ -25,7 +26,7 @@ BE_CODE_REVISION=$(git rev-parse HEAD)
   --rollouts "${BE_RESCUE_ROLLOUTS}" \
   --features "${BE_RESCUE_FEATURES}" \
   --output-dir "${BE_RESCUE_OUTPUT_DIR}" \
-  --rescue-feature-modes semantic context semantic-context \
+  --rescue-feature-modes "${rescue_feature_modes[@]}" \
   --outer-folds 5 \
   --seed 17 \
   --lambda-cost 0.05 \

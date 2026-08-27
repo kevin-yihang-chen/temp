@@ -65,7 +65,15 @@ def main() -> None:
     parser.add_argument(
         "--rescue-feature-modes",
         nargs="+",
-        choices=("semantic", "context", "semantic-context"),
+        choices=(
+            "semantic",
+            "context",
+            "semantic-context",
+            "context-uncertainty",
+            "context-text",
+            "context-question",
+            "context-answer-uncertainty",
+        ),
         default=["semantic", "context", "semantic-context"],
     )
     parser.add_argument("--outer-folds", type=int, default=5)
@@ -98,7 +106,7 @@ def main() -> None:
         evaluations[rescue_feature_mode] = evaluation
         write_json(models, args.output_dir / rescue_feature_mode / "models.json")
         write_json(evaluation, args.output_dir / rescue_feature_mode / "report.json")
-    report = {
+    report: dict[str, object] = {
         "scientific_status": "exploratory nested grouped OOF factorized diagnostic",
         "run": {
             "rollouts": str(args.rollouts.resolve()),
