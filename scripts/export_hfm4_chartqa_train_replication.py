@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from beyond_entropy.manifest_export import (
@@ -152,6 +153,7 @@ def main() -> None:
             "blocked_unique_images": len(blocked_image_ids),
             "excluded_overlap_rows": excluded_overlap_rows,
             "eligible_rows": len(candidate_source_indices),
+            "code_revision": os.environ.get("BE_CODE_REVISION"),
         }
     )
     provenance_path = args.output_dir / "manifest.provenance.json"
