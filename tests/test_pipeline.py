@@ -9,6 +9,7 @@ from beyond_entropy.metrics import (
     bootstrap_policy_evaluation,
     entropy_diagnostic,
     evaluate_policy,
+    paired_bootstrap_policy_difference,
 )
 from beyond_entropy.model import LinearGainModel
 from beyond_entropy.policies import (
@@ -188,6 +189,19 @@ def test_policy_bootstrap_fixes_decisions_and_resamples_whole_states():
     assert image_clustered["resampling_unit"] == "image_id"
     assert image_clustered["n_states"] == 12
     assert image_clustered["n_clusters"] == 6
+    paired_image = paired_bootstrap_policy_difference(
+        records,
+        policy,
+        records,
+        policy,
+        lambda_cost=0.05,
+        n_resamples=50,
+        seed=6,
+        cluster_by="image_id",
+    )
+    assert paired_image["resampling_unit"] == "image_id"
+    assert paired_image["n_clusters"] == 6
+    assert paired_image["metrics"]["mean_policy_utility"]["estimate"] == 0.0
 
 
 def test_fit_baseline_command_uses_grouped_real_split(tmp_path):

@@ -370,6 +370,7 @@ def paired_bootstrap_policy_difference(
     n_resamples: int = 2000,
     confidence: float = 0.95,
     seed: int = 0,
+    cluster_by: Literal["state_id", "image_id", "source_id"] = "state_id",
 ) -> dict[str, object]:
     """Estimate right-minus-left policy differences on matched state clusters."""
 
@@ -396,25 +397,29 @@ def paired_bootstrap_policy_difference(
         right = right_by_key[decision_key]
         if abs(left.baseline_outcome - right.baseline_outcome) > 1e-12:
             raise ValueError(f"paired decision {decision_key!r} has different baseline outcome")
+        if getattr(left, cluster_by) != getattr(right, cluster_by):
+            raise ValueError(
+                f"paired decision {decision_key!r} has different {cluster_by}"
+            )
 
-    left_by_state: dict[str, list[_PolicyOutcome]] = {}
-    right_by_state: dict[str, list[_PolicyOutcome]] = {}
+    left_by_cluster: dict[str, list[_PolicyOutcome]] = {}
+    right_by_cluster: dict[str, list[_PolicyOutcome]] = {}
     for decision_key in sorted(left_by_key):
         left = left_by_key[decision_key]
         right = right_by_key[decision_key]
-        left_by_state.setdefault(left.state_id, []).append(left)
-        right_by_state.setdefault(right.state_id, []).append(right)
-    state_ids = sorted(left_by_state)
-    if set(state_ids) != set(right_by_state):
-        raise ValueError("paired policy inputs contain different state clusters")
+        left_by_cluster.setdefault(getattr(left, cluster_by), []).append(left)
+        right_by_cluster.setdefault(getattr(right, cluster_by), []).append(right)
+    cluster_ids = sorted(left_by_cluster)
+    if set(cluster_ids) != set(right_by_cluster):
+        raise ValueError("paired policy inputs contain different resampling clusters")
 
     left_vectors = {
-        state_id: _policy_sufficient_vector(outcomes)
-        for state_id, outcomes in left_by_state.items()
+        cluster_id: _policy_sufficient_vector(outcomes)
+        for cluster_id, outcomes in left_by_cluster.items()
     }
     right_vectors = {
-        state_id: _policy_sufficient_vector(right_by_state[state_id])
-        for state_id in state_ids
+        cluster_id: _policy_sufficient_vector(right_by_cluster[cluster_id])
+        for cluster_id in cluster_ids
     }
     left_point = _summarize_policy_outcomes(
         left_outcomes,
@@ -439,10 +444,10 @@ def paired_bootstrap_policy_difference(
     for _ in range(n_resamples):
         left_total = [0.0] * vector_width
         right_total = [0.0] * vector_width
-        for state_id in rng.choices(state_ids, k=len(state_ids)):
+        for cluster_id in rng.choices(cluster_ids, k=len(cluster_ids)):
             for index in range(vector_width):
-                left_total[index] += left_vectors[state_id][index]
-                right_total[index] += right_vectors[state_id][index]
+                left_total[index] += left_vectors[cluster_id][index]
+                right_total[index] += right_vectors[cluster_id][index]
         left_summary = _summarize_policy_vector(
             left_total,
             policy_name=left_policy.name,
@@ -459,12 +464,13 @@ def paired_bootstrap_policy_difference(
     alpha = (1.0 - confidence) / 2.0
     return {
         "comparison": "right_minus_left",
-        "resampling_unit": "state_id",
+        "resampling_unit": cluster_by,
         "confidence": confidence,
         "n_resamples": n_resamples,
         "seed": seed,
         "lambda_cost": lambda_cost,
-        "n_states": len(state_ids),
+        "n_states": len({outcome.state_id for outcome in left_outcomes}),
+        "n_clusters": len(cluster_ids),
         "n_decisions": len(left_outcomes),
         "left_policy": left_policy.name,
         "right_policy": right_policy.name,

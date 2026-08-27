@@ -111,10 +111,25 @@ def main() -> None:
         pooled_actions,
         name="factorized_state_context_quadrant_action",
     )
+    fixed_zero_policy = PrecomputedActionGatePolicy(
+        {
+            key: (
+                sorted(
+                    (record for record in siblings if record.action_type == "ZOOM"),
+                    key=lambda record: record.action_id,
+                )[0].action_id
+                if pooled_calls[key] >= 0.5
+                else None
+            )
+            for key, siblings in grouped.items()
+        },
+        name="factorized_state_fixed_crop_0",
+    )
     policies = {}
     for name, policy in (
         ("factorized_uniform_random", random_policy),
         ("factorized_context_quadrant", composed_policy),
+        ("factorized_fixed_crop_0", fixed_zero_policy),
     ):
         result: dict[str, object] = dict(
             evaluate_policy(records, policy, lambda_cost=0.05)
@@ -135,6 +150,35 @@ def main() -> None:
         lambda_cost=0.05,
         n_resamples=args.bootstrap_resamples,
         seed=0,
+    )
+    paired_image = paired_bootstrap_policy_difference(
+        records,
+        random_policy,
+        records,
+        composed_policy,
+        lambda_cost=0.05,
+        n_resamples=args.bootstrap_resamples,
+        seed=0,
+        cluster_by="image_id",
+    )
+    paired_fixed_zero = paired_bootstrap_policy_difference(
+        records,
+        fixed_zero_policy,
+        records,
+        composed_policy,
+        lambda_cost=0.05,
+        n_resamples=args.bootstrap_resamples,
+        seed=0,
+    )
+    paired_fixed_zero_image = paired_bootstrap_policy_difference(
+        records,
+        fixed_zero_policy,
+        records,
+        composed_policy,
+        lambda_cost=0.05,
+        n_resamples=args.bootstrap_resamples,
+        seed=0,
+        cluster_by="image_id",
     )
     helpful_keys = [
         key
@@ -171,6 +215,11 @@ def main() -> None:
         "n_decisions": len(grouped),
         "policies": policies,
         "paired_context_quadrant_minus_random": paired,
+        "paired_context_quadrant_minus_random_image_cluster": paired_image,
+        "paired_context_quadrant_minus_fixed_crop_0": paired_fixed_zero,
+        "paired_context_quadrant_minus_fixed_crop_0_image_cluster": (
+            paired_fixed_zero_image
+        ),
         "diagnostics": {
             "helpful_states": len(helpful_keys),
             "top1_rescue_rate_within_called_helpful_states": mean(
