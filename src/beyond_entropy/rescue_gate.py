@@ -41,6 +41,33 @@ class PrecomputedRescueGatePolicy:
         return ExpectedRandomZoomPolicy().select(siblings)
 
 
+class PrecomputedActionGatePolicy:
+    """Execute a precomputed concrete crop, or stop, for each decision."""
+
+    def __init__(
+        self,
+        selected_action_ids: Mapping[DecisionKey, str | None],
+        *,
+        name: str = "precomputed_action_gate",
+    ) -> None:
+        self.selected_action_ids = selected_action_ids
+        self.name = name
+
+    def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
+        exemplar = siblings[0]
+        key = (exemplar.state_id, exemplar.replicate_id)
+        if key not in self.selected_action_ids:
+            raise ValueError(f"missing action-gate decision for {key!r}")
+        action_id = self.selected_action_ids[key]
+        if action_id is None:
+            return AnswerNowPolicy().select(siblings)
+        matches = [record for record in siblings if record.action_id == action_id]
+        if len(matches) != 1 or matches[0].action_type != "ZOOM":
+            raise ValueError(f"invalid selected ZOOM action {action_id!r} for {key!r}")
+        selected = matches[0]
+        return PolicyDecision(selected, tool_calls=1, visual_cost=selected.tool_cost)
+
+
 def tune_rescue_gate_threshold(
     scores: Sequence[float],
     action_utilities: Sequence[float],
@@ -158,6 +185,53 @@ def compact_rescue_features(
     if baseline is not None:
         result.extend(pre_action_context_features(baseline))
     return result
+
+
+def compact_action_features(
+    decision: Mapping[str, Any],
+    action_index: int,
+) -> list[float]:
+    """Build low-capacity pre-action features for ranking one candidate crop."""
+
+    import torch  # type: ignore[import-not-found]
+    import torch.nn.functional as functional  # type: ignore[import-not-found]
+
+    question = functional.normalize(decision["question_embedding"].float(), dim=0)
+    global_visual = functional.normalize(
+        decision["global_visual_embedding"].float(),
+        dim=0,
+    )
+    regions = functional.normalize(decision["region_embeddings"].float(), dim=1)
+    bboxes = decision["bboxes"].float()
+    if not 0 <= action_index < regions.shape[0] or bboxes.shape[0] != regions.shape[0]:
+        raise ValueError("action index or bbox count does not match region embeddings")
+    question_region = regions @ question
+    global_region = regions @ global_visual
+    bbox = bboxes[action_index]
+    width = bbox[2] - bbox[0]
+    height = bbox[3] - bbox[1]
+    geometry = torch.stack(
+        (
+            *bbox,
+            width,
+            height,
+            width * height,
+            (bbox[0] + bbox[2]) / 2.0,
+            (bbox[1] + bbox[3]) / 2.0,
+        )
+    )
+    features = torch.cat(
+        (
+            decision["state_signals"].float(),
+            torch.dot(question, global_visual).reshape(1),
+            question_region[action_index].reshape(1),
+            global_region[action_index].reshape(1),
+            (question_region[action_index] - question_region.mean()).reshape(1),
+            (global_region[action_index] - global_region.mean()).reshape(1),
+            geometry,
+        )
+    )
+    return [float(value) for value in features.tolist()]
 
 
 def _decision_baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
@@ -891,6 +965,385 @@ def fit_nested_oof_rescue_gate(
         "model_type": "compact_rescue_gate_nested_grouped_oof",
         "seed": seed,
         "feature_mode": feature_mode,
+        "n_outer_folds": n_outer_folds,
+        "fold_models": fold_models,
+    }
+    return report, model_payload
+
+
+def fit_nested_oof_two_stage_gate(
+    records: Sequence[ActionRecord],
+    decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+    *,
+    split_group: str = "image_id",
+    n_outer_folds: int = 5,
+    validation_fraction: float = 0.2,
+    lambda_cost: float = 0.05,
+    state_feature_mode: str = "context",
+    c_values: Sequence[float] = (0.001, 0.01, 0.1, 1.0, 10.0),
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+    seed: int = 17,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Nested OOF state gating plus learned concrete-crop selection."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.metrics import (  # type: ignore[import-untyped]
+        average_precision_score,
+        roc_auc_score,
+    )
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if not c_values or any(value <= 0.0 for value in c_values):
+        raise ValueError("c_values must contain positive regularization values")
+    grouped = group_by_decision(records)
+    all_keys = sorted(grouped)
+    missing = set(all_keys) - set(decision_by_key)
+    if missing:
+        raise ValueError(f"rescue features are missing decisions: {sorted(missing)[:5]}")
+    baselines = _decision_baselines(records)
+    outcomes = _decision_outcomes(records, lambda_cost=lambda_cost)
+    state_features = _rescue_feature_map(
+        all_keys,
+        decision_by_key,
+        baselines,
+        feature_mode=state_feature_mode,
+    )
+    state_labels = {key: int(bool(outcomes[key]["helpful"])) for key in all_keys}
+    zooms_by_key: dict[DecisionKey, list[ActionRecord]] = {}
+    action_features: dict[tuple[DecisionKey, str], list[float]] = {}
+    for key in all_keys:
+        zooms = sorted(
+            (record for record in grouped[key] if record.action_type == "ZOOM"),
+            key=lambda record: record.action_id,
+        )
+        expected_ids = list(decision_by_key[key]["action_ids"])
+        if [record.action_id for record in zooms] != expected_ids:
+            raise ValueError(f"semantic action IDs differ for decision {key!r}")
+        zooms_by_key[key] = zooms
+        for action_index, record in enumerate(zooms):
+            action_features[(key, record.action_id)] = compact_action_features(
+                decision_by_key[key],
+                action_index,
+            )
+    outer_folds = _grouped_crossfit_records(
+        records,
+        split_group=split_group,
+        n_folds=n_outer_folds,
+        seed=seed,
+    )
+    pooled_selected_actions: dict[DecisionKey, str | None] = {}
+    pooled_top_actions: dict[DecisionKey, str] = {}
+    pooled_state_margins: dict[DecisionKey, float] = {}
+    fold_reports: list[dict[str, Any]] = []
+    fold_models: list[dict[str, Any]] = []
+    for fold_index, (outer_train, outer_test) in enumerate(outer_folds):
+        model_train, validation = split_by_group(
+            outer_train,
+            group=split_group,  # type: ignore[arg-type]
+            train_fraction=1.0 - validation_fraction,
+            seed=seed + 211 + fold_index,
+        )
+        train_keys = _keys(model_train)
+        validation_keys = _keys(validation)
+        test_keys = _keys(outer_test)
+        state_scaler = StandardScaler().fit(
+            np.asarray([state_features[key] for key in train_keys], dtype=np.float64)
+        )
+        state_train_features = state_scaler.transform(
+            np.asarray([state_features[key] for key in train_keys], dtype=np.float64)
+        )
+        state_validation_features = state_scaler.transform(
+            np.asarray([state_features[key] for key in validation_keys], dtype=np.float64)
+        )
+        state_test_features = state_scaler.transform(
+            np.asarray([state_features[key] for key in test_keys], dtype=np.float64)
+        )
+        state_train_labels = np.asarray(
+            [state_labels[key] for key in train_keys],
+            dtype=np.int64,
+        )
+        state_models = []
+        for state_c in c_values:
+            state_model = LogisticRegression(
+                C=float(state_c),
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=seed + fold_index,
+            ).fit(state_train_features, state_train_labels)
+            state_models.append(
+                (
+                    float(state_c),
+                    state_model,
+                    state_model.decision_function(state_validation_features),
+                )
+            )
+
+        action_train_rows = [
+            (key, zoom)
+            for key in train_keys
+            if baselines[key].correct_before < 0.5
+            for zoom in zooms_by_key[key]
+        ]
+        action_scaler = StandardScaler().fit(
+            np.asarray(
+                [action_features[(key, zoom.action_id)] for key, zoom in action_train_rows],
+                dtype=np.float64,
+            )
+        )
+        action_train_features = action_scaler.transform(
+            np.asarray(
+                [action_features[(key, zoom.action_id)] for key, zoom in action_train_rows],
+                dtype=np.float64,
+            )
+        )
+        action_train_labels = np.asarray(
+            [zoom.delta_success > 0.0 for _, zoom in action_train_rows],
+            dtype=np.int64,
+        )
+        action_models = []
+        for action_c in c_values:
+            action_model = LogisticRegression(
+                C=float(action_c),
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=seed + fold_index,
+            ).fit(action_train_features, action_train_labels)
+            validation_top_actions = {}
+            for key in validation_keys:
+                candidate_features = action_scaler.transform(
+                    np.asarray(
+                        [
+                            action_features[(key, zoom.action_id)]
+                            for zoom in zooms_by_key[key]
+                        ],
+                        dtype=np.float64,
+                    )
+                )
+                candidate_scores = action_model.decision_function(candidate_features)
+                selected_index = max(
+                    range(len(zooms_by_key[key])),
+                    key=lambda index: (
+                        float(candidate_scores[index]),
+                        zooms_by_key[key][index].action_id,
+                    ),
+                )
+                validation_top_actions[key] = zooms_by_key[key][selected_index]
+            action_models.append((float(action_c), action_model, validation_top_actions))
+
+        candidates: list[tuple[float, float, float, float, float, Any, Any]] = []
+        for state_c, state_model, validation_state_scores in state_models:
+            for action_c, action_model, validation_top_actions in action_models:
+                threshold, utility, tool_rate = tune_rescue_gate_threshold(
+                    validation_state_scores.tolist(),
+                    [
+                        validation_top_actions[key].voi(lambda_cost)
+                        for key in validation_keys
+                    ],
+                )
+                candidates.append(
+                    (
+                        utility,
+                        -tool_rate,
+                        -state_c,
+                        -action_c,
+                        threshold,
+                        state_model,
+                        action_model,
+                    )
+                )
+        (
+            validation_utility,
+            negative_tool_rate,
+            negative_state_c,
+            negative_action_c,
+            threshold,
+            state_model,
+            action_model,
+        ) = max(candidates, key=lambda value: value[:4])
+        test_state_scores = state_model.decision_function(state_test_features)
+        fold_selected_actions: dict[DecisionKey, str | None] = {}
+        fold_top_actions: dict[DecisionKey, str] = {}
+        test_action_labels: list[int] = []
+        test_action_scores: list[float] = []
+        for key, state_score in zip(test_keys, test_state_scores.tolist()):
+            candidate_features = action_scaler.transform(
+                np.asarray(
+                    [action_features[(key, zoom.action_id)] for zoom in zooms_by_key[key]],
+                    dtype=np.float64,
+                )
+            )
+            candidate_scores = action_model.decision_function(candidate_features)
+            selected_index = max(
+                range(len(zooms_by_key[key])),
+                key=lambda index: (
+                    float(candidate_scores[index]),
+                    zooms_by_key[key][index].action_id,
+                ),
+            )
+            top_action_id = zooms_by_key[key][selected_index].action_id
+            fold_top_actions[key] = top_action_id
+            fold_selected_actions[key] = (
+                top_action_id if float(state_score) >= threshold else None
+            )
+            pooled_state_margins[key] = float(state_score) - threshold
+            if baselines[key].correct_before < 0.5:
+                test_action_labels.extend(
+                    int(zoom.delta_success > 0.0) for zoom in zooms_by_key[key]
+                )
+                test_action_scores.extend(float(score) for score in candidate_scores.tolist())
+        overlap = set(fold_selected_actions) & set(pooled_selected_actions)
+        if overlap:
+            raise RuntimeError(f"nested OOF test decisions overlap: {sorted(overlap)[:5]}")
+        pooled_selected_actions.update(fold_selected_actions)
+        pooled_top_actions.update(fold_top_actions)
+        fold_policy = PrecomputedActionGatePolicy(
+            fold_selected_actions,
+            name="nested_oof_two_stage_concrete_crop",
+        )
+        fold_result = dict(evaluate_policy(outer_test, fold_policy, lambda_cost=lambda_cost))
+        test_state_labels = np.asarray(
+            [state_labels[key] for key in test_keys],
+            dtype=np.int64,
+        )
+        has_both_state_classes = len(set(test_state_labels.tolist())) == 2
+        has_both_action_classes = len(set(test_action_labels)) == 2
+        helpful_keys = [key for key in test_keys if state_labels[key]]
+        fold_reports.append(
+            {
+                "fold": fold_index,
+                "model_train_decisions": len(train_keys),
+                "validation_decisions": len(validation_keys),
+                "test_decisions": len(test_keys),
+                "selected_state_c": -negative_state_c,
+                "selected_action_c": -negative_action_c,
+                "validation_threshold": threshold,
+                "validation_utility": validation_utility,
+                "validation_tool_rate": -negative_tool_rate,
+                "test_state_helpful_roc_auc": (
+                    float(roc_auc_score(test_state_labels, test_state_scores))
+                    if has_both_state_classes
+                    else None
+                ),
+                "test_action_rescue_roc_auc_on_wrong_states": (
+                    float(roc_auc_score(test_action_labels, test_action_scores))
+                    if has_both_action_classes
+                    else None
+                ),
+                "test_action_rescue_average_precision_on_wrong_states": (
+                    float(average_precision_score(test_action_labels, test_action_scores))
+                    if has_both_action_classes
+                    else None
+                ),
+                "top1_rescue_rate_within_helpful_states": mean(
+                    next(
+                        zoom.delta_success
+                        for zoom in zooms_by_key[key]
+                        if zoom.action_id == fold_top_actions[key]
+                    )
+                    > 0.0
+                    for key in helpful_keys
+                ),
+                "random_rescue_rate_within_helpful_states": mean(
+                    mean(zoom.delta_success > 0.0 for zoom in zooms_by_key[key])
+                    for key in helpful_keys
+                ),
+                "policy_result": fold_result,
+            }
+        )
+        fold_models.append(
+            {
+                "fold": fold_index,
+                "selected_state_c": -negative_state_c,
+                "selected_action_c": -negative_action_c,
+                "threshold": threshold,
+                "state_scaler_mean": [
+                    float(value) for value in state_scaler.mean_.tolist()
+                ],
+                "state_scaler_scale": [
+                    float(value) for value in state_scaler.scale_.tolist()
+                ],
+                "state_coefficient": [
+                    float(value) for value in state_model.coef_[0].tolist()
+                ],
+                "state_intercept": float(state_model.intercept_[0]),
+                "action_scaler_mean": [
+                    float(value) for value in action_scaler.mean_.tolist()
+                ],
+                "action_scaler_scale": [
+                    float(value) for value in action_scaler.scale_.tolist()
+                ],
+                "action_coefficient": [
+                    float(value) for value in action_model.coef_[0].tolist()
+                ],
+                "action_intercept": float(action_model.intercept_[0]),
+            }
+        )
+    if set(pooled_selected_actions) != set(all_keys):
+        missing_oof = sorted(set(all_keys) - set(pooled_selected_actions))
+        raise RuntimeError(f"nested OOF predictions are incomplete: {missing_oof[:5]}")
+    policy = PrecomputedActionGatePolicy(
+        pooled_selected_actions,
+        name="nested_oof_two_stage_concrete_crop",
+    )
+    policy_result: dict[str, Any] = dict(
+        evaluate_policy(records, policy, lambda_cost=lambda_cost)
+    )
+    policy_result["bootstrap"] = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+    )
+    pooled_state_labels = np.asarray(
+        [state_labels[key] for key in all_keys],
+        dtype=np.int64,
+    )
+    pooled_state_margin_array = np.asarray(
+        [pooled_state_margins[key] for key in all_keys],
+        dtype=np.float64,
+    )
+    helpful_keys = [key for key in all_keys if state_labels[key]]
+    report = {
+        "scientific_status": (
+            "nested grouped OOF two-stage diagnostic; state and action models both "
+            "exclude each evaluated image group"
+        ),
+        "seed": seed,
+        "state_feature_mode": state_feature_mode,
+        "state_feature_count": len(state_features[all_keys[0]]),
+        "action_feature_count": len(next(iter(action_features.values()))),
+        "split_group": split_group,
+        "n_outer_folds": n_outer_folds,
+        "validation_fraction_within_outer_train": validation_fraction,
+        "n_decisions": len(all_keys),
+        "pooled_state_helpful_roc_auc_of_fold_margin": float(
+            roc_auc_score(pooled_state_labels, pooled_state_margin_array)
+        ),
+        "top1_rescue_rate_within_helpful_states": mean(
+            next(
+                zoom.delta_success
+                for zoom in zooms_by_key[key]
+                if zoom.action_id == pooled_top_actions[key]
+            )
+            > 0.0
+            for key in helpful_keys
+        ),
+        "random_rescue_rate_within_helpful_states": mean(
+            mean(zoom.delta_success > 0.0 for zoom in zooms_by_key[key])
+            for key in helpful_keys
+        ),
+        "folds": fold_reports,
+        "policy_result": policy_result,
+    }
+    model_payload = {
+        "model_type": "nested_oof_two_stage_state_and_action_gate",
+        "seed": seed,
+        "state_feature_mode": state_feature_mode,
         "n_outer_folds": n_outer_folds,
         "fold_models": fold_models,
     }

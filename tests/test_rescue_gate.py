@@ -6,9 +6,11 @@ from beyond_entropy.dataset import group_by_decision
 from beyond_entropy.metrics import evaluate_policy
 from beyond_entropy.rescue_gate import (
     _grouped_crossfit_records,
+    PrecomputedActionGatePolicy,
     PrecomputedRescueGatePolicy,
     aggregate_rescue_gate_splits,
     fit_nested_oof_rescue_gate,
+    fit_nested_oof_two_stage_gate,
     pre_action_context_features,
     tune_rescue_gate_threshold,
 )
@@ -33,6 +35,21 @@ def test_precomputed_rescue_gate_is_evaluable_without_action_labels_in_scores():
         PrecomputedRescueGatePolicy(scores, threshold=4.0),
         lambda_cost=0.05,
     )
+    assert result["tool_use_rate"] == 0.5
+    assert result["avg_tool_calls"] == 0.5
+
+
+def test_precomputed_action_gate_selects_concrete_crop_or_stops():
+    records = simulate_counterfactual_dataset(n_states=2, num_candidates=4, seed=6)
+    grouped = group_by_decision(records)
+    keys = sorted(grouped)
+    zoom = next(record for record in grouped[keys[1]] if record.action_type == "ZOOM")
+    policy = PrecomputedActionGatePolicy(
+        {keys[0]: None, keys[1]: zoom.action_id},
+        name="test_action_gate",
+    )
+    result = evaluate_policy(records, policy, lambda_cost=0.05)
+    assert result["policy"] == "test_action_gate"
     assert result["tool_use_rate"] == 0.5
     assert result["avg_tool_calls"] == 0.5
 
@@ -130,4 +147,44 @@ def test_nested_oof_context_gate_evaluates_each_decision_once():
     assert report["policy_result"]["n_decisions"] == 80
     assert report["policy_result"]["bootstrap"]["n_decisions"] == 80
     assert report["feature_count"] == 27
+    assert len(model["fold_models"]) == 5
+
+
+def test_nested_oof_two_stage_gate_runs_without_post_action_features():
+    torch = pytest.importorskip("torch")
+    records = simulate_counterfactual_dataset(
+        n_states=120,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=9,
+    )
+    decisions = {}
+    generator = torch.Generator().manual_seed(3)
+    for key, siblings in group_by_decision(records).items():
+        zooms = sorted(
+            (record for record in siblings if record.action_type == "ZOOM"),
+            key=lambda record: record.action_id,
+        )
+        baseline = next(record for record in siblings if record.action_type == "ANSWER")
+        decisions[key] = {
+            "action_ids": [record.action_id for record in zooms],
+            "question_embedding": torch.randn(8, generator=generator),
+            "global_visual_embedding": torch.randn(8, generator=generator),
+            "region_embeddings": torch.randn(4, 8, generator=generator),
+            "bboxes": torch.tensor(
+                [record.candidate_bbox.to_list() for record in zooms],
+                dtype=torch.float32,
+            ),
+            "state_signals": torch.tensor([baseline.entropy_before]),
+        }
+    report, model = fit_nested_oof_two_stage_gate(
+        records,
+        decisions,
+        c_values=(0.1,),
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    assert report["n_decisions"] == 120
+    assert report["policy_result"]["n_decisions"] == 120
+    assert report["action_feature_count"] == 15
     assert len(model["fold_models"]) == 5
