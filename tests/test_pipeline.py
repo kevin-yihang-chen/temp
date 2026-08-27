@@ -1,8 +1,7 @@
 import pytest
 
 from beyond_entropy.cli import main
-from beyond_entropy.dataset import write_jsonl
-from beyond_entropy.dataset import split_by_group
+from beyond_entropy.dataset import group_by_decision, split_by_group, write_jsonl
 from beyond_entropy.metrics import (
     bootstrap_entropy_diagnostic,
     bootstrap_policy_evaluation,
@@ -13,6 +12,7 @@ from beyond_entropy.model import LinearGainModel
 from beyond_entropy.policies import (
     EntropySearchPolicy,
     EntropyRandomZoomPolicy,
+    ExpectedRandomZoomPolicy,
     EntropyThresholdPolicy,
     LearnedVOIPolicy,
     tune_entropy_thresholds,
@@ -105,6 +105,23 @@ def test_entropy_single_crop_gate_never_pays_for_candidate_search():
     )
     assert result["avg_tool_calls"] <= 1.0
     assert result["avg_visual_cost"] == result["avg_tool_calls"]
+
+
+def test_uniform_random_expectation_matches_mean_sibling_success():
+    records = simulate_counterfactual_dataset(n_states=8, num_candidates=4, seed=14)
+    grouped = group_by_decision(records)
+    expected_accuracy = sum(
+        sum(record.correct_after for record in siblings if record.action_type == "ZOOM")
+        / 4.0
+        for siblings in grouped.values()
+    ) / len(grouped)
+    result = evaluate_policy(
+        records,
+        ExpectedRandomZoomPolicy(),
+        lambda_cost=0.05,
+    )
+    assert result["accuracy"] == pytest.approx(expected_accuracy)
+    assert result["avg_tool_calls"] == 1.0
 
 
 def test_entropy_bootstrap_resamples_whole_states_deterministically():

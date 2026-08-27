@@ -15,11 +15,13 @@ from .model import LinearGainModel
 from .policies import (
     AnswerNowPolicy,
     EntropyFixedZoomPolicy,
+    EntropyExpectedRandomZoomPolicy,
     EntropyRandomZoomPolicy,
     EntropyReductionThresholdPolicy,
     EntropySearchPolicy,
     EntropyThresholdPolicy,
     FixedCenterZoomPolicy,
+    ExpectedRandomZoomPolicy,
     LearnedVOIPolicy,
     OracleVOIPolicy,
     Policy,
@@ -27,6 +29,7 @@ from .policies import (
     RandomZoomPolicy,
     tune_entropy_thresholds,
     tune_entropy_single_crop_thresholds,
+    tune_entropy_expected_random_threshold,
 )
 from .qwen_semantic import (
     load_semantic_feature_dataset,
@@ -892,6 +895,10 @@ def fit_semantic_gain_experiment(
                 seed=seed,
             )
         )
+        entropy_expected_random_threshold = tune_entropy_expected_random_threshold(
+            validation_records,
+            lambda_cost=lambda_cost,
+        )
         semantic_threshold = tune_precomputed_gain_threshold(
             validation_raw_prediction_map,
             validation_records,
@@ -916,11 +923,13 @@ def fit_semantic_gain_experiment(
             AnswerNowPolicy(),
             RandomZoomPolicy(seed=seed),
             FixedCenterZoomPolicy(),
+            ExpectedRandomZoomPolicy(),
             EntropySearchPolicy(),
             EntropyThresholdPolicy(entropy_threshold),
             EntropyReductionThresholdPolicy(entropy_reduction_threshold),
             EntropyRandomZoomPolicy(entropy_random_threshold, seed=seed),
             EntropyFixedZoomPolicy(entropy_fixed_threshold),
+            EntropyExpectedRandomZoomPolicy(entropy_expected_random_threshold),
             LearnedVOIPolicy(scalar_model, lambda_cost=lambda_cost),
             PrecomputedGainPolicy(
                 scalar_test_predictions,
@@ -980,6 +989,9 @@ def fit_semantic_gain_experiment(
                 "scalar_gain_validation_threshold": scalar_threshold,
                 "entropy_random_validation_threshold": entropy_random_threshold,
                 "entropy_fixed_validation_threshold": entropy_fixed_threshold,
+                "entropy_expected_random_validation_threshold": (
+                    entropy_expected_random_threshold
+                ),
                 "policy_results": policy_results,
             }
         )

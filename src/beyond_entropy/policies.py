@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from statistics import mean
 from typing import Protocol, Sequence
 
@@ -58,6 +58,29 @@ class RandomZoomPolicy:
         decision_id = f"{siblings[0].state_id}:{siblings[0].replicate_id}"
         digest = hashlib.sha256(f"{self.seed}:{decision_id}".encode()).digest()
         selected = random.Random(digest).choice(zooms)
+        return PolicyDecision(selected, tool_calls=1, visual_cost=selected.tool_cost)
+
+
+class ExpectedRandomZoomPolicy:
+    """Exact counterfactual expectation of deploying one uniform random crop.
+
+    Selection is label-independent at deployment. Evaluation averages the
+    already collected sibling outcomes to remove arbitrary Monte Carlo seed
+    variance; the synthetic fractional outcome is never used for training.
+    """
+
+    name = "uniform_random_zoom_expectation"
+
+    def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
+        _, zooms = _partition(siblings)
+        selected = dataclass_replace(
+            zooms[0],
+            action_id="uniform-random-expectation",
+            entropy_after=mean(record.entropy_after for record in zooms),
+            answer_after="<uniform-random-expectation>",
+            correct_after=mean(record.correct_after for record in zooms),
+            tool_cost=mean(record.tool_cost for record in zooms),
+        )
         return PolicyDecision(selected, tool_calls=1, visual_cost=selected.tool_cost)
 
 
@@ -141,6 +164,21 @@ class EntropyFixedZoomPolicy:
         if answer.entropy_before < self.threshold:
             return PolicyDecision(answer, tool_calls=0, visual_cost=0.0)
         return FixedCenterZoomPolicy().select(siblings)
+
+
+class EntropyExpectedRandomZoomPolicy:
+    """Entropy stopping with the exact expected outcome of one random crop."""
+
+    name = "entropy_uniform_random_expectation"
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def select(self, siblings: Sequence[ActionRecord]) -> PolicyDecision:
+        answer, _ = _partition(siblings)
+        if answer.entropy_before < self.threshold:
+            return PolicyDecision(answer, tool_calls=0, visual_cost=0.0)
+        return ExpectedRandomZoomPolicy().select(siblings)
 
 
 class EntropyReductionThresholdPolicy:
@@ -309,3 +347,30 @@ def tune_entropy_single_crop_thresholds(
             seed=seed,
         ),
     )
+
+
+def tune_entropy_expected_random_threshold(
+    records: Sequence[ActionRecord],
+    *,
+    lambda_cost: float,
+) -> float:
+    """Tune the entropy gate for the seed-free uniform-random expectation."""
+
+    grouped = group_by_decision(records)
+    values = [
+        next(record.entropy_before for record in siblings if record.action_type == "ANSWER")
+        for siblings in grouped.values()
+    ]
+    best_threshold = values[0]
+    best_score = (float("-inf"), float("-inf"))
+    for threshold in _threshold_candidates(values):
+        policy = EntropyExpectedRandomZoomPolicy(threshold)
+        decisions = [policy.select(siblings) for siblings in grouped.values()]
+        score = (
+            mean(realized_policy_utility(decision, lambda_cost) for decision in decisions),
+            -mean(decision.tool_calls for decision in decisions),
+        )
+        if score > best_score:
+            best_score = score
+            best_threshold = threshold
+    return best_threshold
