@@ -302,26 +302,62 @@ def _tune_single_crop_entropy_threshold(
     seed: int,
 ) -> float:
     grouped = group_by_decision(records)
-    values = [
-        next(record.entropy_before for record in siblings if record.action_type == "ANSWER")
+    action_policy: Policy
+    if fixed:
+        action_policy = FixedCenterZoomPolicy()
+    else:
+        action_policy = RandomZoomPolicy(seed=seed)
+    entries = [
+        (
+            next(
+                record.entropy_before
+                for record in siblings
+                if record.action_type == "ANSWER"
+            ),
+            action_policy.select(siblings),
+        )
         for siblings in grouped.values()
     ]
-    best_threshold = values[0]
+    return _tune_entropy_gate(entries, lambda_cost=lambda_cost)
+
+
+def _tune_entropy_gate(
+    entries: Sequence[tuple[float, PolicyDecision]],
+    *,
+    lambda_cost: float,
+) -> float:
+    """Tune a high-entropy prefix gate using cumulative realized utility."""
+
+    if not entries:
+        raise ValueError("entropy gate tuning requires decisions")
+    ordered = sorted(entries, key=lambda item: item[0], reverse=True)
+    best_threshold = ordered[0][0] + 1e-9
     best_score = (float("-inf"), float("-inf"))
-    for threshold in _threshold_candidates(values):
-        policy: Policy
-        if fixed:
-            policy = EntropyFixedZoomPolicy(threshold)
+    utility_sum = 0.0
+    call_sum = 0
+    index = 0
+    while index <= len(ordered):
+        if index == 0:
+            threshold = best_threshold
         else:
-            policy = EntropyRandomZoomPolicy(threshold, seed=seed)
-        decisions = [policy.select(siblings) for siblings in grouped.values()]
+            current_entropy = ordered[index - 1][0]
+            next_entropy = ordered[index][0] if index < len(ordered) else current_entropy - 2e-9
+            threshold = (current_entropy + next_entropy) / 2.0
         score = (
-            mean(realized_policy_utility(decision, lambda_cost) for decision in decisions),
-            -mean(decision.tool_calls for decision in decisions),
+            utility_sum / len(ordered),
+            -call_sum / len(ordered),
         )
         if score > best_score:
             best_score = score
             best_threshold = threshold
+        if index == len(ordered):
+            break
+        tied_entropy = ordered[index][0]
+        while index < len(ordered) and ordered[index][0] == tied_entropy:
+            decision = ordered[index][1]
+            utility_sum += realized_policy_utility(decision, lambda_cost)
+            call_sum += decision.tool_calls
+            index += 1
     return best_threshold
 
 
@@ -357,20 +393,16 @@ def tune_entropy_expected_random_threshold(
     """Tune the entropy gate for the seed-free uniform-random expectation."""
 
     grouped = group_by_decision(records)
-    values = [
-        next(record.entropy_before for record in siblings if record.action_type == "ANSWER")
+    action_policy = ExpectedRandomZoomPolicy()
+    entries = [
+        (
+            next(
+                record.entropy_before
+                for record in siblings
+                if record.action_type == "ANSWER"
+            ),
+            action_policy.select(siblings),
+        )
         for siblings in grouped.values()
     ]
-    best_threshold = values[0]
-    best_score = (float("-inf"), float("-inf"))
-    for threshold in _threshold_candidates(values):
-        policy = EntropyExpectedRandomZoomPolicy(threshold)
-        decisions = [policy.select(siblings) for siblings in grouped.values()]
-        score = (
-            mean(realized_policy_utility(decision, lambda_cost) for decision in decisions),
-            -mean(decision.tool_calls for decision in decisions),
-        )
-        if score > best_score:
-            best_score = score
-            best_threshold = threshold
-    return best_threshold
+    return _tune_entropy_gate(entries, lambda_cost=lambda_cost)
