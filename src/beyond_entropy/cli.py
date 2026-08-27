@@ -457,6 +457,7 @@ def command_fit_semantic(args: argparse.Namespace) -> None:
         weight_decay=args.weight_decay,
         rank_weight=args.rank_weight,
         nonzero_weight=args.nonzero_weight,
+        similarity_cv_folds=args.similarity_cv_folds,
         max_epochs=args.max_epochs,
         patience=args.patience,
         seed=args.seed,
@@ -636,6 +637,7 @@ def build_parser() -> argparse.ArgumentParser:
     fit_semantic.add_argument("--weight-decay", type=float, default=1e-3)
     fit_semantic.add_argument("--rank-weight", type=float, default=1.0)
     fit_semantic.add_argument("--nonzero-weight", type=float, default=8.0)
+    fit_semantic.add_argument("--similarity-cv-folds", type=int, default=5)
     fit_semantic.add_argument("--max-epochs", type=int, default=500)
     fit_semantic.add_argument("--patience", type=int, default=50)
     fit_semantic.add_argument("--seed", type=int, default=17)

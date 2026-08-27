@@ -5,7 +5,9 @@ from beyond_entropy.dataset import group_by_decision
 from beyond_entropy.qwen_semantic import reshape_merged_visual_tokens
 from beyond_entropy.semantic_training import (
     PrecomputedGainPolicy,
+    cross_validated_linear_predictions,
     fit_affine_gain_calibration,
+    grouped_kfold_records,
 )
 from beyond_entropy.simulate import simulate_counterfactual_dataset
 
@@ -103,3 +105,42 @@ def test_precomputed_gain_policy_stops_or_selects_without_labels():
     ).select(siblings)
     assert stopped.selected.action_type == "ANSWER"
     assert stopped.tool_calls == 0
+
+
+def test_grouped_oof_predictions_cover_actions_without_image_leakage():
+    records = simulate_counterfactual_dataset(
+        n_states=12,
+        num_candidates=2,
+        questions_per_image=2,
+        seed=9,
+    )
+    folds = grouped_kfold_records(
+        records,
+        group="image_id",
+        n_folds=3,
+        seed=4,
+    )
+    validation_keys = []
+    for training, validation in folds:
+        assert {record.image_id for record in training}.isdisjoint(
+            {record.image_id for record in validation}
+        )
+        validation_keys.extend(
+            (record.state_id, record.replicate_id, record.action_id)
+            for record in validation
+            if record.action_type == "ZOOM"
+        )
+    expected = {
+        (record.state_id, record.replicate_id, record.action_id)
+        for record in records
+        if record.action_type == "ZOOM"
+    }
+    assert set(validation_keys) == expected
+    assert len(validation_keys) == len(expected)
+    predictions = cross_validated_linear_predictions(
+        records,
+        group="image_id",
+        n_folds=3,
+        seed=4,
+    )
+    assert set(predictions) == expected

@@ -19,5 +19,5 @@ exec sbatch \
   --job-name=be-sem-chartqa \
   --mail-user="${notify_email}" \
   --mail-type=ALL \
-  --export=ALL,BE_SEMANTIC_ROLLOUTS="${repo_dir}/artifacts/gate1-chartqa-200/qwen3b-c4-seed0/rollouts.jsonl",BE_SEMANTIC_ROLLOUTS_SHA256=cdb23067943fc160cf793db0703ca4e2f0f5ffb6277f8d101248e68a85f69b31,BE_SEMANTIC_RUN_DIR="${repo_dir}/artifacts/gate2-chartqa-200/qwen3b-roi-seed17",BE_SEMANTIC_MODEL_DIR="${repo_dir}/artifacts/gate2-chartqa-200/qwen3b-roi-seed17/semantic-model-balanced-v2" \
+  --export=ALL,BE_SEMANTIC_ROLLOUTS="${repo_dir}/artifacts/gate1-chartqa-200/qwen3b-c4-seed0/rollouts.jsonl",BE_SEMANTIC_ROLLOUTS_SHA256=cdb23067943fc160cf793db0703ca4e2f0f5ffb6277f8d101248e68a85f69b31,BE_SEMANTIC_RUN_DIR="${repo_dir}/artifacts/gate2-chartqa-200/qwen3b-roi-seed17",BE_SEMANTIC_MODEL_DIR="${repo_dir}/artifacts/gate2-chartqa-200/qwen3b-roi-seed17/semantic-model-oof-v3" \
   "${repo_dir}/scripts/slurm_semantic_experiment.sh"

@@ -213,6 +213,64 @@ def _keys(records: Sequence[ActionRecord]) -> set[DecisionKey]:
     return set(group_by_decision(records))
 
 
+def grouped_kfold_records(
+    records: Sequence[ActionRecord],
+    *,
+    group: str,
+    n_folds: int,
+    seed: int,
+) -> list[tuple[list[ActionRecord], list[ActionRecord]]]:
+    if group not in ("source_id", "image_id", "state_id"):
+        raise ValueError(f"unsupported split group: {group}")
+    group_ids = sorted({str(getattr(record, group)) for record in records})
+    if n_folds < 2 or n_folds > len(group_ids):
+        raise ValueError("n_folds must be between 2 and the number of groups")
+    random.Random(seed).shuffle(group_ids)
+    fold_ids = [set(group_ids[index::n_folds]) for index in range(n_folds)]
+    result: list[tuple[list[ActionRecord], list[ActionRecord]]] = []
+    for validation_ids in fold_ids:
+        training = [
+            record for record in records if str(getattr(record, group)) not in validation_ids
+        ]
+        validation = [
+            record for record in records if str(getattr(record, group)) in validation_ids
+        ]
+        result.append((training, validation))
+    return result
+
+
+def cross_validated_linear_predictions(
+    records: Sequence[ActionRecord],
+    *,
+    group: str,
+    n_folds: int,
+    seed: int,
+) -> dict[tuple[str, str, str], float]:
+    predictions: dict[tuple[str, str, str], float] = {}
+    for training, validation in grouped_kfold_records(
+        records,
+        group=group,
+        n_folds=n_folds,
+        seed=seed,
+    ):
+        model = LinearGainModel.fit(training)
+        for record in validation:
+            if record.action_type != "ZOOM":
+                continue
+            key = (record.state_id, record.replicate_id, record.action_id)
+            if key in predictions:
+                raise RuntimeError(f"duplicate out-of-fold prediction for {key!r}")
+            predictions[key] = model.predict_gain(record)
+    expected = {
+        (record.state_id, record.replicate_id, record.action_id)
+        for record in records
+        if record.action_type == "ZOOM"
+    }
+    if set(predictions) != expected:
+        raise RuntimeError("out-of-fold predictions do not cover every ZOOM action")
+    return predictions
+
+
 def _select_decisions(
     decision_by_key: Mapping[DecisionKey, Mapping[str, Any]],
     keys: set[DecisionKey],
@@ -407,6 +465,7 @@ def fit_semantic_gain_experiment(
     weight_decay: float = 1e-3,
     rank_weight: float = 1.0,
     nonzero_weight: float = 8.0,
+    similarity_cv_folds: int = 5,
     max_epochs: int = 500,
     patience: int = 50,
     seed: int = 17,
@@ -576,11 +635,7 @@ def fit_semantic_gain_experiment(
         validation_predictions,
     )
     semantic_train_records = add_semantic_similarity_features(
-        model_train_records,
-        decision_by_key,
-    )
-    semantic_validation_records = add_semantic_similarity_features(
-        validation_records,
+        outer_train_records,
         decision_by_key,
     )
     semantic_test_records = add_semantic_similarity_features(
@@ -588,13 +643,12 @@ def fit_semantic_gain_experiment(
         decision_by_key,
     )
     similarity_model = LinearGainModel.fit(semantic_train_records)
-    validation_similarity_predictions = {
-        (record.state_id, record.replicate_id, record.action_id): similarity_model.predict_gain(
-            record
-        )
-        for record in semantic_validation_records
-        if record.action_type == "ZOOM"
-    }
+    validation_similarity_predictions = cross_validated_linear_predictions(
+        semantic_train_records,
+        group=split_group,
+        n_folds=similarity_cv_folds,
+        seed=seed + 2,
+    )
     test_similarity_predictions = {
         (record.state_id, record.replicate_id, record.action_id): similarity_model.predict_gain(
             record
@@ -616,7 +670,7 @@ def fit_semantic_gain_experiment(
         )
         similarity_threshold = tune_precomputed_gain_threshold(
             validation_similarity_predictions,
-            semantic_validation_records,
+            semantic_train_records,
             lambda_cost=lambda_cost,
         )
         policies: list[Policy] = [
@@ -706,6 +760,7 @@ def fit_semantic_gain_experiment(
             "weight_decay": weight_decay,
             "rank_weight": rank_weight,
             "nonzero_weight": nonzero_weight,
+            "similarity_cv_folds": similarity_cv_folds,
             "max_epochs": max_epochs,
             "patience": patience,
             "best_epoch": best_epoch,

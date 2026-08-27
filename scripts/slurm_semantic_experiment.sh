@@ -52,6 +52,7 @@ mkdir -p "${BE_SEMANTIC_RUN_DIR}"
   --weight-decay 0.001 \
   --rank-weight 1.0 \
   --nonzero-weight 8.0 \
+  --similarity-cv-folds 5 \
   --max-epochs 500 \
   --patience 50 \
   --seed 17 \
