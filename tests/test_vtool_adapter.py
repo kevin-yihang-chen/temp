@@ -9,6 +9,8 @@ from beyond_entropy.vtool_adapter import (
     VTOOL_GATE_METADATA_KEY,
     VToolGateControl,
     build_vtool_gate_manifest_rows,
+    normalize_question_for_vtool_join,
+    vtool_identity_join_key,
 )
 
 
@@ -92,3 +94,23 @@ def test_vtool_gate_manifest_rows_are_label_free():
         .should_call_tool
         for row in rows
     )
+
+
+def test_vtool_identity_join_normalizes_only_formatting_and_answer_suffix():
+    manifest_question = "How many units were sold?\nAnswer:"
+    vtool_question = "  How   many units were sold?  "
+
+    assert normalize_question_for_vtool_join(manifest_question) == (
+        normalize_question_for_vtool_join(vtool_question)
+    )
+    assert vtool_identity_join_key("a" * 64, manifest_question) == (
+        vtool_identity_join_key("a" * 64, vtool_question)
+    )
+    assert vtool_identity_join_key("a" * 64, "Question A") != (
+        vtool_identity_join_key("a" * 64, "Question B")
+    )
+
+
+def test_vtool_identity_join_rejects_unverified_image_ids():
+    with pytest.raises(ValueError, match="image_rgb_sha256"):
+        vtool_identity_join_key("image-1", "What is shown?")

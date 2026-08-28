@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import re
+import unicodedata
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence, cast
@@ -18,6 +21,31 @@ from .stopping import (
 
 VTOOL_GATE_METADATA_KEY = "beyond_entropy_gate"
 VTOOL_GATE_SCHEMA_VERSION = 1
+
+
+def normalize_question_for_vtool_join(question: str) -> str:
+    """Normalize harmless formatting while retaining the question semantics."""
+
+    normalized = unicodedata.normalize("NFKC", question)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    normalized = re.sub(r"\s+answer\s*:\s*$", "", normalized, flags=re.IGNORECASE)
+    normalized = normalized.strip()
+    if not normalized:
+        raise ValueError("question identity must be non-empty")
+    return normalized.casefold()
+
+
+def vtool_identity_join_key(image_rgb_sha256: str, question: str) -> str:
+    """Bind a VTool row to a rollout by decoded RGB identity and question text."""
+
+    if len(image_rgb_sha256) != 64 or any(
+        character not in "0123456789abcdef" for character in image_rgb_sha256
+    ):
+        raise ValueError("image_rgb_sha256 must be a lowercase SHA-256 digest")
+    question_digest = hashlib.sha256(
+        normalize_question_for_vtool_join(question).encode()
+    ).hexdigest()
+    return f"rgb256:{image_rgb_sha256}:question256:{question_digest}"
 
 
 @dataclass(frozen=True)

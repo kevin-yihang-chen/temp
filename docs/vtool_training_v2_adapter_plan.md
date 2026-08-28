@@ -7,6 +7,11 @@ The adapter targets `VTool-R1/training-v2` main commit
 repository reports verl commit `498c988ab7af49aa36c157c9214ebbc780013d61`
 and VLLM 0.17. Do not implement against an unfrozen branch name.
 
+The public `VTOOL/Refocus_Chart` dataset target is revision
+`00f10ecc5b25d94fd66e14c3671af9fb0f088989` (15,170 total rows; train and test
+parquet files). Its row IDs are not the state IDs used by the confirmation
+manifest.
+
 The relevant implementation is `recipe/vtool/vtool.py`. Its one-tool agent
 loop generates a first assistant segment, parses it as refocus code, executes
 one image-editing round, appends an observation, and generates the final answer.
@@ -38,6 +43,15 @@ It contains 4,500 rows and 288 calls (6.4%). Its SHA-256 is
 `e76ca67cd98edd015c4180e81a17fb91808e828984d7b335b2873fec3ed5e0b6`;
 the adjacent provenance file binds it to the confirmed rollout and model hashes.
 This is an integration artifact, not a new evaluation result.
+
+The exported confirmation state IDs cannot be joined directly to the public
+VTool parquet. Before reuse, prove identity using the decoded-RGB SHA-256 plus
+the normalized question hash produced by `vtool_identity_join_key`. The
+normalizer only folds Unicode/whitespace/case and removes the manifest's trailing
+`Answer:` instruction. Require one-to-one keys and report duplicates/unmatched
+rows; index-based, fuzzy-text, or filename-only joins are forbidden. If coverage
+is incomplete, run the frozen base-model gate directly on the unmatched VTool
+rows instead of guessing a mapping.
 
 Route each sample as follows:
 
