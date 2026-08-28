@@ -71,7 +71,9 @@ The policy may not be modified after either result.
 Secondary analyses report ANLS gain, tool rate, gain per call, unnecessary-call
 rate, and correct-stopping rate. The complete sibling bank is summarized for
 answer-now, fixed crop, uniform-random crop expectation, and action-and-stopping
-oracle. These diagnose tool headroom but cannot alter the pass decision.
+oracle. The fixed exhaustive-entropy baseline observes all four candidates,
+selects the lowest post-action entropy, and is charged all four visual costs.
+These baselines diagnose tool headroom but cannot alter the pass decision.
 
 No feature, threshold, regularizer, crop set, cost, bootstrap unit, or pass
 criterion may be selected from formal outcomes.

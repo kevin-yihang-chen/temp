@@ -74,9 +74,10 @@ confirmation. The policy may not be changed after either result.
 Secondary, clearly labeled analyses report task-score gain, tool-use rate,
 gain per call, unnecessary-call rate, and correct-stopping rate. The complete
 sibling bank is also summarized for answer-now, fixed crop, uniformly random
-crop expectation, and action-and-stopping oracle policies. Oracle and random
-policies diagnose headroom; they are not competing learned primary methods and
-cannot alter the pass decision.
+crop expectation, exhaustive post-action entropy search, and
+action-and-stopping oracle policies. Exhaustive entropy search pays for all four
+candidate observations before selecting the lowest-entropy crop. Oracle and
+random policies diagnose headroom; none can alter the pass decision.
 
 No feature, threshold, regularizer, crop set, cost, bootstrap unit, or pass
 criterion may be selected from the formal outcomes.

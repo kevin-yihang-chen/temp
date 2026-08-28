@@ -7,6 +7,7 @@ from .dataset import group_by_decision
 from .metrics import bootstrap_policy_evaluation, evaluate_policy
 from .policies import (
     AnswerNowPolicy,
+    EntropySearchPolicy,
     ExpectedRandomZoomPolicy,
     FixedCenterZoomPolicy,
     OracleVOIPolicy,
@@ -61,6 +62,7 @@ def summarize_action_bank(
         "answer_now": AnswerNowPolicy(),
         "random_one_crop": ExpectedRandomZoomPolicy(),
         "fixed_center_crop": FixedCenterZoomPolicy(),
+        "exhaustive_entropy_search": EntropySearchPolicy(),
         "oracle_voi": OracleVOIPolicy(lambda_cost=lambda_cost),
     }
     evaluated = {}

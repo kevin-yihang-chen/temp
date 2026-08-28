@@ -17,4 +17,5 @@ def test_action_bank_summary_exposes_random_and_oracle_headroom():
     assert report["candidate_counts"] == [4]
     assert 0.0 <= report["helpful_state_rate"] <= 1.0
     assert report["policies"]["oracle_voi"]["mean_policy_utility"] >= 0.0
+    assert report["policies"]["exhaustive_entropy_search"]["avg_tool_calls"] == 4.0
     assert report["policies"]["answer_now"]["tool_use_rate"] == 0.0
