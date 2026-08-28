@@ -109,6 +109,12 @@ def test_paper_spec_exact_match_is_frozen_as_sensitivity_metric():
     assert chartqapro_spec_match("true", target) == 1.0
 
 
+def test_nonfinite_numeric_like_gold_is_not_scorer_self_consistent():
+    target = GroundTruth(chartqapro_target(["nan"], ["NO"], "Factoid"))
+    assert chartqapro_match("nan", target) == 0.0
+    assert chartqapro_spec_match("nan", target) == 0.0
+
+
 def test_pilot_image_selection_is_deterministic_and_group_disjoint():
     image_ids = [f"{index:064x}" for index in range(1, 8)] + [f"{1:064x}"]
     first = select_chartqapro_pilot_images(image_ids, count=3)

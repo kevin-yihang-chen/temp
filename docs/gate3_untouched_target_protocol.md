@@ -48,6 +48,16 @@ excluded before the image-group split. They are not rewritten as
 `unanswerable`, and the audit records their indices and empty positions. No
 other empty question, answer, or year field is permitted.
 
+An independent scorer self-check finds 12 additional non-empty targets for
+which at least one frozen scorer assigns the gold answer itself a score below
+1.0. These include one non-finite numeric-like scalar and bracketed answers
+affected by the released list parser. Before any model rollout, the exclusion
+rule is therefore generalized: a target is eligible only if both the released
+primary scorer and paper-spec sensitivity scorer assign its own gold answer
+exactly 1.0. The exporter records source index, type, shape, answer length,
+answer SHA-256, and both self-scores without rewriting the answer. The split is
+computed only after this deterministic label-validity filter.
+
 ChartQAPro is preferred over the public VTool `Refocus_Chart` test because the
 latter has exact decoded-RGB-plus-question overlap with the project's ChartQA
 development data. It is preferred as the primary over ChartMuseum because its

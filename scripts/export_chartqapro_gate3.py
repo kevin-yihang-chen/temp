@@ -16,10 +16,13 @@ from beyond_entropy.chartqapro import (
     CHARTQAPRO_PROMPT_ADAPTER,
     build_chartqapro_direct_prompt,
     chartqapro_final_question,
+    chartqapro_match,
+    chartqapro_spec_match,
     chartqapro_target,
     select_chartqapro_pilot_images,
 )
 from beyond_entropy.manifest_export import image_digest
+from beyond_entropy.rollout import GroundTruth
 from beyond_entropy.vtool_adapter import (
     normalize_question_for_vtool_join,
     vtool_identity_join_key,
@@ -259,7 +262,7 @@ def main() -> None:
         target_question_digests: list[str] = []
         target_joint_keys: list[str] = []
         excluded_source_indices: list[int] = []
-        malformed_answer_rows: list[dict[str, Any]] = []
+        malformed_target_rows: list[dict[str, Any]] = []
         excluded_by_source: dict[str, list[int]] = {
             str(source["name"]): [] for source in blocked_sources
         }
@@ -332,13 +335,14 @@ def main() -> None:
                     index for index, value in enumerate(answers) if not value.strip()
                 ]
                 if empty_answer_positions:
-                    malformed_answer_rows.append(
+                    malformed_target_rows.append(
                         {
                             "source_index": source_index,
                             "question_type": question_type,
                             "answer_turns": len(answers),
                             "empty_answer_positions": empty_answer_positions,
-                            "policy": "excluded because released target is empty",
+                            "failure": "empty answer string",
+                            "policy": "excluded without imputation",
                         }
                     )
                     image.close()
@@ -356,6 +360,35 @@ def main() -> None:
                     paragraph,
                 )
                 target = chartqapro_target(answers, year_flags, question_type)
+                ground_truth = GroundTruth(target)
+                final_answer = answers[-1]
+                primary_self_score = chartqapro_match(final_answer, ground_truth)
+                spec_self_score = chartqapro_spec_match(final_answer, ground_truth)
+                if primary_self_score != 1.0 or spec_self_score != 1.0:
+                    malformed_target_rows.append(
+                        {
+                            "source_index": source_index,
+                            "question_type": question_type,
+                            "answer_turns": len(answers),
+                            "answer_shape": (
+                                "bracketed"
+                                if final_answer.strip().startswith("[")
+                                and final_answer.strip().endswith("]")
+                                else "scalar"
+                            ),
+                            "final_answer_length": len(final_answer),
+                            "final_answer_sha256": hashlib.sha256(
+                                final_answer.encode()
+                            ).hexdigest(),
+                            "primary_self_score": primary_self_score,
+                            "spec_self_score": spec_self_score,
+                            "failure": "gold answer is not scorer-self-consistent",
+                            "policy": "excluded without rewriting the target",
+                        }
+                    )
+                    image.close()
+                    source_index += 1
+                    continue
 
                 image_name = f"{image_id}.png"
                 if image_id not in saved_images:
@@ -526,14 +559,15 @@ def main() -> None:
             ),
             "excluded_source_indices": excluded_source_indices,
             "identity_excluded_rows": len(excluded_source_indices),
-            "malformed_answer_rows": malformed_answer_rows,
-            "malformed_answer_policy": (
-                "exclude rows containing an empty answer string before split; "
-                "do not impute or score an undefined target"
+            "malformed_target_rows": malformed_target_rows,
+            "malformed_target_policy": (
+                "before split, exclude empty answers and any gold answer whose "
+                "primary or paper-spec self-score is not exactly 1; never impute "
+                "or rewrite a target"
             ),
             "excluded_rows": len(
                 set(excluded_source_indices)
-                | {int(row["source_index"]) for row in malformed_answer_rows}
+                | {int(row["source_index"]) for row in malformed_target_rows}
             ),
             "eligible_rows": len(payloads),
             "eligible_unique_images": len(set(eligible_image_ids)),
