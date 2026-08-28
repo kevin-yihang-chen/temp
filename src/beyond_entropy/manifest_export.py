@@ -29,6 +29,7 @@ class BenchmarkSpec:
     split: str
     scorer: str
     selection_fields: tuple[str, ...]
+    source_fields: tuple[str, ...] = ()
     dataset_name: str | None = None
 
 
@@ -54,6 +55,7 @@ BENCHMARK_SPECS: dict[str, BenchmarkSpec] = {
         split="validation",
         scorer="docvqa",
         selection_fields=("question_types",),
+        source_fields=("docId",),
     ),
     "textvqa": BenchmarkSpec(
         dataset_id="lmms-lab/textvqa",
@@ -61,6 +63,7 @@ BENCHMARK_SPECS: dict[str, BenchmarkSpec] = {
         split="validation",
         scorer="textvqa",
         selection_fields=("ocr_tokens",),
+        source_fields=("image_id",),
     ),
     "hrbench4k": BenchmarkSpec(
         dataset_id="DreamMr/HR-Bench",
@@ -69,6 +72,7 @@ BENCHMARK_SPECS: dict[str, BenchmarkSpec] = {
         split="hrbench_4k",
         scorer="hrbench",
         selection_fields=("category", "cycle_category"),
+        source_fields=("index",),
     ),
     "hrbench8k": BenchmarkSpec(
         dataset_id="DreamMr/HR-Bench",
@@ -77,6 +81,7 @@ BENCHMARK_SPECS: dict[str, BenchmarkSpec] = {
         split="hrbench_8k",
         scorer="hrbench",
         selection_fields=("category", "cycle_category"),
+        source_fields=("index",),
     ),
 }
 
@@ -116,6 +121,60 @@ def benchmark_stratum(row: Mapping[str, Any], *, task: str) -> str:
     if not value:
         raise ValueError(f"empty benchmark stratum for task {task}")
     return value
+
+
+def benchmark_source_group(row: Mapping[str, Any], *, task: str) -> str:
+    """Return the public, pre-outcome source identifier used for split isolation."""
+
+    if task == "docvqa":
+        value = str(row["docId"]).strip()
+    elif task == "textvqa":
+        value = str(row["image_id"]).strip()
+    elif task in {"hrbench4k", "hrbench8k"}:
+        value = str(row["index"]).strip()
+    else:
+        raise ValueError(f"task {task} has no registered source-group field")
+    if not value:
+        raise ValueError(f"empty source group for task {task}")
+    return value
+
+
+def hash_ranked_source_group_indices(
+    group_ids: Sequence[str],
+    *,
+    count: int,
+    offset: int = 0,
+    seed: int,
+    namespace: str,
+) -> list[int]:
+    """Select whole source groups by an order-independent SHA-256 ranking."""
+
+    if count <= 0:
+        raise ValueError("source-group count must be positive")
+    if offset < 0:
+        raise ValueError("source-group offset must be non-negative")
+    normalized_namespace = str(namespace).strip()
+    if not normalized_namespace:
+        raise ValueError("source-group namespace must be non-empty")
+    normalized_groups = [str(group_id).strip() for group_id in group_ids]
+    if not normalized_groups or any(not group_id for group_id in normalized_groups):
+        raise ValueError("source group IDs must be non-empty")
+    unique_groups = set(normalized_groups)
+    if offset + count > len(unique_groups):
+        raise ValueError(
+            f"source-group slice [{offset}, {offset + count}) exceeds "
+            f"{len(unique_groups)} available groups"
+        )
+
+    def rank(group_id: str) -> tuple[str, str]:
+        payload = f"{normalized_namespace}\0{seed}\0{group_id}".encode()
+        return hashlib.sha256(payload).hexdigest(), group_id
+
+    ordered_groups = sorted(unique_groups, key=rank)
+    selected = set(ordered_groups[offset : offset + count])
+    return [
+        index for index, group_id in enumerate(normalized_groups) if group_id in selected
+    ]
 
 
 def stratified_sample_indices(
@@ -367,6 +426,8 @@ def export_benchmark_manifest(
     output_dir: str | Path,
     seed: int,
     state_namespace: str | None = None,
+    selection: str = "seeded round-robin stratified sample",
+    selection_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Save decoded images and a frozen manifest with a provenance sidecar."""
 
@@ -419,17 +480,20 @@ def export_benchmark_manifest(
         "split": BENCHMARK_SPECS[task].split,
         "scorer": BENCHMARK_SPECS[task].scorer,
         "selection_fields": list(BENCHMARK_SPECS[task].selection_fields),
-        "selection": "seeded round-robin stratified sample",
+        "selection": selection,
         "seed": seed,
         "count": len(payloads),
         "source_indices": list(source_indices),
         "stratum_counts": dict(sorted(stratum_counts.items())),
         "unique_images": len({payload["image_id"] for payload in payloads}),
+        "unique_sources": len({payload["source_id"] for payload in payloads}),
         "state_namespace": state_namespace or task,
         "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "python": sys.version.split()[0],
         "packages": {},
     }
+    if selection_metadata is not None:
+        provenance["selection_metadata"] = dict(selection_metadata)
     packages = provenance["packages"]
     assert isinstance(packages, dict)
     for package in ("datasets", "Pillow"):

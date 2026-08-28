@@ -7,8 +7,10 @@ from pathlib import Path
 
 from beyond_entropy.manifest_export import (
     BENCHMARK_SPECS,
+    benchmark_source_group,
     benchmark_stratum,
     export_benchmark_manifest,
+    hash_ranked_source_group_indices,
     stratified_sample_indices,
 )
 
@@ -17,7 +19,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Freeze a benchmark slice as JSONL")
     parser.add_argument("--task", choices=sorted(BENCHMARK_SPECS), required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--count", type=int, default=64)
+    selection_group = parser.add_mutually_exclusive_group()
+    selection_group.add_argument("--count", type=int, default=64)
+    selection_group.add_argument("--source-group-count", type=int)
+    parser.add_argument("--source-group-offset", type=int, default=0)
+    parser.add_argument(
+        "--selection-namespace",
+        default="beyond-entropy-source-selection-v1",
+    )
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--dataset-revision")
     parser.add_argument("--cache-dir", type=Path)
@@ -49,21 +58,54 @@ def main() -> None:
             revision=revision,
             cache_dir=str(args.cache_dir) if args.cache_dir else None,
         )
-    selection_columns = {
-        field: dataset[field] for field in spec.selection_fields
-    }
-    labels = [
-        benchmark_stratum(
-            {field: selection_columns[field][index] for field in spec.selection_fields},
-            task=args.task,
+    if args.source_group_count is None:
+        selection_columns = {
+            field: dataset[field] for field in spec.selection_fields
+        }
+        labels = [
+            benchmark_stratum(
+                {
+                    field: selection_columns[field][index]
+                    for field in spec.selection_fields
+                },
+                task=args.task,
+            )
+            for index in range(len(dataset))
+        ]
+        source_indices = stratified_sample_indices(
+            labels,
+            count=args.count,
+            seed=args.seed,
         )
-        for index in range(len(dataset))
-    ]
-    source_indices = stratified_sample_indices(
-        labels,
-        count=args.count,
-        seed=args.seed,
-    )
+        selection = "seeded round-robin stratified row sample"
+        selection_metadata = {"row_count": args.count}
+    else:
+        if not spec.source_fields:
+            raise SystemExit(f"task {args.task} has no source-group selection fields")
+        source_columns = {field: dataset[field] for field in spec.source_fields}
+        group_ids = [
+            benchmark_source_group(
+                {field: source_columns[field][index] for field in spec.source_fields},
+                task=args.task,
+            )
+            for index in range(len(dataset))
+        ]
+        source_indices = hash_ranked_source_group_indices(
+            group_ids,
+            count=args.source_group_count,
+            offset=args.source_group_offset,
+            seed=args.seed,
+            namespace=args.selection_namespace,
+        )
+        selected_group_ids = sorted({group_ids[index] for index in source_indices})
+        selection = "SHA-256-ranked whole-source-group slice"
+        selection_metadata = {
+            "namespace": args.selection_namespace,
+            "seed": args.seed,
+            "source_group_count": args.source_group_count,
+            "source_group_offset": args.source_group_offset,
+            "source_group_ids": selected_group_ids,
+        }
     rows = [dataset[index] for index in source_indices]
     result = export_benchmark_manifest(
         rows,
@@ -73,6 +115,8 @@ def main() -> None:
         dataset_revision=revision,
         output_dir=args.output_dir,
         seed=args.seed,
+        selection=selection,
+        selection_metadata=selection_metadata,
     )
     if args.arrow_file:
         digest = hashlib.sha256()

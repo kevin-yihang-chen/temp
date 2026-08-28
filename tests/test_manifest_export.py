@@ -10,6 +10,7 @@ from beyond_entropy.manifest_export import (
     BENCHMARK_SPECS,
     benchmark_stratum,
     export_benchmark_manifest,
+    hash_ranked_source_group_indices,
     stratified_sample_indices,
     stratified_unique_group_sample_indices,
 )
@@ -159,6 +160,60 @@ def test_cross_benchmark_strata_use_only_pre_outcome_fields():
     assert benchmark_stratum(
         {"category": "cross", "cycle_category": "text"}, task="hrbench4k"
     ) == "cross:text"
+
+
+def test_hash_ranked_source_selection_is_order_independent_and_keeps_groups():
+    groups = ["shared", "a", "shared", "b", "c", "d", "e"]
+    first = hash_ranked_source_group_indices(
+        groups,
+        count=3,
+        seed=20260828,
+        namespace="cross-benchmark-v1",
+    )
+    reversed_groups = list(reversed(groups))
+    second = hash_ranked_source_group_indices(
+        reversed_groups,
+        count=3,
+        seed=20260828,
+        namespace="cross-benchmark-v1",
+    )
+    first_groups = {groups[index] for index in first}
+    second_groups = {reversed_groups[index] for index in second}
+    assert first_groups == second_groups
+    assert len(first_groups) == 3
+    assert all(
+        (index in first) == (group in first_groups)
+        for index, group in enumerate(groups)
+    )
+
+
+def test_hash_ranked_source_offsets_are_disjoint():
+    groups = [f"source-{index}" for index in range(10)]
+    development = hash_ranked_source_group_indices(
+        groups,
+        count=3,
+        offset=0,
+        seed=17,
+        namespace="split-v1",
+    )
+    formal = hash_ranked_source_group_indices(
+        groups,
+        count=4,
+        offset=3,
+        seed=17,
+        namespace="split-v1",
+    )
+    assert {groups[index] for index in development}.isdisjoint(
+        {groups[index] for index in formal}
+    )
+    with pytest.raises(ValueError, match="exceeds"):
+        hash_ranked_source_group_indices(
+            groups,
+            count=8,
+            offset=3,
+            seed=17,
+            namespace="split-v1",
+        )
 
 
 def test_export_docvqa_groups_questions_from_the_same_document(tmp_path):
