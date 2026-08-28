@@ -64,6 +64,11 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument(
+        "--state-feature-mode",
+        choices=("context", "semantic", "semantic-context"),
+        default="context",
+    )
+    parser.add_argument(
         "--action-feature-mode",
         choices=("semantic", "context-quadrant", "attention-fixed"),
         default="semantic",
@@ -84,7 +89,7 @@ def main() -> None:
         decision_by_key,
         n_outer_folds=args.outer_folds,
         lambda_cost=args.lambda_cost,
-        state_feature_mode="context",
+        state_feature_mode=args.state_feature_mode,
         action_feature_mode=args.action_feature_mode,
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
@@ -101,6 +106,7 @@ def main() -> None:
             "outer_folds": args.outer_folds,
             "seed": args.seed,
             "lambda_cost": args.lambda_cost,
+            "state_feature_mode": args.state_feature_mode,
             "action_feature_mode": args.action_feature_mode,
             "bootstrap_resamples": args.bootstrap_resamples,
             "bootstrap_seed": args.bootstrap_seed,
