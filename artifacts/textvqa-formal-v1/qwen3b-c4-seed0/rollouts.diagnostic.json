@@ -1,0 +1,72 @@
+{
+  "bootstrap": {
+    "confidence": 0.95,
+    "metrics": {
+      "confidence_gain_precision": {
+        "ci_high": 0.06066401344837363,
+        "ci_low": 0.029684601113172542,
+        "estimate": 0.044424297370806894
+      },
+      "confidence_gain_rate": {
+        "ci_high": 0.4656398104265403,
+        "ci_low": 0.4067930489731438,
+        "estimate": 0.43562401263823064
+      },
+      "entropy_success_pearson": {
+        "ci_high": 0.2728051729720952,
+        "ci_low": 0.036951606859966804,
+        "estimate": 0.1522680054124498
+      },
+      "entropy_top1_mismatch_rate": {
+        "ci_high": 0.0679304897314376,
+        "ci_low": 0.03317535545023697,
+        "estimate": 0.05055292259083728
+      },
+      "mean_entropy_selection_regret": {
+        "ci_high": 0.05007898894154819,
+        "ci_low": 0.024012638230647712,
+        "estimate": 0.036492890995260666
+      },
+      "n_decisions": {
+        "ci_high": 633.0,
+        "ci_low": 633.0,
+        "estimate": 633
+      },
+      "n_zoom_actions": {
+        "ci_high": 2532.0,
+        "ci_low": 2532.0,
+        "estimate": 2532
+      },
+      "nonbeneficial_confidence_gain_rate": {
+        "ci_high": 0.44549763033175355,
+        "ci_low": 0.38744075829383884,
+        "estimate": 0.41627172195892576
+      },
+      "spurious_confidence_gain_rate": {
+        "ci_high": 0.025671406003159557,
+        "ci_low": 0.009873617693522907,
+        "estimate": 0.017377567140600316
+      },
+      "task_improvement_rate": {
+        "ci_high": 0.04147906793048958,
+        "ci_low": 0.022116903633491312,
+        "estimate": 0.0315955766192733
+      }
+    },
+    "n_resamples": 5000,
+    "resampling_unit": "state_id",
+    "seed": 20260828
+  },
+  "point_estimate": {
+    "confidence_gain_precision": 0.044424297370806894,
+    "confidence_gain_rate": 0.43562401263823064,
+    "entropy_success_pearson": 0.1522680054124498,
+    "entropy_top1_mismatch_rate": 0.05055292259083728,
+    "mean_entropy_selection_regret": 0.036492890995260666,
+    "n_decisions": 633,
+    "n_zoom_actions": 2532,
+    "nonbeneficial_confidence_gain_rate": 0.41627172195892576,
+    "spurious_confidence_gain_rate": 0.017377567140600316,
+    "task_improvement_rate": 0.0315955766192733
+  }
+}

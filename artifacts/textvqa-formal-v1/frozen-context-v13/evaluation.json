@@ -1,0 +1,134 @@
+{
+  "evaluation": {
+    "accuracy": 0.7631911532385466,
+    "accuracy_gain": 0.004423380726698234,
+    "answer_now_accuracy": 0.7587677725118483,
+    "avg_tool_calls": 0.2685624012638231,
+    "avg_visual_cost": 0.2685624012638231,
+    "bootstrap": {
+      "confidence": 0.95,
+      "lambda_cost": 0.05,
+      "metrics": {
+        "accuracy": {
+          "ci_high": 0.7939687311633516,
+          "ci_low": 0.7305160997431128,
+          "estimate": 0.7631911532385466
+        },
+        "accuracy_gain": {
+          "ci_high": 0.015797788309636632,
+          "ci_low": -0.006504679975143879,
+          "estimate": 0.004423380726698234
+        },
+        "answer_now_accuracy": {
+          "ci_high": 0.7894084741193392,
+          "ci_low": 0.7257748447204974,
+          "estimate": 0.7587677725118483
+        },
+        "avg_tool_calls": {
+          "ci_high": 0.3046875,
+          "ci_low": 0.2329635499207607,
+          "estimate": 0.2685624012638231
+        },
+        "avg_visual_cost": {
+          "ci_high": 0.3046875,
+          "ci_low": 0.2329635499207607,
+          "estimate": 0.2685624012638231
+        },
+        "correct_stopping_rate": {
+          "ci_high": 0.7566718995290423,
+          "ci_low": 0.6831190633611597,
+          "estimate": 0.7203791469194313
+        },
+        "marginal_accuracy_gain_per_tool_call": {
+          "ci_high": 0.059552480982622516,
+          "ci_low": -0.024338624338624302,
+          "estimate": 0.01647058823529401
+        },
+        "mean_oracle_regret": {
+          "ci_high": 0.08240054687499997,
+          "ci_low": 0.0495297435973267,
+          "estimate": 0.06563981042654028
+        },
+        "mean_policy_utility": {
+          "ci_high": 0.0025243636766133716,
+          "ci_low": -0.020219613273680933,
+          "estimate": -0.009004739336492892
+        },
+        "mean_realized_voi": {
+          "ci_high": 0.0025243636766133716,
+          "ci_low": -0.020219613273680933,
+          "estimate": -0.009004739336492892
+        },
+        "mean_success_gain": {
+          "ci_high": 0.01579778830963665,
+          "ci_low": -0.006504679975143697,
+          "estimate": 0.004423380726698262
+        },
+        "missed_information_rate": {
+          "ci_high": 0.08613626485076786,
+          "ci_low": 0.0407230129739262,
+          "estimate": 0.06263498920086392
+        },
+        "tool_use_rate": {
+          "ci_high": 0.3046875,
+          "ci_low": 0.2329635499207607,
+          "estimate": 0.2685624012638231
+        },
+        "unnecessary_tool_call_rate": {
+          "ci_high": 0.9649122807017544,
+          "ci_low": 0.8875,
+          "estimate": 0.9294117647058824
+        },
+        "zoom_rate": {
+          "ci_high": 0.3046875,
+          "ci_low": 0.2329635499207607,
+          "estimate": 0.2685624012638231
+        }
+      },
+      "n_clusters": 400,
+      "n_decisions": 633,
+      "n_resamples": 10000,
+      "n_states": 633,
+      "policy": "frozen_multidomain_factorized_action_value",
+      "resampling_unit": "source_id",
+      "seed": 20260828
+    },
+    "correct_stopping_rate": 0.7203791469194313,
+    "marginal_accuracy_gain_per_tool_call": 0.01647058823529401,
+    "mean_oracle_regret": 0.06563981042654028,
+    "mean_policy_utility": -0.009004739336492892,
+    "mean_realized_voi": -0.009004739336492892,
+    "mean_success_gain": 0.004423380726698262,
+    "missed_information_rate": 0.06263498920086392,
+    "n_decisions": 633,
+    "policy": "frozen_multidomain_factorized_action_value",
+    "predicted_net_value_summary": {
+      "above_threshold": 170,
+      "decisions": 633,
+      "maximum": 0.43012507595095983,
+      "mean": -0.02130237879421142,
+      "minimum": -0.22982807015144818,
+      "threshold": -0.002274153771013032
+    },
+    "tool_use_rate": 0.2685624012638231,
+    "unnecessary_tool_call_rate": 0.9294117647058824,
+    "zoom_rate": 0.2685624012638231
+  },
+  "feature_mode": "context-geometry",
+  "model_type": "multidomain_factorized_action_value",
+  "run": {
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260828,
+    "cluster_by": "source_id",
+    "code_revision": "c54e0bcefba745f5aa3f83f03f9fae445752af64",
+    "paths": {
+      "model": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/textvqa-oof-factorized-action-value-context-v13/model.json",
+      "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/textvqa-formal-v1/qwen3b-c4-seed0/rollouts.jsonl"
+    },
+    "sha256": {
+      "model": "ca224964aeb429478aeffaa3f084750cab05daf2c56be0b3f70fda68dceadc33",
+      "rollouts": "07af632e8beb15b7784e4c16c7fc8fc1b6ae6734da6ecfd54726e77c01615c2d"
+    }
+  },
+  "scientific_status": "frozen model evaluation; no target fitting"
+}

@@ -128,3 +128,13 @@ models and pass criteria are frozen before their formal outcomes. The next
 decisive evidence is therefore whether either exact serialized policy has a
 strictly positive source-clustered utility interval on its untouched formal
 split.
+
+## Subsequent TextVQA formal outcome
+
+The frozen TextVQA context model failed its preregistered formal confirmation:
+mean task-score gain was `0.00442`, tool rate `0.26856`, and utility `-0.00900`
+with 95% source-cluster CI `[-0.02022, 0.00252]`. This result is not used to
+revise the frozen TextVQA policy. See
+`textvqa_action_value_formal_result.md` for integrity hashes, fixed baselines,
+and the explicitly post-hoc stopping/ranking decomposition. The independently
+frozen DocVQA formal evaluation remains unaffected.
