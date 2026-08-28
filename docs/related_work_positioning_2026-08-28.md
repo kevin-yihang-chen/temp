@@ -21,6 +21,9 @@ alone as the contribution. The paper must isolate a narrower technical object:
 | [MED: What Does Vision Tool-Use RL Really Learn?](https://arxiv.org/abs/2602.01334) | Decomposes tool-induced performance into gain and harm and reports that current tool-use RL mainly reduces harm while making limited progress on correcting intrinsic failures. | MED is a checkpoint-level measurement and diagnosis framework. This project must predict those gain/harm outcomes before acting and turn them into training credit. |
 | [PriVE-Bench / PriVE-Tools](https://arxiv.org/abs/2607.16311) | Evaluates whether added boxes, crops, zoom panels, and contours overcome visual-prior failures; extra evidence is not universally beneficial. | Controlled evaluation rather than a learned cost-aware acquisition policy. Its findings strengthen the need for selective action value. |
 | [Uncertainty Quantification in LLM Agents](https://arxiv.org/abs/2602.05073) | Provides a general agent-UQ formulation and a reducible-uncertainty perspective. | The phrase and general concept are no longer a novelty claim. The contribution must be the visual counterfactual estimator, data construction, empirical transfer, and credit mechanism. |
+| [AdaptVision](https://arxiv.org/abs/2512.03794) | Learns when and where to acquire high-resolution crop tokens with a decoupled, token-efficiency-aware RL objective. | Uses a deliberately low-resolution initial view and end-to-end RL rewards; it does not expose calibrated per-candidate answer-now-relative value in task units under arbitrary deployment cost. |
+| [Learning to Focus and Precise Cropping](https://arxiv.org/abs/2603.27494) | Shows that crop calls can be formalistic, then forces crop reliance through an information gap and grounding loss. | It does not construct exhaustive same-state sibling outcomes or predict rescue versus induced harm before acquisition. |
+| [Do Multimodal Agents Really Benefit from Tool Use?](https://arxiv.org/abs/2606.02357) | Finds that current tool agents often do not expand solved sets and separates format-only from result-only effects. | Evaluates released end-to-end agents; this project adds action-level counterfactual acquisition utility and prospective fixed-policy tests, but only if transfer succeeds. |
 
 Other visual-tool RL systems—including DeepEyes, Chain-of-Focus and
 resource-constrained zoom-tool GRPO—make “VLMs can learn to call visual tools”
@@ -49,7 +52,9 @@ Subject to successful experiments, the following claims remain distinct:
 - “First uncertainty-guided visual search.”
 - “First VLM that learns to crop or zoom.”
 - “First reducible uncertainty for agents.”
-- “First counterfactual analysis of visual-tool gain and harm.”
+- "First counterfactual analysis of visual-tool gain and harm."
+- "First evidence that multimodal tool calls are often unnecessary or
+  perfunctory."
 - A where-to-look claim based only on the current UG-grid or chart-layout
   proposer; the project's own image-disjoint confirmation did not show a
   spatial-selection advantage.
