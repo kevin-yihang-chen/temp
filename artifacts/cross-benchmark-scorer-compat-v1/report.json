@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "docvqa_anls_cases": 8,
+    "hrbench_extraction_cases": 9,
+    "textvqa_normalization_cases": 154,
+    "textvqa_soft_accuracy_cases": 11
+  },
+  "passed": true,
+  "reference_commit": "13050ee49865e4330519108f42d1ccfccff1aee1",
+  "reference_files": {
+    "lmms-eval/lmms_eval/api/metrics.py": "132c2b9a9256e0f1d57b303778fca09f5b7a150ec07d5bd03333d54669b77b26",
+    "lmms-eval/lmms_eval/tasks/_task_utils/vqa_eval_metric.py": "4e4154c6c7e4657e6c44aa08e184ce5ae0e872665744c6cb684cf645e4647ce0",
+    "lmms-eval/lmms_eval/tasks/hrbench/utils.py": "f246f0a7100f880a25fca5ea041db4bbcfb20f6ae48cfa0a2f8ab8d114de4d23",
+    "lmms-eval/lmms_eval/tasks/textvqa/utils.py": "66e8b0284707c9e0e275858b46959f384724a84f08dfa3f6f4759b60f3f5f273"
+  }
+}

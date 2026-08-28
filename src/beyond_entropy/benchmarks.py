@@ -5,8 +5,13 @@ import re
 from pathlib import Path
 from typing import Callable
 
-from .rollout import AgentState, GroundTruth, TaskExample
 from .chartqapro import chartqapro_match, chartqapro_spec_match
+from .cross_benchmark import (
+    docvqa_anls_match,
+    hrbench_answer,
+    textvqa_soft_match,
+)
+from .rollout import AgentState, GroundTruth, TaskExample
 
 
 def load_manifest(path: str | Path, *, limit: int | None = None) -> list[TaskExample]:
@@ -99,6 +104,10 @@ def vstar_match(answer: str, ground_truth: GroundTruth) -> float:
     )
 
 
+def hrbench_match(answer: str, ground_truth: GroundTruth) -> float:
+    return float(extract_answer_letter(answer) == hrbench_answer(ground_truth))
+
+
 def _to_float(text: str) -> float | None:
     try:
         stripped = text.strip()
@@ -130,4 +139,10 @@ def scorer_by_name(name: str) -> Callable[[str, GroundTruth], float]:
         return chartqapro_match
     if name == "chartqapro-spec":
         return chartqapro_spec_match
+    if name == "docvqa":
+        return docvqa_anls_match
+    if name == "textvqa":
+        return textvqa_soft_match
+    if name == "hrbench":
+        return hrbench_match
     raise ValueError(f"unsupported benchmark scorer: {name}")
