@@ -168,3 +168,29 @@ changes require a new development target and another untouched confirmation.
 High-cost RL and any spatial-action advantage remain on hold until this
 when-to-call transfer is resolved and a spatial selector independently beats
 matched random or fixed crops.
+
+## Completed target freeze
+
+The pinned Parquet contains 1,948 rows and 1,252 unique decoded-RGB image
+contents. Exact audits find zero image, normalized final-question, or joint-key
+overlap with the ChartQA development, validation-confirmation, train-replication,
+or VTool test sources. Fourteen malformed targets are removed by the rules
+above, leaving 1,934 scorer-self-consistent questions over 1,250 images.
+
+The deterministic split contains:
+
+- compatibility pilot: 309 questions over exactly 200 images, manifest
+  SHA-256 `e02f62ae794125c5e4565493e54b72855b1db96542257c57a15049de65f6a722`;
+- untouched formal target: 1,625 questions over 1,050 images, manifest SHA-256
+  `d48cb0f217a874974d7e4a8287b3ab3af42c13277edbddc1ec5aac3927fcfabc`;
+- identity audit SHA-256
+  `ca725d6c509c2bf433057efe56873574c5eb3d6dc80fd42d4bf72dc703b56c9f`;
+  and
+- normalized image bundle SHA-256
+  `c4946970db3576cab6f136a72465cf4bf1c63cad5d0734d57af92d2870d35fd1`.
+
+An independent post-export pass re-decodes all 1,250 PNGs, verifies every RGB
+digest against its filename, confirms zero pilot/formal image overlap, and
+confirms that both frozen scorers assign all 1,934 retained gold answers a
+self-score of exactly 1.0. The export is bound to code revision
+`c1963b5ab9dbf38c9f938bdc9210a24403233475`.
