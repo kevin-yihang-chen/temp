@@ -1,8 +1,33 @@
 # Scaled TextVQA source-bank contingency
 
-Status: outcome-independent capacity plan written before the fresh TextVQA
-formal result is opened. No train-split manifest, rollout, feature, or model is
-created by this note.
+Status: activated after the fresh TextVQA result was locked. The ranker-training
+and risk-calibration manifests are exported and audited. The formal role has
+only an outcome-independent identity allocation: no formal manifest, rollout,
+feature, or model outcome has been created.
+
+## Activated allocation result — 2026-08-28
+
+The pinned train shards contain 34,602 questions from 21,953 source groups and
+21,953 decoded-RGB identities. Allocation SHA-256 is
+`da6d41584bf4f3bfb91426fa9fa3bcb61a659846147c279eaab2aedb776e1657`.
+The pre-allocation audit verified every unique RGB identity referenced by 21
+prior manifests: 11,706 prior images in total, including 2,600 prior TextVQA
+source groups. There were zero prior source-ID collisions, zero prior RGB
+collisions, and zero duplicate RGB identities inside the train split. No role
+needed reserve backfilling, so the original hash-rank intervals remain exact.
+
+| Role | Sources | Questions | Manifest SHA-256 | RGB bundle SHA-256 |
+| --- | ---: | ---: | --- | --- |
+| ranker training | 5,000 | 7,912 | `5a93e5279036db874076f0a5109ace91261f2416a48c3d397bc592d7d03c4468` | `0dac0925cfabe3d435785065ecc9497cb917c6704e3ae813c7b029af4c76195f` |
+| risk calibration | 3,000 | 4,712 | `423621b83ec3e4103be3ca8782fa659526612a231cc0e911c6231e4a2da747c8` | `20ccf4b292eeaf4cc3438f1d07ee30dd7a2664dbe95eccc47721fed2acb39e2f` |
+| formal test | 5,000 | not materialized | not exported | not exported |
+
+The ranker/calibration manifests have zero source and decoded-RGB overlap by
+construction and zero RGB overlap with every prior bank. The completed audit
+has SHA-256
+`303258b8e79d36e551dfd5b3d8632929b4c2cf192cdcff77c35de8d71b6f6186`.
+Formal identities remain sealed in the allocation record and may not be
+materialized until the complete policy and evaluation rule are frozen.
 
 ## Why another small validation split is not viable
 

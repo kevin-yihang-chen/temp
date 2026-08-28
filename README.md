@@ -167,6 +167,15 @@ larger TextVQA train source bank. See
 `docs/docvqa_attention_action_value_formal_result_2026-08-28.md` and
 `docs/textvqa_attention_action_value_fresh_formal_result_2026-08-28.md`.
 
+That scaled bank is now frozen at the identity level. The pinned TextVQA train
+split supplies 5,000 ranker-training sources (7,912 questions), 3,000 risk-
+calibration sources (4,712 questions), and 5,000 reserved formal sources. A
+decoded-RGB audit against 21 prior manifests found zero overlap, and the two
+development manifests are mutually source/RGB-disjoint. The formal manifest
+and formal rollouts remain unopened until the complete policy is frozen; this
+is a data-preparation milestone, not a positive result. See
+`docs/scaled_textvqa_train_contingency.md`.
+
 ## Semantic gain head
 
 Install the optional PyTorch dependency:

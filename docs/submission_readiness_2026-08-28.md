@@ -18,7 +18,7 @@ B below is now active.
 | --- | --- | --- |
 | Clear problem | ready | Visual acquisitions can help, harm, or waste cost; entropy reduction is not task improvement. |
 | Distinct technical object | provisional | Pre-execution, answer-now-relative value for each sibling visual action, including explicit no-call and cost. |
-| Reproducible data/evaluation | ready | Frozen manifests, source/RGB overlap audits, artifact hashes, label-free feature audits, source-cluster bootstrap, and one-shot evaluators. |
+| Reproducible data/evaluation | ready | Frozen manifests, source/RGB overlap audits, artifact hashes, label-free feature audits, source-cluster bootstrap, and one-shot evaluators. The scaled TextVQA allocation now reserves 5k/3k/5k source roles with the formal manifest still sealed. |
 | Diagnostic empirical finding | ready | Exhaustive entropy search can improve raw score while having strongly negative utility; oracle sibling value remains positive. |
 | Confirmed stopping | partial | ChartQA high-power replication supports when-to-call for a bounded gate; cross-domain action-specific stopping has failed. |
 | Learned action ranking | not ready | Development attention ranking improved rescue diagnostics, but formal DocVQA ranking and utility were negative. |
@@ -93,11 +93,14 @@ Before drafting a submission as a method paper, require all of the following:
 
 ## Immediate execution order
 
-1. Implement source-level risk-control calibration and synthetic unit tests.
-2. Export outcome-independent TextVQA train source partitions and audit decoded
-   RGB overlap against every prior bank.
-3. Collect the 5,000-source ranker-training bank and 3,000-source calibration
-   bank with restart-safe, emailed Slurm jobs.
+1. **Completed:** implement source-level risk-control calibration and synthetic
+   unit tests.
+2. **Completed:** allocate the TextVQA train source roles, export the 5,000-
+   source ranker and 3,000-source calibration manifests, and verify zero
+   decoded-RGB overlap against 21 prior manifests. The 5,000-source formal role
+   is identity-only and remains unmaterialized.
+3. **In progress:** collect the ranker-training and calibration sibling rollout
+   banks with restart-safe, emailed Slurm jobs.
 4. Compare fixed low-capacity, listwise/pairwise ranking, separated call heads,
    and risk-controlled thresholds without touching formal sources.
 5. Freeze one policy and evaluate it once on the reserved 5,000-source formal

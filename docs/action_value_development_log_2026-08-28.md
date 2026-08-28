@@ -184,3 +184,26 @@ Question-region attention rescues 52.14% of helpful states versus 41.77% for a
 random crop, but its paired mean-gain advantage is not significant. The
 200-source policy family is closed on all opened targets. See
 `textvqa_attention_action_value_fresh_formal_result_2026-08-28.md`.
+
+## Scaled TextVQA train source allocation
+
+Branch B is now active. The finite-threshold, source-level risk-control core is
+implemented and covered by deterministic and Type-I-error unit tests. Before
+any new rollout, the pinned TextVQA train split was divided by the registered
+SHA-256 source ranking into 5,000 ranker-training sources, 3,000 risk-
+calibration sources, and 5,000 identity-only formal sources.
+
+The allocation inspected only `image_id` and decoded image content. All 21,953
+train source groups have distinct decoded-RGB identities. Comparison against
+21 prior manifests (11,706 unique images and 2,600 prior TextVQA source groups)
+found zero source-ID or RGB collisions, so no backfill was required. Allocation
+SHA-256 is
+`da6d41584bf4f3bfb91426fa9fa3bcb61a659846147c279eaab2aedb776e1657`.
+
+The materialized ranker bank contains 7,912 questions and its manifest SHA-256
+is `5a93e5279036db874076f0a5109ace91261f2416a48c3d397bc592d7d03c4468`.
+The calibration bank contains 4,712 questions and its manifest SHA-256 is
+`423621b83ec3e4103be3ca8782fa659526612a231cc0e911c6231e4a2da747c8`.
+Their mutual decoded-RGB overlap and their overlap with prior banks are both
+zero. The formal manifest and all formal outcomes remain unopened. This is a
+data-integrity milestone, not positive method evidence.
