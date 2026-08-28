@@ -39,10 +39,50 @@ crops reduce raw task score on average.
   Slurm mail type `ALL`
 - evaluation: 10,000 bootstrap resamples, seed `20260828`, clustered by
   `source_id` (400 clusters)
+- frozen evaluation report SHA-256:
+  `9f7428b661ea213ac5fa6bd9e58b5a22ac3dd505848064c47a94fb4a4310efc9`
+- action-bank report SHA-256:
+  `0d36de01654b44f8d00bccb7dc496fd86f7fab63f5b515e4bba52dc52dfb3c38`
+- post-hoc decomposition SHA-256:
+  `7532a2542f747f1d77f4547388e3727c01f24449f46d118429d5b7c1b37df834`
 
 The primary evaluation was written before any formal action-bank or
 decomposition analysis. The policy and threshold are permanently frozen and
 will not be revised on this partition.
+
+## Fixed action-bank baselines
+
+| Policy | ANLS gain | Calls | Utility |
+|---|---:|---:|---:|
+| Answer now | 0 | 0 | 0 |
+| Uniform random crop expectation | -0.00814 | 1 | -0.05814 |
+| Fixed center crop | -0.00406 | 1 | -0.05406 |
+| Exhaustive lowest-entropy crop | +0.00296 | 4 | -0.19704 |
+| Action-and-stopping oracle | +0.03739 | 0.0690 | +0.03394 |
+
+Oracle utility has 95% source CI `[+0.02623, +0.04201]`, so useful crop
+actions exist robustly. Exhaustive post-action entropy search has slightly
+positive raw gain but a fully negative utility interval after charging all four
+executed candidates. This independently preserves the value-of-information
+motivation while rejecting the frozen learned policy.
+
+## Post-hoc failure decomposition
+
+This analysis was run only after the primary report was committed and cannot
+change its decision.
+
+- The gate calls on 122 states. Only 20.5% of calls occur where any crop has
+  positive gain; only 9.84% of calls realize positive net utility.
+- The frozen top-ranked crop rescues 43.5% of helpful states, versus a 40.3%
+  random-crop rescue rate. Ranking transfers weakly, while its always-call mean
+  gain remains negative (`-0.01247`).
+- Frozen stopping plus the oracle action would yield utility `+0.00618`.
+- Oracle stopping plus frozen ranking would yield utility `+0.01668`.
+- Oracle stopping and action together yield `+0.03394`.
+
+Both stopping and ranking leave substantial value unrealized. False-positive
+calling is the immediate failure mode; question-conditioned regional evidence
+is the registered intervention for the separately frozen secondary policy.
 
 ## Consequence
 

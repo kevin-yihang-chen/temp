@@ -1,0 +1,39 @@
+{
+  "calls": 122,
+  "decisions": 1608,
+  "frozen_threshold": 0.012630662805226643,
+  "helpful_states": 124,
+  "lambda_cost": 0.05,
+  "oracle_worthwhile_states": 111,
+  "ranking": {
+    "always_top1_mean_gain": -0.012470398797424702,
+    "top1_positive_utility_rate_within_oracle_worthwhile_states": 0.44144144144144143,
+    "top1_rescue_rate_within_helpful_states": 0.43548387096774194
+  },
+  "run": {
+    "code_revision": "fa37575ddd43e9f404875e4a14340e46235512c7",
+    "paths": {
+      "model": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-oof-factorized-action-value-context-v1/model.json",
+      "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-formal-v1/qwen3b-c4-seed0/rollouts.jsonl"
+    },
+    "sha256": {
+      "model": "33f2e0b1fd29e52c878bbbf2cd9819cd3c7e65e12afbabbdc5fa1f6687c8496b",
+      "rollouts": "a7f44c267b11c12f6cbf8f1e714350174c4dfd7e4ab3866fde0dbd84fe0b5aa3"
+    }
+  },
+  "scientific_status": "post-hoc failure decomposition; no threshold, model, or formal claim is changed",
+  "stopping": {
+    "call_precision_for_any_positive_gain": 0.20491803278688525,
+    "call_precision_for_oracle_positive_utility": 0.19672131147540983,
+    "call_recall_for_any_positive_gain": 0.20161290322580644,
+    "call_recall_for_oracle_positive_utility": 0.21621621621621623,
+    "realized_positive_utility_call_precision": 0.09836065573770492
+  },
+  "tool_rate": 0.07587064676616916,
+  "utility_decomposition": {
+    "frozen_stopping_and_ranking": -0.005356641489834222,
+    "frozen_stopping_oracle_action": 0.006182261975466667,
+    "oracle_stopping_and_action": 0.033935482289422114,
+    "oracle_stopping_frozen_ranking": 0.016680768848755974
+  }
+}
