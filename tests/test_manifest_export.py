@@ -298,6 +298,54 @@ def test_export_textvqa_separates_gate_question_from_ocr_prompt(tmp_path):
     assert result["scorer"] == "textvqa"
 
 
+def test_export_textvqa_records_explicit_train_split_and_namespace(tmp_path):
+    row = {
+        "image": Image.new("RGB", (10, 10), "blue"),
+        "image_id": "train-image",
+        "question_id": 7,
+        "question": "What word is shown?",
+        "ocr_tokens": ["HELLO"],
+        "answers": ["hello"] * 10,
+    }
+    result = export_benchmark_manifest(
+        [row],
+        source_indices=[7],
+        task="textvqa",
+        dataset_id="lmms-lab/textvqa",
+        dataset_revision="revision",
+        dataset_split="train",
+        state_namespace="textvqa-train-ranker",
+        output_dir=tmp_path,
+        seed=23,
+    )
+    payload = json.loads((tmp_path / "manifest.jsonl").read_text())
+    assert payload["state_id"] == "textvqa-train-ranker:7"
+    assert result["split"] == "train"
+    assert result["state_namespace"] == "textvqa-train-ranker"
+
+
+def test_export_rejects_empty_explicit_dataset_split(tmp_path):
+    row = {
+        "image": Image.new("RGB", (10, 10), "blue"),
+        "image_id": "train-image",
+        "question_id": 7,
+        "question": "What word is shown?",
+        "ocr_tokens": ["HELLO"],
+        "answers": ["hello"] * 10,
+    }
+    with pytest.raises(ValueError, match="dataset_split"):
+        export_benchmark_manifest(
+            [row],
+            source_indices=[7],
+            task="textvqa",
+            dataset_id="lmms-lab/textvqa",
+            dataset_revision="revision",
+            dataset_split=" ",
+            output_dir=tmp_path,
+            seed=23,
+        )
+
+
 def test_export_hrbench_decodes_base64_and_pairs_resolution_source(tmp_path):
     buffer = io.BytesIO()
     Image.new("RGB", (14, 9), "green").save(buffer, format="PNG")

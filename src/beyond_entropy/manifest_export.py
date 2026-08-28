@@ -433,6 +433,7 @@ def export_benchmark_manifest(
     output_dir: str | Path,
     seed: int,
     state_namespace: str | None = None,
+    dataset_split: str | None = None,
     selection: str = "seeded round-robin stratified sample",
     selection_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -444,6 +445,13 @@ def export_benchmark_manifest(
         raise ValueError("rows and source_indices must have the same length")
     if not rows:
         raise ValueError("rows must not be empty")
+    resolved_split = (
+        BENCHMARK_SPECS[task].split
+        if dataset_split is None
+        else str(dataset_split).strip()
+    )
+    if not resolved_split:
+        raise ValueError("dataset_split must be non-empty")
     destination = Path(output_dir).resolve()
     image_dir = destination / "images"
     image_dir.mkdir(parents=True, exist_ok=True)
@@ -484,7 +492,7 @@ def export_benchmark_manifest(
         "dataset_id": dataset_id,
         "dataset_name": BENCHMARK_SPECS[task].dataset_name,
         "dataset_revision": dataset_revision,
-        "split": BENCHMARK_SPECS[task].split,
+        "split": resolved_split,
         "scorer": BENCHMARK_SPECS[task].scorer,
         "selection_fields": list(BENCHMARK_SPECS[task].selection_fields),
         "selection": selection,

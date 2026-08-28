@@ -35,6 +35,17 @@ def main() -> None:
     )
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--dataset-revision")
+    parser.add_argument(
+        "--dataset-split",
+        help=(
+            "dataset split to load and record in provenance; defaults to the "
+            "registered benchmark split"
+        ),
+    )
+    parser.add_argument(
+        "--state-namespace",
+        help="explicit namespace for exported state IDs",
+    )
     parser.add_argument("--cache-dir", type=Path)
     input_group = parser.add_mutually_exclusive_group()
     input_group.add_argument(
@@ -62,6 +73,7 @@ def main() -> None:
 
     spec = BENCHMARK_SPECS[args.task]
     revision = args.dataset_revision or spec.default_revision
+    dataset_split = args.dataset_split or spec.split
     if args.arrow_file:
         dataset = Dataset.from_file(str(args.arrow_file.resolve()))
     elif args.parquet_file:
@@ -76,7 +88,7 @@ def main() -> None:
             dataset_args.append(spec.dataset_name)
         dataset = load_dataset(
             *dataset_args,
-            split=spec.split,
+            split=dataset_split,
             revision=revision,
             cache_dir=str(args.cache_dir) if args.cache_dir else None,
         )
@@ -139,6 +151,8 @@ def main() -> None:
         dataset_revision=revision,
         output_dir=args.output_dir,
         seed=args.seed,
+        state_namespace=args.state_namespace,
+        dataset_split=dataset_split,
         selection=selection,
         selection_metadata=selection_metadata,
     )
