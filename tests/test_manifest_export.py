@@ -1,3 +1,5 @@
+import base64
+import io
 import json
 
 import pytest
@@ -5,6 +7,8 @@ from PIL import Image
 
 from beyond_entropy.cli import build_parser
 from beyond_entropy.manifest_export import (
+    BENCHMARK_SPECS,
+    benchmark_stratum,
     export_benchmark_manifest,
     stratified_sample_indices,
     stratified_unique_group_sample_indices,
@@ -136,6 +140,122 @@ def test_export_chartqa_supports_split_specific_state_namespace(tmp_path):
     assert result["state_namespace"] == "chartqa-val"
 
 
+def test_cross_benchmark_specs_are_revision_pinned():
+    assert BENCHMARK_SPECS["docvqa"].dataset_name == "DocVQA"
+    assert len(BENCHMARK_SPECS["docvqa"].default_revision) == 40
+    assert BENCHMARK_SPECS["textvqa"].scorer == "textvqa"
+    assert BENCHMARK_SPECS["hrbench4k"].split == "hrbench_4k"
+    assert BENCHMARK_SPECS["hrbench8k"].split == "hrbench_8k"
+
+
+def test_cross_benchmark_strata_use_only_pre_outcome_fields():
+    assert benchmark_stratum(
+        {"question_types": ["table", "figure"]}, task="docvqa"
+    ) == "figure+table"
+    assert benchmark_stratum({"ocr_tokens": []}, task="textvqa") == "ocr-000"
+    assert benchmark_stratum(
+        {"ocr_tokens": [str(index) for index in range(6)]}, task="textvqa"
+    ) == "ocr-006-015"
+    assert benchmark_stratum(
+        {"category": "cross", "cycle_category": "text"}, task="hrbench4k"
+    ) == "cross:text"
+
+
+def test_export_docvqa_groups_questions_from_the_same_document(tmp_path):
+    image = Image.new("RGB", (12, 8), "white")
+    rows = [
+        {
+            "image": image,
+            "questionId": f"q{index}",
+            "question": f"Question {index}?",
+            "question_types": ["table"],
+            "docId": "shared-document",
+            "answers": ["answer", "Answer"],
+        }
+        for index in range(2)
+    ]
+    export_benchmark_manifest(
+        rows,
+        source_indices=[2, 7],
+        task="docvqa",
+        dataset_id="lmms-lab/DocVQA",
+        dataset_revision="revision",
+        output_dir=tmp_path,
+        seed=19,
+    )
+    payloads = [
+        json.loads(line) for line in (tmp_path / "manifest.jsonl").read_text().splitlines()
+    ]
+    assert payloads[0]["source_id"] == payloads[1]["source_id"]
+    assert payloads[0]["image_id"] == payloads[1]["image_id"]
+    assert payloads[0]["question"] == "Question 0?"
+    assert payloads[0]["model_prompt"].endswith("single word or phrase.")
+    assert payloads[0]["target"] == {"answers": ["answer", "Answer"]}
+
+
+def test_export_textvqa_separates_gate_question_from_ocr_prompt(tmp_path):
+    row = {
+        "image": Image.new("RGB", (10, 10), "blue"),
+        "image_id": "open-images-id",
+        "question_id": 42,
+        "question": "WHAT word is shown?",
+        "ocr_tokens": ["HELLO", "WORLD"],
+        "answers": ["hello"] * 10,
+    }
+    result = export_benchmark_manifest(
+        [row],
+        source_indices=[42],
+        task="textvqa",
+        dataset_id="lmms-lab/textvqa",
+        dataset_revision="revision",
+        output_dir=tmp_path,
+        seed=23,
+    )
+    payload = json.loads((tmp_path / "manifest.jsonl").read_text())
+    assert payload["question"] == "WHAT word is shown?"
+    assert "Reference OCR token: HELLO, WORLD" in payload["model_prompt"]
+    assert payload["source_id"] == "textvqa:open-images-id"
+    assert payload["target"] == {"answers": ["hello"] * 10}
+    assert result["scorer"] == "textvqa"
+
+
+def test_export_hrbench_decodes_base64_and_pairs_resolution_source(tmp_path):
+    buffer = io.BytesIO()
+    Image.new("RGB", (14, 9), "green").save(buffer, format="PNG")
+    row = {
+        "index": 7,
+        "question": "Which option is visible?",
+        "answer": "C",
+        "category": "single",
+        "cycle_category": "text",
+        "A": "alpha",
+        "B": "beta",
+        "C": "gamma",
+        "D": "delta",
+        "image": base64.b64encode(buffer.getvalue()).decode(),
+    }
+    export_benchmark_manifest(
+        [row],
+        source_indices=[7],
+        task="hrbench4k",
+        dataset_id="DreamMr/HR-Bench",
+        dataset_revision="revision",
+        output_dir=tmp_path,
+        seed=29,
+    )
+    payload = json.loads((tmp_path / "manifest.jsonl").read_text())
+    assert payload["source_id"] == "hrbench:7"
+    assert payload["question"].endswith("D. delta")
+    assert payload["model_prompt"].endswith("option letter directly.")
+    assert payload["target"] == {
+        "answer": "C",
+        "category": "single",
+        "cycle_category": "text",
+    }
+    exported = Image.open(tmp_path / payload["image_path"])
+    assert exported.size == (14, 9)
+
+
 def test_collect_qwen_rejects_changed_manifest_before_model_load(tmp_path):
     manifest = tmp_path / "manifest.jsonl"
     manifest.write_text("{}\n", encoding="utf-8")
@@ -154,3 +274,19 @@ def test_collect_qwen_rejects_changed_manifest_before_model_load(tmp_path):
     )
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         args.func(args)
+
+
+@pytest.mark.parametrize("scorer", ["docvqa", "textvqa", "hrbench"])
+def test_collect_qwen_accepts_cross_benchmark_scorers(tmp_path, scorer):
+    args = build_parser().parse_args(
+        [
+            "collect-qwen",
+            "--manifest",
+            str(tmp_path / "manifest.jsonl"),
+            "--output",
+            str(tmp_path / "output.jsonl"),
+            "--scorer",
+            scorer,
+        ]
+    )
+    assert args.scorer == scorer

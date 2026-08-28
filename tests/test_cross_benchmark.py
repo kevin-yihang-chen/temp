@@ -5,6 +5,7 @@ import pytest
 from beyond_entropy.benchmarks import hrbench_match, scorer_by_name
 from beyond_entropy.cross_benchmark import (
     build_docvqa_prompt,
+    build_hrbench_context,
     build_hrbench_prompt,
     build_textvqa_prompt,
     docvqa_anls_match,
@@ -44,6 +45,10 @@ def test_released_prompt_adapters_do_not_expose_targets():
         "B. large\n"
         "Answer the option letter directly."
     )
+    assert build_hrbench_context(
+        "Which label is smallest?",
+        {"B": "large", "A": "small"},
+    ) == "Which label is smallest?\nA. small\nB. large"
     assert "correct" not in hr_prompt.casefold()
 
 

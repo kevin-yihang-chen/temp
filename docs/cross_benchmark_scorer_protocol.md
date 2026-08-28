@@ -28,6 +28,19 @@ Targets are stored only in `GroundTruth`; prompt builders accept no answer
 argument. Dataset manifests must keep the gate-visible core question separate
 from the backend-only formatted prompt.
 
+The exporter pins public dataset revisions and groups related questions by
+document/image source. HRBench 4K and 8K rows share `source_id = hrbench:<index>`
+so paired resolutions cannot leak across a source-disjoint split. Selection
+strata use only pre-outcome fields: DocVQA question types, TextVQA OCR-token
+count buckets, and HRBench category plus cycle category.
+
+| Task | Dataset/config | Split | Pinned revision |
+| --- | --- | --- | --- |
+| DocVQA | `lmms-lab/DocVQA` / `DocVQA` | `validation` | `539088ef8a8ada01ac8e2e6d4e372586748a265e` |
+| TextVQA | `lmms-lab/textvqa` | `validation` | `9c0699cd19768ac5ab97568f6b3cbac4c0062884` |
+| HRBench 4K | `DreamMr/HR-Bench` / `hrbench_version_split` | `hrbench_4k` | `83b9013d6293b85dc507e87199ca52517536939c` |
+| HRBench 8K | `DreamMr/HR-Bench` / `hrbench_version_split` | `hrbench_8k` | `83b9013d6293b85dc507e87199ca52517536939c` |
+
 ## Compatibility audit
 
 Run:

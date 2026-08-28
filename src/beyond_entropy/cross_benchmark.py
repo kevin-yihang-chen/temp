@@ -89,12 +89,9 @@ def build_textvqa_prompt(
     return prompt + _SHORT_ANSWER_SUFFIX
 
 
-def build_hrbench_prompt(
-    question: object,
+def _normalized_hrbench_options(
     options: Mapping[str, object],
-) -> str:
-    """Reproduce the released HRBench direct-option prompt."""
-
+) -> list[tuple[str, str]]:
     normalized: list[tuple[str, str]] = []
     for raw_key, raw_value in options.items():
         key = str(raw_key).strip().upper()
@@ -104,11 +101,27 @@ def build_hrbench_prompt(
     normalized.sort()
     if len(normalized) < 2 or len({key for key, _ in normalized}) != len(normalized):
         raise ValueError("HRBench requires at least two distinct options")
+    return normalized
+
+
+def build_hrbench_context(
+    question: object,
+    options: Mapping[str, object],
+) -> str:
+    """Build gate-visible HRBench content without answer-format boilerplate."""
+
+    normalized = _normalized_hrbench_options(options)
     option_text = "".join(f"{key}. {value}\n" for key, value in normalized)
-    return (
-        f"{_nonempty_text(question, name='HRBench question')}\n"
-        f"{option_text}Answer the option letter directly."
-    )
+    return f"{_nonempty_text(question, name='HRBench question')}\n{option_text}".rstrip()
+
+
+def build_hrbench_prompt(
+    question: object,
+    options: Mapping[str, object],
+) -> str:
+    """Reproduce the released HRBench direct-option prompt."""
+
+    return build_hrbench_context(question, options) + "\nAnswer the option letter directly."
 
 
 def _levenshtein_distance(first: str, second: str) -> int:

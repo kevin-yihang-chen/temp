@@ -7,6 +7,7 @@ from pathlib import Path
 
 from beyond_entropy.manifest_export import (
     BENCHMARK_SPECS,
+    benchmark_stratum,
     export_benchmark_manifest,
     stratified_sample_indices,
 )
@@ -39,13 +40,25 @@ def main() -> None:
     if args.arrow_file:
         dataset = Dataset.from_file(str(args.arrow_file.resolve()))
     else:
+        dataset_args = [spec.dataset_id]
+        if spec.dataset_name is not None:
+            dataset_args.append(spec.dataset_name)
         dataset = load_dataset(
-            spec.dataset_id,
+            *dataset_args,
             split=spec.split,
             revision=revision,
             cache_dir=str(args.cache_dir) if args.cache_dir else None,
         )
-    labels = [str(label) for label in dataset[spec.group_field]]
+    selection_columns = {
+        field: dataset[field] for field in spec.selection_fields
+    }
+    labels = [
+        benchmark_stratum(
+            {field: selection_columns[field][index] for field in spec.selection_fields},
+            task=args.task,
+        )
+        for index in range(len(dataset))
+    ]
     source_indices = stratified_sample_indices(
         labels,
         count=args.count,

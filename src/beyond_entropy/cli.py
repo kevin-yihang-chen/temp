@@ -737,7 +737,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     collect_qwen.add_argument(
         "--scorer",
-        choices=("vstar", "chartqa", "chartqapro", "chartqapro-spec"),
+        choices=(
+            "vstar",
+            "chartqa",
+            "chartqapro",
+            "chartqapro-spec",
+            "docvqa",
+            "textvqa",
+            "hrbench",
+        ),
         required=True,
     )
     collect_qwen.add_argument("--candidate-count", type=int, default=4)
