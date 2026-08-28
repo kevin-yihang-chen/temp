@@ -7,7 +7,10 @@ import json
 import subprocess
 from pathlib import Path
 
-from beyond_entropy.action_value import fit_multidomain_action_value_model
+from beyond_entropy.action_value import (
+    fit_multidomain_action_value_model,
+    fit_multidomain_factorized_action_value_model,
+)
 from beyond_entropy.dataset import read_jsonl
 from beyond_entropy.qwen_semantic import (
     load_semantic_feature_dataset,
@@ -52,6 +55,11 @@ def main() -> None:
         default="context-geometry",
     )
     parser.add_argument(
+        "--model-family",
+        choices=("direct", "factorized"),
+        default="direct",
+    )
+    parser.add_argument(
         "--features",
         type=_domain_path,
         action="append",
@@ -94,7 +102,12 @@ def main() -> None:
                 for decision in payload["decisions"]
             }
     alpha_values = args.alpha_values or [0.1, 1.0, 10.0, 100.0, 1000.0]
-    report, model = fit_multidomain_action_value_model(
+    fit_model = (
+        fit_multidomain_factorized_action_value_model
+        if args.model_family == "factorized"
+        else fit_multidomain_action_value_model
+    )
+    report, model = fit_model(
         records_by_domain,
         feature_mode=args.feature_mode,
         semantic_decisions_by_domain=semantic_decisions_by_domain,

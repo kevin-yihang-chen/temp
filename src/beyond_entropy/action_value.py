@@ -14,6 +14,7 @@ from .rescue_gate import (
     DecisionKey,
     PrecomputedActionGatePolicy,
     compact_action_features,
+    compact_rescue_features,
     pre_action_context_features,
 )
 from .schema import ActionRecord, BBox
@@ -125,6 +126,56 @@ def _action_features(
             raise ValueError("semantic-context mode requires frozen semantic decisions")
         return semantic_context_action_features(baseline, action, semantic_decision)
     raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
+
+
+def _state_features(
+    baseline: ActionRecord,
+    *,
+    feature_mode: str,
+    semantic_decision: Mapping[str, Any] | None,
+) -> list[float]:
+    normalized_baseline = replace(
+        baseline,
+        question=normalized_gate_question(baseline.question),
+    )
+    if feature_mode == "context-geometry":
+        return pre_action_context_features(normalized_baseline)
+    if feature_mode == "semantic-context":
+        if semantic_decision is None:
+            raise ValueError("semantic-context mode requires frozen semantic decisions")
+        return compact_rescue_features(semantic_decision, normalized_baseline)
+    raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
+
+
+def _semantic_feature_index(
+    *,
+    feature_mode: str,
+    records_by_domain: Mapping[str, Sequence[ActionRecord]],
+    domain_by_key: Mapping[DecisionKey, str],
+    semantic_decisions_by_domain: Mapping[
+        str, Mapping[DecisionKey, Mapping[str, Any]]
+    ]
+    | None,
+) -> dict[DecisionKey, Mapping[str, Any]]:
+    if feature_mode not in {"context-geometry", "semantic-context"}:
+        raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
+    semantic_by_key: dict[DecisionKey, Mapping[str, Any]] = {}
+    if feature_mode == "semantic-context":
+        if semantic_decisions_by_domain is None or set(
+            semantic_decisions_by_domain
+        ) != set(records_by_domain):
+            raise ValueError(
+                "semantic-context mode requires one feature mapping per domain"
+            )
+        for domain in records_by_domain:
+            domain_decisions = semantic_decisions_by_domain[domain]
+            expected = {key for key, value in domain_by_key.items() if value == domain}
+            if set(domain_decisions) != expected:
+                raise ValueError(
+                    f"semantic decisions do not exactly cover domain {domain!r}"
+                )
+            semantic_by_key.update(domain_decisions)
+    return semantic_by_key
 
 
 def _decision_rows(
@@ -512,24 +563,12 @@ def fit_multidomain_action_value_model(
     if not alpha_values or any(alpha <= 0.0 for alpha in alpha_values):
         raise ValueError("alpha_values must be positive")
     domain_by_key, baselines, zooms = _validate_domains(records_by_domain)
-    if feature_mode not in {"context-geometry", "semantic-context"}:
-        raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
-    semantic_by_key: dict[DecisionKey, Mapping[str, Any]] = {}
-    if feature_mode == "semantic-context":
-        if semantic_decisions_by_domain is None or set(
-            semantic_decisions_by_domain
-        ) != set(records_by_domain):
-            raise ValueError(
-                "semantic-context mode requires one feature mapping per domain"
-            )
-        for domain in records_by_domain:
-            domain_decisions = semantic_decisions_by_domain[domain]
-            expected = {key for key, value in domain_by_key.items() if value == domain}
-            if set(domain_decisions) != expected:
-                raise ValueError(
-                    f"semantic decisions do not exactly cover domain {domain!r}"
-                )
-            semantic_by_key.update(domain_decisions)
+    semantic_by_key = _semantic_feature_index(
+        feature_mode=feature_mode,
+        records_by_domain=records_by_domain,
+        domain_by_key=domain_by_key,
+        semantic_decisions_by_domain=semantic_decisions_by_domain,
+    )
     train_keys, validation_keys, split_counts = _domain_source_split(
         domain_by_key,
         baselines,
@@ -670,6 +709,497 @@ def fit_multidomain_action_value_model(
         "intercept": float(model.intercept_),
     }
     return report, model_payload
+
+
+def _score_factorized_candidates(
+    *,
+    error_model: Any,
+    rescue_model: Any,
+    harm_model: Any,
+    error_scaler: Any,
+    rescue_scaler: Any,
+    harm_scaler: Any,
+    rescue_magnitude: float,
+    harm_magnitude: float,
+    keys: Sequence[DecisionKey],
+    baselines: Mapping[DecisionKey, ActionRecord],
+    zooms: Mapping[DecisionKey, Sequence[ActionRecord]],
+    lambda_cost: float,
+    feature_mode: str,
+    semantic_by_key: Mapping[DecisionKey, Mapping[str, Any]],
+) -> tuple[dict[DecisionKey, float], dict[DecisionKey, str]]:
+    import numpy as np  # type: ignore[import-not-found]
+
+    best_values: dict[DecisionKey, float] = {}
+    top_actions: dict[DecisionKey, str] = {}
+    for key in keys:
+        state = np.asarray(
+            [
+                _state_features(
+                    baselines[key],
+                    feature_mode=feature_mode,
+                    semantic_decision=semantic_by_key.get(key),
+                )
+            ],
+            dtype=np.float64,
+        )
+        error_probability = float(
+            error_model.predict_proba(error_scaler.transform(state))[0, 1]
+        )
+        candidates = zooms[key]
+        action_rows = np.asarray(
+            [
+                _action_features(
+                    baselines[key],
+                    action,
+                    feature_mode=feature_mode,
+                    semantic_decision=semantic_by_key.get(key),
+                )
+                for action in candidates
+            ],
+            dtype=np.float64,
+        )
+        rescue_probabilities = rescue_model.predict_proba(
+            rescue_scaler.transform(action_rows)
+        )[:, 1].tolist()
+        harm_probabilities = harm_model.predict_proba(
+            harm_scaler.transform(action_rows)
+        )[:, 1].tolist()
+        net_values = [
+            error_probability * float(rescue_probability) * rescue_magnitude
+            - (1.0 - error_probability) * float(harm_probability) * harm_magnitude
+            - lambda_cost * action.tool_cost
+            for rescue_probability, harm_probability, action in zip(
+                rescue_probabilities,
+                harm_probabilities,
+                candidates,
+            )
+        ]
+        best_index = max(
+            range(len(candidates)),
+            key=lambda index: (net_values[index], candidates[index].action_id),
+        )
+        best_values[key] = net_values[best_index]
+        top_actions[key] = candidates[best_index].action_id
+    return best_values, top_actions
+
+
+def fit_multidomain_factorized_action_value_model(
+    records_by_domain: Mapping[str, Sequence[ActionRecord]],
+    *,
+    feature_mode: str = "context-geometry",
+    semantic_decisions_by_domain: Mapping[
+        str, Mapping[DecisionKey, Mapping[str, Any]]
+    ]
+    | None = None,
+    validation_fraction: float = 0.2,
+    lambda_cost: float = 0.05,
+    alpha_values: Sequence[float] = (0.1, 1.0, 10.0, 100.0, 1000.0),
+    seed: int = 20260828,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Fit explicit baseline-error, conditional-rescue, and harm heads."""
+
+    import numpy as np  # type: ignore[import-not-found]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
+
+    if lambda_cost < 0.0:
+        raise ValueError("lambda_cost must be non-negative")
+    if not alpha_values or any(alpha <= 0.0 for alpha in alpha_values):
+        raise ValueError("alpha_values must be positive")
+    domain_by_key, baselines, zooms = _validate_domains(records_by_domain)
+    semantic_by_key = _semantic_feature_index(
+        feature_mode=feature_mode,
+        records_by_domain=records_by_domain,
+        domain_by_key=domain_by_key,
+        semantic_decisions_by_domain=semantic_decisions_by_domain,
+    )
+    train_keys, validation_keys, split_counts = _domain_source_split(
+        domain_by_key,
+        baselines,
+        validation_fraction=validation_fraction,
+        seed=seed,
+    )
+    state_features = [
+        _state_features(
+            baselines[key],
+            feature_mode=feature_mode,
+            semantic_decision=semantic_by_key.get(key),
+        )
+        for key in train_keys
+    ]
+    error_labels = [int(baselines[key].correct_before < 0.5) for key in train_keys]
+    state_domains = [domain_by_key[key] for key in train_keys]
+    rescue_rows = [
+        (key, action)
+        for key in train_keys
+        if baselines[key].correct_before < 0.5
+        for action in zooms[key]
+    ]
+    harm_rows = [
+        (key, action)
+        for key in train_keys
+        if baselines[key].correct_before >= 0.5
+        for action in zooms[key]
+    ]
+    if not rescue_rows or not harm_rows:
+        raise ValueError("factorized action value requires wrong and correct baselines")
+    rescue_features = [
+        _action_features(
+            baselines[key],
+            action,
+            feature_mode=feature_mode,
+            semantic_decision=semantic_by_key.get(key),
+        )
+        for key, action in rescue_rows
+    ]
+    harm_features = [
+        _action_features(
+            baselines[key],
+            action,
+            feature_mode=feature_mode,
+            semantic_decision=semantic_by_key.get(key),
+        )
+        for key, action in harm_rows
+    ]
+    rescue_labels = [int(action.delta_success > 0.0) for _, action in rescue_rows]
+    harm_labels = [int(action.delta_success < 0.0) for _, action in harm_rows]
+    for name, labels in (
+        ("error", error_labels),
+        ("rescue", rescue_labels),
+        ("harm", harm_labels),
+    ):
+        if len(set(labels)) != 2:
+            raise ValueError(f"factorized {name} head requires both outcome classes")
+    error_scaler = StandardScaler().fit(np.asarray(state_features, dtype=np.float64))
+    rescue_scaler = StandardScaler().fit(
+        np.asarray(rescue_features, dtype=np.float64)
+    )
+    harm_scaler = StandardScaler().fit(np.asarray(harm_features, dtype=np.float64))
+    transformed_error = error_scaler.transform(
+        np.asarray(state_features, dtype=np.float64)
+    )
+    transformed_rescue = rescue_scaler.transform(
+        np.asarray(rescue_features, dtype=np.float64)
+    )
+    transformed_harm = harm_scaler.transform(
+        np.asarray(harm_features, dtype=np.float64)
+    )
+    error_weights = np.asarray(
+        _domain_balanced_weights(state_domains), dtype=np.float64
+    )
+    rescue_domains = [domain_by_key[key] for key, _ in rescue_rows]
+    harm_domains = [domain_by_key[key] for key, _ in harm_rows]
+    rescue_weights = np.asarray(
+        _domain_balanced_weights(rescue_domains), dtype=np.float64
+    )
+    harm_weights = np.asarray(_domain_balanced_weights(harm_domains), dtype=np.float64)
+    positive_indices = [
+        index for index, label in enumerate(rescue_labels) if label == 1
+    ]
+    negative_indices = [index for index, label in enumerate(harm_labels) if label == 1]
+    rescue_magnitude = float(
+        np.average(
+            [rescue_rows[index][1].delta_success for index in positive_indices],
+            weights=rescue_weights[positive_indices],
+        )
+    )
+    harm_magnitude = float(
+        np.average(
+            [-harm_rows[index][1].delta_success for index in negative_indices],
+            weights=harm_weights[negative_indices],
+        )
+    )
+    candidates = []
+    for alpha in alpha_values:
+        model_kwargs = {
+            "C": 1.0 / float(alpha),
+            "solver": "liblinear",
+            "max_iter": 2000,
+            "random_state": seed,
+        }
+        error_model = LogisticRegression(**model_kwargs).fit(
+            transformed_error,
+            np.asarray(error_labels, dtype=np.int64),
+            sample_weight=error_weights,
+        )
+        rescue_model = LogisticRegression(**model_kwargs).fit(
+            transformed_rescue,
+            np.asarray(rescue_labels, dtype=np.int64),
+            sample_weight=rescue_weights,
+        )
+        harm_model = LogisticRegression(**model_kwargs).fit(
+            transformed_harm,
+            np.asarray(harm_labels, dtype=np.int64),
+            sample_weight=harm_weights,
+        )
+        best_values, top_actions = _score_factorized_candidates(
+            error_model=error_model,
+            rescue_model=rescue_model,
+            harm_model=harm_model,
+            error_scaler=error_scaler,
+            rescue_scaler=rescue_scaler,
+            harm_scaler=harm_scaler,
+            rescue_magnitude=rescue_magnitude,
+            harm_magnitude=harm_magnitude,
+            keys=validation_keys,
+            baselines=baselines,
+            zooms=zooms,
+            lambda_cost=lambda_cost,
+            feature_mode=feature_mode,
+            semantic_by_key=semantic_by_key,
+        )
+        threshold, selected, metrics = _calibrate_domain_robust_threshold(
+            top_actions,
+            best_values,
+            validation_keys,
+            zooms,
+            domain_by_key,
+            lambda_cost=lambda_cost,
+        )
+        candidates.append(
+            {
+                "alpha": float(alpha),
+                "threshold": threshold,
+                "error_model": error_model,
+                "rescue_model": rescue_model,
+                "harm_model": harm_model,
+                "selected": selected,
+                "metrics": metrics,
+                "ranking_diagnostics": _ranking_diagnostics(
+                    top_actions,
+                    validation_keys,
+                    zooms,
+                    domain_by_key,
+                    lambda_cost=lambda_cost,
+                ),
+            }
+        )
+    winner = max(
+        candidates,
+        key=lambda candidate: (
+            candidate["metrics"]["worst_domain_utility"],
+            candidate["metrics"]["domain_balanced_mean_utility"],
+            candidate["metrics"]["pooled_mean_utility"],
+            -candidate["metrics"]["pooled_tool_rate"],
+            -candidate["alpha"],
+        ),
+    )
+    validation_key_set = set(validation_keys)
+    validation_records = [
+        record
+        for records in records_by_domain.values()
+        for record in records
+        if (record.state_id, record.replicate_id) in validation_key_set
+    ]
+    validation_policy = PrecomputedActionGatePolicy(
+        winner["selected"],
+        name="multidomain_factorized_action_value",
+    )
+    validation_policy_result = dict(
+        evaluate_policy(validation_records, validation_policy, lambda_cost=lambda_cost)
+    )
+    report = {
+        "scientific_status": (
+            "development-only source-held-out factorized selection; formal benchmark "
+            "outcomes are excluded"
+        ),
+        "model_type": "multidomain_factorized_action_value",
+        "feature_mode": feature_mode,
+        "decision_rule": (
+            "P(error)*P(rescue|error,action)*rescue_magnitude - "
+            "P(correct)*P(harm|correct,action)*harm_magnitude - cost; call above "
+            "frozen domain-robust margin"
+        ),
+        "seed": seed,
+        "lambda_cost": lambda_cost,
+        "validation_fraction": validation_fraction,
+        "domains": sorted(set(domain_by_key.values())),
+        "split_counts": split_counts,
+        "train_decisions": len(train_keys),
+        "validation_decisions": len(validation_keys),
+        "state_feature_count": len(state_features[0]),
+        "action_feature_count": len(rescue_features[0]),
+        "error_train_rows": len(train_keys),
+        "rescue_train_rows": len(rescue_rows),
+        "harm_train_rows": len(harm_rows),
+        "rescue_magnitude": rescue_magnitude,
+        "harm_magnitude": harm_magnitude,
+        "selected_alpha": winner["alpha"],
+        "selected_threshold": winner["threshold"],
+        "selection_objective": (
+            "worst-domain utility, then domain-balanced mean utility, pooled utility, "
+            "lower tool rate, lower alpha; no-call is an explicit candidate"
+        ),
+        "candidate_validation_metrics": [
+            {
+                "alpha": candidate["alpha"],
+                "threshold": candidate["threshold"],
+                **candidate["metrics"],
+                "ranking_diagnostics": candidate["ranking_diagnostics"],
+            }
+            for candidate in candidates
+        ],
+        "validation_metrics": winner["metrics"],
+        "validation_policy_result": validation_policy_result,
+    }
+
+    def serialized_head(prefix: str, scaler: Any, model: Any) -> dict[str, Any]:
+        return {
+            f"{prefix}_scaler_mean": [float(value) for value in scaler.mean_.tolist()],
+            f"{prefix}_scaler_scale": [float(value) for value in scaler.scale_.tolist()],
+            f"{prefix}_coefficient": [
+                float(value) for value in model.coef_[0].tolist()
+            ],
+            f"{prefix}_intercept": float(model.intercept_[0]),
+        }
+
+    model_payload = {
+        "model_type": "multidomain_factorized_action_value",
+        "feature_mode": feature_mode,
+        "decision_rule": "factorized_expected_net_value_above_frozen_margin",
+        "seed": seed,
+        "lambda_cost": lambda_cost,
+        "selected_alpha": winner["alpha"],
+        "threshold": winner["threshold"],
+        "domains": sorted(set(domain_by_key.values())),
+        "state_feature_count": len(state_features[0]),
+        "action_feature_count": len(rescue_features[0]),
+        "rescue_magnitude": rescue_magnitude,
+        "harm_magnitude": harm_magnitude,
+        **serialized_head("error", error_scaler, winner["error_model"]),
+        **serialized_head("rescue", rescue_scaler, winner["rescue_model"]),
+        **serialized_head("harm", harm_scaler, winner["harm_model"]),
+    }
+    return report, model_payload
+
+
+def _serialized_probability(
+    model: Mapping[str, Any],
+    prefix: str,
+    features: Sequence[float],
+) -> float:
+    center = [float(value) for value in model[f"{prefix}_scaler_mean"]]
+    scale = [float(value) for value in model[f"{prefix}_scaler_scale"]]
+    coefficient = [float(value) for value in model[f"{prefix}_coefficient"]]
+    if not center or len(center) != len(scale) or len(center) != len(coefficient):
+        raise ValueError(f"frozen {prefix} head dimensions are inconsistent")
+    if len(features) != len(center) or any(value <= 0.0 for value in scale):
+        raise ValueError(f"frozen {prefix} head features or scales are invalid")
+    logit = float(model[f"{prefix}_intercept"]) + sum(
+        weight * (value - mean_value) / scale_value
+        for weight, value, mean_value, scale_value in zip(
+            coefficient,
+            features,
+            center,
+            scale,
+        )
+    )
+    if logit >= 0.0:
+        inverse = math.exp(-logit)
+        return 1.0 / (1.0 + inverse)
+    exponent = math.exp(logit)
+    return exponent / (1.0 + exponent)
+
+
+def select_frozen_factorized_action_value_actions(
+    model: Mapping[str, Any],
+    records: Sequence[ActionRecord],
+    *,
+    semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
+) -> tuple[dict[DecisionKey, str | None], dict[DecisionKey, float]]:
+    """Apply serialized risk/rescue/harm heads without reading target outcomes."""
+
+    if model.get("model_type") != "multidomain_factorized_action_value":
+        raise ValueError("unsupported frozen factorized action-value model type")
+    baselines, zooms = _decision_rows(records)
+    feature_mode = str(model["feature_mode"])
+    semantic_by_key = {} if semantic_decisions is None else semantic_decisions
+    if feature_mode == "semantic-context" and set(semantic_by_key) != set(baselines):
+        raise ValueError("semantic decisions do not exactly cover frozen target")
+    selected: dict[DecisionKey, str | None] = {}
+    scores: dict[DecisionKey, float] = {}
+    for key in sorted(baselines):
+        error_probability = _serialized_probability(
+            model,
+            "error",
+            _state_features(
+                baselines[key],
+                feature_mode=feature_mode,
+                semantic_decision=semantic_by_key.get(key),
+            ),
+        )
+        scored_actions = []
+        for action in zooms[key]:
+            features = _action_features(
+                baselines[key],
+                action,
+                feature_mode=feature_mode,
+                semantic_decision=semantic_by_key.get(key),
+            )
+            rescue_probability = _serialized_probability(
+                model, "rescue", features
+            )
+            harm_probability = _serialized_probability(model, "harm", features)
+            net_value = (
+                error_probability
+                * rescue_probability
+                * float(model["rescue_magnitude"])
+                - (1.0 - error_probability)
+                * harm_probability
+                * float(model["harm_magnitude"])
+                - float(model["lambda_cost"]) * action.tool_cost
+            )
+            scored_actions.append((net_value, action.action_id))
+        best_value, best_action_id = max(scored_actions)
+        scores[key] = best_value
+        selected[key] = (
+            best_action_id if best_value >= float(model["threshold"]) else None
+        )
+    return selected, scores
+
+
+def evaluate_frozen_factorized_action_value_model(
+    model: Mapping[str, Any],
+    records: Sequence[ActionRecord],
+    *,
+    bootstrap_resamples: int = 5000,
+    bootstrap_seed: int = 0,
+    cluster_by: str = "state_id",
+    semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    selected, scores = select_frozen_factorized_action_value_actions(
+        model,
+        records,
+        semantic_decisions=semantic_decisions,
+    )
+    policy = PrecomputedActionGatePolicy(
+        selected,
+        name="frozen_multidomain_factorized_action_value",
+    )
+    lambda_cost = float(model["lambda_cost"])
+    result: dict[str, Any] = dict(
+        evaluate_policy(records, policy, lambda_cost=lambda_cost)
+    )
+    result["bootstrap"] = bootstrap_policy_evaluation(
+        records,
+        policy,
+        lambda_cost=lambda_cost,
+        n_resamples=bootstrap_resamples,
+        seed=bootstrap_seed,
+        cluster_by=cluster_by,  # type: ignore[arg-type]
+    )
+    result["predicted_net_value_summary"] = {
+        "minimum": min(scores.values()),
+        "mean": mean(scores.values()),
+        "maximum": max(scores.values()),
+        "threshold": float(model["threshold"]),
+        "above_threshold": sum(
+            value >= float(model["threshold"]) for value in scores.values()
+        ),
+        "decisions": len(scores),
+    }
+    return result
 
 
 def select_frozen_action_value_actions(

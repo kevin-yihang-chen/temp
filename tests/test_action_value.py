@@ -7,9 +7,12 @@ import pytest
 from beyond_entropy.action_value import (
     context_geometry_action_features,
     evaluate_frozen_action_value_model,
+    evaluate_frozen_factorized_action_value_model,
     fit_multidomain_action_value_model,
+    fit_multidomain_factorized_action_value_model,
     normalized_gate_question,
     select_frozen_action_value_actions,
+    select_frozen_factorized_action_value_actions,
     semantic_context_action_features,
 )
 from beyond_entropy.dataset import group_by_decision
@@ -150,3 +153,44 @@ def test_frozen_selection_does_not_read_target_outcomes():
     mutated, mutated_scores = select_frozen_action_value_actions(model, changed)
     assert mutated == original
     assert mutated_scores == pytest.approx(original_scores)
+
+
+def test_factorized_risk_rescue_harm_model_round_trips():
+    source = _namespace(
+        simulate_counterfactual_dataset(
+            n_states=180,
+            num_candidates=4,
+            questions_per_image=2,
+            seed=31,
+        ),
+        "source",
+    )
+    auxiliary = _namespace(
+        simulate_counterfactual_dataset(
+            n_states=160,
+            num_candidates=4,
+            questions_per_image=2,
+            seed=37,
+        ),
+        "auxiliary",
+    )
+    report, model = fit_multidomain_factorized_action_value_model(
+        {"source": source, "auxiliary": auxiliary},
+        alpha_values=(1.0, 10.0),
+        seed=12,
+    )
+    assert report["model_type"] == "multidomain_factorized_action_value"
+    assert report["rescue_magnitude"] > 0.0
+    assert report["harm_magnitude"] > 0.0
+    assert model["state_feature_count"] == len(model["error_coefficient"])
+    assert model["action_feature_count"] == len(model["rescue_coefficient"])
+    selected, scores = select_frozen_factorized_action_value_actions(
+        model, auxiliary
+    )
+    assert len(selected) == len(scores) == 160
+    evaluated = evaluate_frozen_factorized_action_value_model(
+        model,
+        auxiliary,
+        bootstrap_resamples=20,
+    )
+    assert evaluated["n_decisions"] == 160
