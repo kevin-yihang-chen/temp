@@ -6,6 +6,7 @@ from beyond_entropy.benchmarks import load_manifest, scorer_by_name
 from beyond_entropy.chartqapro import (
     build_chartqapro_direct_prompt,
     build_chartqapro_gate_context,
+    canonicalize_chartqapro_constrained_answer,
     chartqapro_match,
     chartqapro_spec_match,
     chartqapro_target,
@@ -72,6 +73,27 @@ def test_chartqapro_prompt_validates_turn_structure():
             "Factoid",
             None,
         )
+
+
+@pytest.mark.parametrize(
+    ("answer", "question_type", "expected"),
+    [
+        ("b", "Multi Choice", "b"),
+        ("b) 31%", "Multi Choice", "b"),
+        ("(C)", "Multi Choice", "c"),
+        ("[true]", "Fact Checking", "true"),
+        ("[’FALSE’]", "Fact Checking", "false"),
+        ("the answer is b", "Multi Choice", "the answer is b"),
+        ("because it is true", "Fact Checking", "because it is true"),
+        ("North", "Factoid", "North"),
+    ],
+)
+def test_constrained_answer_canonicalization_is_conservative(
+    answer: str,
+    question_type: str,
+    expected: str,
+):
+    assert canonicalize_chartqapro_constrained_answer(answer, question_type) == expected
 
 
 def test_chartqapro_match_numeric_year_text_and_lists():

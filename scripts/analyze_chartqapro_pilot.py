@@ -7,7 +7,11 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from beyond_entropy.chartqapro import chartqapro_match, chartqapro_spec_match
+from beyond_entropy.chartqapro import (
+    canonicalize_chartqapro_constrained_answer,
+    chartqapro_match,
+    chartqapro_spec_match,
+)
 from beyond_entropy.dataset import group_by_decision, read_jsonl
 from beyond_entropy.metrics import bootstrap_policy_evaluation
 from beyond_entropy.rescue_gate import PrecomputedRescueGatePolicy
@@ -150,15 +154,30 @@ def _validate_inputs(
 def _rescore_spec(
     records: Sequence[ActionRecord],
     manifest: Mapping[str, Mapping[str, Any]],
+    *,
+    canonicalize_constrained: bool = False,
 ) -> list[ActionRecord]:
     rescored: list[ActionRecord] = []
     for record in records:
-        target = GroundTruth(manifest[record.state_id]["target"])
+        row = manifest[record.state_id]
+        target = GroundTruth(row["target"])
+        answer_before = record.answer_before
+        answer_after = record.answer_after
+        if canonicalize_constrained:
+            question_type = str(row["stratum"])
+            answer_before = canonicalize_chartqapro_constrained_answer(
+                answer_before,
+                question_type,
+            )
+            answer_after = canonicalize_chartqapro_constrained_answer(
+                answer_after,
+                question_type,
+            )
         rescored.append(
             replace(
                 record,
-                correct_before=chartqapro_spec_match(record.answer_before, target),
-                correct_after=chartqapro_spec_match(record.answer_after, target),
+                correct_before=chartqapro_spec_match(answer_before, target),
+                correct_after=chartqapro_spec_match(answer_after, target),
             )
         )
     return rescored
@@ -175,6 +194,8 @@ def _output_compatibility(
     empty = 0
     constrained_total = 0
     constrained_valid = 0
+    constrained_canonical_valid = 0
+    constrained_canonicalized = 0
     explanatory = 0
     for record in records:
         metadata_name = (
@@ -203,6 +224,12 @@ def _output_compatibility(
                 else {"true", "false", "unanswerable"}
             )
             constrained_valid += int(normalized in allowed)
+            canonical = canonicalize_chartqapro_constrained_answer(
+                answer,
+                question_type,
+            ).casefold()
+            constrained_canonical_valid += int(canonical in allowed)
+            constrained_canonicalized += int(canonical != normalized)
         explanatory += int(
             "\n" in answer
             or normalized.startswith("the answer is")
@@ -221,6 +248,13 @@ def _output_compatibility(
         "constrained_format_compliance": (
             constrained_valid / constrained_total if constrained_total else None
         ),
+        "constrained_canonical_format_valid": constrained_canonical_valid,
+        "constrained_canonical_format_compliance": (
+            constrained_canonical_valid / constrained_total
+            if constrained_total
+            else None
+        ),
+        "constrained_canonicalized_outputs": constrained_canonicalized,
         "obvious_explanatory_outputs": explanatory,
         "obvious_explanatory_rate": explanatory / len(records),
     }
@@ -301,9 +335,12 @@ def _build_markdown(report: Mapping[str, Any]) -> str:
         "- Constrained-format compliance: {:.4f}".format(
             compatibility["constrained_format_compliance"]
         ),
+        "- Conservative canonical-parse compliance: {:.4f}".format(
+            compatibility["constrained_canonical_format_compliance"]
+        ),
         "",
     ]
-    for scorer_name in ("released", "paper_spec"):
+    for scorer_name in ("released", "paper_spec", "paper_spec_canonical"):
         evaluation = report[scorer_name]
         assert isinstance(evaluation, Mapping)
         lines.extend(
@@ -395,6 +432,11 @@ def main() -> None:
         expected_states=args.expected_states,
     )
     spec_records = _rescore_spec(records, manifest)
+    spec_canonical_records = _rescore_spec(
+        records,
+        manifest,
+        canonicalize_constrained=True,
+    )
     released = _evaluate(
         records,
         model=model,
@@ -411,6 +453,14 @@ def main() -> None:
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
     )
+    paper_spec_canonical = _evaluate(
+        spec_canonical_records,
+        model=model,
+        source_entropy_threshold=source_entropy_threshold,
+        strata=strata,
+        bootstrap_resamples=args.bootstrap_resamples,
+        bootstrap_seed=args.bootstrap_seed,
+    )
     acceptance = {
         "complete": input_validation["validated_states"] == args.expected_states,
         "no_empty_outputs": compatibility["empty_outputs"] == 0,
@@ -420,9 +470,11 @@ def main() -> None:
         "all_output_cap_rate_at_most_0_05": (
             compatibility["max_token_capped_rate"] <= 0.05
         ),
-        "constrained_format_compliance_at_least_0_95": (
-            compatibility["constrained_format_compliance"] >= 0.95
+        "conservative_canonical_parse_coverage_at_least_0_95": (
+            compatibility["constrained_canonical_format_compliance"] >= 0.95
         ),
+        "no_obvious_explanatory_outputs": compatibility["obvious_explanatory_outputs"]
+        == 0,
     }
     acceptance["passed"] = all(acceptance.values())
     report = {
@@ -435,6 +487,7 @@ def main() -> None:
         "compatibility_acceptance": acceptance,
         "released": released,
         "paper_spec": paper_spec,
+        "paper_spec_canonical": paper_spec_canonical,
     }
     report_path = args.output_dir / "report.json"
     markdown_path = args.output_dir / "report.md"

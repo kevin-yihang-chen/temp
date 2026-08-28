@@ -22,6 +22,36 @@ CHARTQAPRO_PROMPT_ADAPTER = "vlmevalkit-direct-compatible-v1"
 CHARTQAPRO_PILOT_NAMESPACE = "chartqapro-gate3-pilot-v1"
 
 
+def canonicalize_chartqapro_constrained_answer(
+    answer: str,
+    question_type: str,
+) -> str:
+    """Conservatively normalize structurally explicit constrained answers.
+
+    This compatibility parser is intentionally narrow: it accepts bracketed
+    booleans and multiple-choice option labels followed by a delimiter, but it
+    does not infer an answer from prose such as ``the answer is b``. Unmatched
+    responses are returned unchanged so scorer failures remain observable.
+    """
+
+    stripped = str(answer).strip().rstrip(".").strip()
+    if question_type == "Fact Checking":
+        match = re.fullmatch(
+            r"\[\s*['\"‘’]?\s*(true|false)\s*['\"‘’]?\s*\]",
+            stripped,
+            flags=re.IGNORECASE,
+        )
+        return match.group(1).casefold() if match else stripped
+    if question_type == "Multi Choice":
+        match = re.fullmatch(
+            r"[\(\[\{]?\s*([a-d])\s*(?:[\)\]\}]|[\.:\-])(?:\s*.*)?",
+            stripped,
+            flags=re.IGNORECASE,
+        )
+        return match.group(1).casefold() if match else stripped
+    return stripped
+
+
 def _string_sequence(value: Sequence[str], *, name: str) -> list[str]:
     result = [str(item) for item in value]
     if not result or any(not item.strip() for item in result):

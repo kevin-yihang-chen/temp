@@ -213,3 +213,15 @@ version-1 gate result is invalid because the full benchmark prompt entered its
 semantic features. No formal-target outcome has been read, and formal execution
 remains blocked until prompt isolation and the constrained-answer handling are
 frozen from a version-2 compatibility run.
+
+Before inspecting a version-2 rollout, the compatibility handling is frozen as
+a conservative parser. For Multi Choice it canonicalizes only an explicit
+leading option letter followed by a closing bracket or punctuation delimiter;
+for Fact Checking it canonicalizes only a fully bracketed `true` or `false`.
+It does not extract an answer from prose, and every unmatched response remains
+unchanged. This parser covers all 380 constrained version-1 pilot outputs while
+changing exactly the 46 raw-format deviations. Compatibility acceptance uses
+at least 95% conservative parse coverage and zero obvious explanatory outputs.
+The released-code scorer on raw outputs remains the primary benchmark result;
+raw paper-spec exact match and canonicalized paper-spec exact match are both
+reported as sensitivities.
