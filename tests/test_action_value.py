@@ -14,6 +14,8 @@ from beyond_entropy.action_value import (
     select_frozen_action_value_actions,
     select_frozen_factorized_action_value_actions,
     semantic_context_action_features,
+    spatial_context_geometry_action_features,
+    spatial_question_features,
 )
 from beyond_entropy.dataset import group_by_decision
 from beyond_entropy.simulate import simulate_counterfactual_dataset
@@ -53,6 +55,31 @@ def test_context_geometry_features_ignore_counterfactual_outcomes():
         baseline,
         action,
     ) == context_geometry_action_features(baseline, changed)
+
+
+def test_spatial_context_features_are_pre_action_and_geometry_sensitive():
+    records = simulate_counterfactual_dataset(n_states=4, num_candidates=4, seed=13)
+    siblings = next(iter(group_by_decision(records).values()))
+    baseline = next(record for record in siblings if record.action_type == "ANSWER")
+    baseline = replace(baseline, question="What word is on the bottom left?")
+    zooms = sorted(
+        (record for record in siblings if record.action_type == "ZOOM"),
+        key=lambda record: record.action_id,
+    )
+    signals = spatial_question_features(baseline.question)
+    assert signals[:4] == [1.0, 0.0, 0.0, 1.0]
+    assert spatial_context_geometry_action_features(
+        baseline, zooms[0]
+    ) != spatial_context_geometry_action_features(baseline, zooms[-1])
+    changed = replace(
+        zooms[0],
+        correct_after=1.0 - zooms[0].correct_after,
+        entropy_after=zooms[0].entropy_after + 5.0,
+        answer_after="outcome mutation",
+    )
+    assert spatial_context_geometry_action_features(
+        baseline, zooms[0]
+    ) == spatial_context_geometry_action_features(baseline, changed)
 
 
 def test_semantic_context_features_ignore_stored_outcomes():

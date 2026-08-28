@@ -51,7 +51,11 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
         "--feature-mode",
-        choices=("context-geometry", "semantic-context"),
+        choices=(
+            "context-geometry",
+            "spatial-context-geometry",
+            "semantic-context",
+        ),
         default="context-geometry",
     )
     parser.add_argument(

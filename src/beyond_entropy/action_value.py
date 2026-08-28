@@ -37,6 +37,32 @@ def normalized_gate_question(question: str) -> str:
     return normalized
 
 
+def spatial_question_features(question: str) -> list[float]:
+    """Encode explicit layout language without looking at tool outcomes.
+
+    The original compact context was designed for chart reasoning and therefore
+    omitted words such as ``bottom`` and ``left``.  Those words are direct,
+    pre-action evidence for crop selection in scene-text and document tasks.
+    Keep this as a separate feature family so previously frozen models retain
+    their exact dimensions and semantics.
+    """
+
+    normalized = normalized_gate_question(question).lower()
+    patterns = (
+        r"\b(?:left|leftmost)\b",
+        r"\b(?:right|rightmost)\b",
+        r"\b(?:top|upper|above|highest)\b",
+        r"\b(?:bottom|lower|below|lowest)\b",
+        r"\b(?:center|centre|middle)\b",
+        r"\b(?:first|beginning|start)\b",
+        r"\b(?:last|ending|end)\b",
+        r"\b(?:corner|edge|side)\b",
+        r"\b(?:next to|beside|near)\b",
+        r"\b(?:row|column|page|header|footer)\b",
+    )
+    return [float(bool(re.search(pattern, normalized))) for pattern in patterns]
+
+
 def _bbox_geometry(bbox: BBox) -> list[float]:
     center_x = (bbox.x1 + bbox.x2) / 2.0
     center_y = (bbox.y1 + bbox.y2) / 2.0
@@ -86,6 +112,42 @@ def context_geometry_action_features(
     return [*context, *action_surface, *interactions]
 
 
+def spatial_context_geometry_action_features(
+    baseline: ActionRecord,
+    action: ActionRecord,
+) -> list[float]:
+    """Cross compact uncertainty and spatial-language state with crop geometry."""
+
+    if baseline.action_type != "ANSWER":
+        raise ValueError("action-value baseline must be ANSWER")
+    if action.action_type != "ZOOM" or action.candidate_bbox is None:
+        raise ValueError("action-value candidate must be a bounded ZOOM")
+    if (baseline.state_id, baseline.replicate_id) != (
+        action.state_id,
+        action.replicate_id,
+    ):
+        raise ValueError("baseline and action must belong to one decision")
+    normalized_baseline = replace(
+        baseline,
+        question=normalized_gate_question(baseline.question),
+    )
+    context = [
+        *pre_action_context_features(normalized_baseline),
+        *spatial_question_features(normalized_baseline.question),
+    ]
+    geometry = _bbox_geometry(action.candidate_bbox)
+    grid_size = float(action.pre_action_features.get("ug_grid_size", 0.0))
+    if not math.isfinite(grid_size) or grid_size < 0.0:
+        raise ValueError("ug_grid_size must be finite and non-negative")
+    action_surface = [*geometry, math.log1p(grid_size)]
+    interactions = [
+        context_value * action_value
+        for context_value in context
+        for action_value in action_surface
+    ]
+    return [*context, *action_surface, *interactions]
+
+
 def semantic_context_action_features(
     baseline: ActionRecord,
     action: ActionRecord,
@@ -121,6 +183,8 @@ def _action_features(
 ) -> list[float]:
     if feature_mode == "context-geometry":
         return context_geometry_action_features(baseline, action)
+    if feature_mode == "spatial-context-geometry":
+        return spatial_context_geometry_action_features(baseline, action)
     if feature_mode == "semantic-context":
         if semantic_decision is None:
             raise ValueError("semantic-context mode requires frozen semantic decisions")
@@ -140,6 +204,11 @@ def _state_features(
     )
     if feature_mode == "context-geometry":
         return pre_action_context_features(normalized_baseline)
+    if feature_mode == "spatial-context-geometry":
+        return [
+            *pre_action_context_features(normalized_baseline),
+            *spatial_question_features(normalized_baseline.question),
+        ]
     if feature_mode == "semantic-context":
         if semantic_decision is None:
             raise ValueError("semantic-context mode requires frozen semantic decisions")
@@ -157,7 +226,11 @@ def _semantic_feature_index(
     ]
     | None,
 ) -> dict[DecisionKey, Mapping[str, Any]]:
-    if feature_mode not in {"context-geometry", "semantic-context"}:
+    if feature_mode not in {
+        "context-geometry",
+        "spatial-context-geometry",
+        "semantic-context",
+    }:
         raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
     semantic_by_key: dict[DecisionKey, Mapping[str, Any]] = {}
     if feature_mode == "semantic-context":
