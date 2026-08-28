@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import subprocess
 from pathlib import Path
+from typing import Any, Mapping
 
 from beyond_entropy.dataset import read_jsonl
 from beyond_entropy.qwen_semantic import (
@@ -24,6 +26,42 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _validate_preregistered_ranker_model(model: Mapping[str, Any]) -> list[float]:
+    expected = {
+        "model_type": "source_crossfit_pairwise_ranker_call_value_v1",
+        "feature_mode": "semantic-context",
+        "lambda_cost": 0.05,
+        "seed": 20260828,
+        "n_folds": 5,
+    }
+    for name, value in expected.items():
+        if model.get(name) != value:
+            raise ValueError(f"ranker model violates preregistration for {name}")
+    if float(model.get("selected_ranker_c", -1.0)) not in {0.01, 0.1, 1.0}:
+        raise ValueError("ranker model selected an unregistered C")
+    if float(model.get("selected_call_alpha", -1.0)) not in {1.0, 10.0, 100.0}:
+        raise ValueError("ranker model selected an unregistered call alpha")
+    if model.get("calibrated_threshold") is not None:
+        raise ValueError("ranker model is already calibrated")
+    thresholds = [float(value) for value in model.get("threshold_grid", [])]
+    if (
+        not thresholds
+        or len(thresholds) > 32
+        or len(set(thresholds)) != len(thresholds)
+        or any(not math.isfinite(value) for value in thresholds)
+    ):
+        raise ValueError("ranker model does not contain the frozen threshold family")
+    provenance = model.get("training_provenance")
+    if not isinstance(provenance, Mapping):
+        raise ValueError("ranker model is missing training provenance")
+    if (
+        provenance.get("risk_calibration_outcomes_used") is not False
+        or provenance.get("formal_outcomes_used") is not False
+    ):
+        raise ValueError("ranker model training provenance includes held-out outcomes")
+    return thresholds
 
 
 def main() -> None:
@@ -51,11 +89,7 @@ def main() -> None:
             raise ValueError(f"{name} SHA-256 mismatch")
         actual_hashes[name] = actual
     model = json.loads(args.ranker_model.read_text(encoding="utf-8"))
-    if model.get("calibrated_threshold") is not None:
-        raise ValueError("ranker model is already calibrated")
-    thresholds = [float(value) for value in model.get("threshold_grid", [])]
-    if not thresholds or len(thresholds) > 32:
-        raise ValueError("ranker model does not contain the frozen threshold family")
+    thresholds = _validate_preregistered_ranker_model(model)
 
     records = read_jsonl(args.rollouts)
     features = load_semantic_feature_dataset(args.features)
