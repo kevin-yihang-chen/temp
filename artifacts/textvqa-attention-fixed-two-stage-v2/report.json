@@ -1,0 +1,316 @@
+{
+  "evaluation": {
+    "action_feature_count": 1,
+    "action_feature_mode": "attention-fixed",
+    "folds": [
+      {
+        "fold": 0,
+        "model_train_decisions": 205,
+        "policy_result": {
+          "accuracy": 0.7184615384615385,
+          "accuracy_gain": 0.026153846153846194,
+          "answer_now_accuracy": 0.6923076923076923,
+          "avg_tool_calls": 0.13846153846153847,
+          "avg_visual_cost": 0.13846153846153847,
+          "correct_stopping_rate": 0.8153846153846154,
+          "marginal_accuracy_gain_per_tool_call": 0.18888888888888916,
+          "mean_oracle_regret": 0.055384615384615386,
+          "mean_policy_utility": 0.01923076923076923,
+          "mean_realized_voi": 0.01923076923076923,
+          "mean_success_gain": 0.026153846153846153,
+          "missed_information_rate": 0.08928571428571429,
+          "n_decisions": 65,
+          "policy": "nested_oof_two_stage_concrete_crop",
+          "tool_use_rate": 0.13846153846153847,
+          "unnecessary_tool_call_rate": 0.7777777777777778,
+          "zoom_rate": 0.13846153846153847
+        },
+        "random_rescue_rate_within_helpful_states": 0.4642857142857143,
+        "selected_action_c": null,
+        "selected_state_c": 10.0,
+        "test_action_rescue_average_precision_on_wrong_states": 0.23571545975392127,
+        "test_action_rescue_roc_auc_on_wrong_states": 0.6489707475622969,
+        "test_decisions": 65,
+        "test_state_helpful_roc_auc": 0.7866666666666666,
+        "top1_rescue_rate_within_helpful_states": 0.7142857142857143,
+        "validation_decisions": 48,
+        "validation_threshold": 0.8448253594684503,
+        "validation_tool_rate": 0.125,
+        "validation_utility": 0.0062499999999999995
+      },
+      {
+        "fold": 1,
+        "model_train_decisions": 203,
+        "policy_result": {
+          "accuracy": 0.7709677419354839,
+          "accuracy_gain": 0.0,
+          "answer_now_accuracy": 0.7709677419354839,
+          "avg_tool_calls": 0,
+          "avg_visual_cost": 0.0,
+          "correct_stopping_rate": 0.8870967741935484,
+          "marginal_accuracy_gain_per_tool_call": null,
+          "mean_oracle_regret": 0.06532258064516129,
+          "mean_policy_utility": 0.0,
+          "mean_realized_voi": 0.0,
+          "mean_success_gain": 0.0,
+          "missed_information_rate": 0.11290322580645161,
+          "n_decisions": 62,
+          "policy": "nested_oof_two_stage_concrete_crop",
+          "tool_use_rate": 0.0,
+          "unnecessary_tool_call_rate": 0.0,
+          "zoom_rate": 0
+        },
+        "random_rescue_rate_within_helpful_states": 0.4642857142857143,
+        "selected_action_c": null,
+        "selected_state_c": 0.001,
+        "test_action_rescue_average_precision_on_wrong_states": 0.4712690566138842,
+        "test_action_rescue_roc_auc_on_wrong_states": 0.735224586288416,
+        "test_decisions": 62,
+        "test_state_helpful_roc_auc": 0.5192982456140351,
+        "top1_rescue_rate_within_helpful_states": 0.7142857142857143,
+        "validation_decisions": 53,
+        "validation_threshold": 0.757175469430292,
+        "validation_tool_rate": 0,
+        "validation_utility": 0.0
+      },
+      {
+        "fold": 2,
+        "model_train_decisions": 205,
+        "policy_result": {
+          "accuracy": 0.8727272727272727,
+          "accuracy_gain": 0.031818181818181746,
+          "answer_now_accuracy": 0.8409090909090909,
+          "avg_tool_calls": 0.36363636363636365,
+          "avg_visual_cost": 0.36363636363636365,
+          "correct_stopping_rate": 0.696969696969697,
+          "marginal_accuracy_gain_per_tool_call": 0.0874999999999998,
+          "mean_oracle_regret": 0.030303030303030304,
+          "mean_policy_utility": 0.013636363636363634,
+          "mean_realized_voi": 0.013636363636363634,
+          "mean_success_gain": 0.031818181818181815,
+          "missed_information_rate": 0.0,
+          "n_decisions": 66,
+          "policy": "nested_oof_two_stage_concrete_crop",
+          "tool_use_rate": 0.36363636363636365,
+          "unnecessary_tool_call_rate": 0.875,
+          "zoom_rate": 0.36363636363636365
+        },
+        "random_rescue_rate_within_helpful_states": 0.4375,
+        "selected_action_c": null,
+        "selected_state_c": 1.0,
+        "test_action_rescue_average_precision_on_wrong_states": 0.33956916099773243,
+        "test_action_rescue_roc_auc_on_wrong_states": 0.6709956709956709,
+        "test_decisions": 66,
+        "test_state_helpful_roc_auc": 0.9523809523809523,
+        "top1_rescue_rate_within_helpful_states": 0.75,
+        "validation_decisions": 47,
+        "validation_threshold": -0.676571080629584,
+        "validation_tool_rate": 0.3191489361702128,
+        "validation_utility": 0.028723404255319145
+      },
+      {
+        "fold": 3,
+        "model_train_decisions": 206,
+        "policy_result": {
+          "accuracy": 0.7612903225806451,
+          "accuracy_gain": 0.0,
+          "answer_now_accuracy": 0.7612903225806451,
+          "avg_tool_calls": 0.04838709677419355,
+          "avg_visual_cost": 0.04838709677419355,
+          "correct_stopping_rate": 0.9193548387096774,
+          "marginal_accuracy_gain_per_tool_call": 0.0,
+          "mean_oracle_regret": 0.031451612903225803,
+          "mean_policy_utility": -0.0024193548387096775,
+          "mean_realized_voi": -0.0024193548387096775,
+          "mean_success_gain": 0.0,
+          "missed_information_rate": 0.03389830508474576,
+          "n_decisions": 62,
+          "policy": "nested_oof_two_stage_concrete_crop",
+          "tool_use_rate": 0.04838709677419355,
+          "unnecessary_tool_call_rate": 1.0,
+          "zoom_rate": 0.04838709677419355
+        },
+        "random_rescue_rate_within_helpful_states": 0.25,
+        "selected_action_c": null,
+        "selected_state_c": 0.001,
+        "test_action_rescue_average_precision_on_wrong_states": 0.04163162321278385,
+        "test_action_rescue_roc_auc_on_wrong_states": 0.4224137931034483,
+        "test_decisions": 62,
+        "test_state_helpful_roc_auc": null,
+        "top1_rescue_rate_within_helpful_states": 0,
+        "validation_decisions": 50,
+        "validation_threshold": 0.2818545816526235,
+        "validation_tool_rate": 0.04,
+        "validation_utility": 0.004
+      },
+      {
+        "fold": 4,
+        "model_train_decisions": 206,
+        "policy_result": {
+          "accuracy": 0.8047619047619048,
+          "accuracy_gain": -0.004761904761904745,
+          "answer_now_accuracy": 0.8095238095238095,
+          "avg_tool_calls": 0.12698412698412698,
+          "avg_visual_cost": 0.12698412698412698,
+          "correct_stopping_rate": 0.8571428571428571,
+          "marginal_accuracy_gain_per_tool_call": -0.03749999999999987,
+          "mean_oracle_regret": 0.05952380952380952,
+          "mean_policy_utility": -0.011111111111111112,
+          "mean_realized_voi": -0.011111111111111112,
+          "mean_success_gain": -0.0047619047619047615,
+          "missed_information_rate": 0.05454545454545454,
+          "n_decisions": 63,
+          "policy": "nested_oof_two_stage_concrete_crop",
+          "tool_use_rate": 0.12698412698412698,
+          "unnecessary_tool_call_rate": 1.0,
+          "zoom_rate": 0.12698412698412698
+        },
+        "random_rescue_rate_within_helpful_states": 0.3,
+        "selected_action_c": null,
+        "selected_state_c": 1.0,
+        "test_action_rescue_average_precision_on_wrong_states": 0.16093350086090558,
+        "test_action_rescue_roc_auc_on_wrong_states": 0.6372093023255814,
+        "test_decisions": 63,
+        "test_state_helpful_roc_auc": 0.06451612903225812,
+        "top1_rescue_rate_within_helpful_states": 0.2,
+        "validation_decisions": 49,
+        "validation_threshold": 0.09488845398624912,
+        "validation_tool_rate": 0.10204081632653061,
+        "validation_utility": 0.009183673469387752
+      }
+    ],
+    "n_decisions": 318,
+    "n_outer_folds": 5,
+    "policy_result": {
+      "accuracy": 0.7861635220125787,
+      "accuracy_gain": 0.011006289308176154,
+      "answer_now_accuracy": 0.7751572327044025,
+      "avg_tool_calls": 0.13836477987421383,
+      "avg_visual_cost": 0.13836477987421383,
+      "bootstrap": {
+        "confidence": 0.95,
+        "lambda_cost": 0.05,
+        "metrics": {
+          "accuracy": {
+            "ci_high": 0.8264229559748433,
+            "ci_low": 0.7443396226415098,
+            "estimate": 0.7861635220125787
+          },
+          "accuracy_gain": {
+            "ci_high": 0.022955974842767235,
+            "ci_low": 0.0012578616352202365,
+            "estimate": 0.011006289308176154
+          },
+          "answer_now_accuracy": {
+            "ci_high": 0.8173034591194973,
+            "ci_low": 0.7327044025157239,
+            "estimate": 0.7751572327044025
+          },
+          "avg_tool_calls": {
+            "ci_high": 0.1792452830188679,
+            "ci_low": 0.10062893081761007,
+            "estimate": 0.13836477987421383
+          },
+          "avg_visual_cost": {
+            "ci_high": 0.1792452830188679,
+            "ci_low": 0.10062893081761007,
+            "estimate": 0.13836477987421383
+          },
+          "correct_stopping_rate": {
+            "ci_high": 0.8742138364779874,
+            "ci_low": 0.7924528301886793,
+            "estimate": 0.8333333333333334
+          },
+          "marginal_accuracy_gain_per_tool_call": {
+            "ci_high": 0.16154255319148966,
+            "ci_low": 0.011315513626834377,
+            "estimate": 0.07954545454545493
+          },
+          "mean_oracle_regret": {
+            "ci_high": 0.06808176100628932,
+            "ci_low": 0.02971698113207548,
+            "estimate": 0.04827044025157232
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.015255503144654054,
+            "ci_low": -0.005345911949685535,
+            "estimate": 0.004088050314465408
+          },
+          "mean_realized_voi": {
+            "ci_high": 0.015255503144654054,
+            "ci_low": -0.005345911949685535,
+            "estimate": 0.004088050314465408
+          },
+          "mean_success_gain": {
+            "ci_high": 0.022955974842767294,
+            "ci_low": 0.0012578616352201262,
+            "estimate": 0.0110062893081761
+          },
+          "missed_information_rate": {
+            "ci_high": 0.0921998900840072,
+            "ci_low": 0.035711108286731075,
+            "estimate": 0.06204379562043796
+          },
+          "tool_use_rate": {
+            "ci_high": 0.1792452830188679,
+            "ci_low": 0.10062893081761007,
+            "estimate": 0.13836477987421383
+          },
+          "unnecessary_tool_call_rate": {
+            "ci_high": 0.9743589743589743,
+            "ci_low": 0.7856868131868133,
+            "estimate": 0.8863636363636364
+          },
+          "zoom_rate": {
+            "ci_high": 0.1792452830188679,
+            "ci_low": 0.10062893081761007,
+            "estimate": 0.13836477987421383
+          }
+        },
+        "n_clusters": 318,
+        "n_decisions": 318,
+        "n_resamples": 5000,
+        "n_states": 318,
+        "policy": "nested_oof_two_stage_concrete_crop",
+        "resampling_unit": "state_id",
+        "seed": 20260828
+      },
+      "correct_stopping_rate": 0.8333333333333334,
+      "marginal_accuracy_gain_per_tool_call": 0.07954545454545493,
+      "mean_oracle_regret": 0.04827044025157232,
+      "mean_policy_utility": 0.004088050314465408,
+      "mean_realized_voi": 0.004088050314465408,
+      "mean_success_gain": 0.0110062893081761,
+      "missed_information_rate": 0.06204379562043796,
+      "n_decisions": 318,
+      "policy": "nested_oof_two_stage_concrete_crop",
+      "tool_use_rate": 0.13836477987421383,
+      "unnecessary_tool_call_rate": 0.8863636363636364,
+      "zoom_rate": 0.13836477987421383
+    },
+    "pooled_state_helpful_roc_auc_of_fold_margin": 0.5803571428571429,
+    "random_rescue_rate_within_helpful_states": 0.41,
+    "scientific_status": "nested grouped OOF two-stage diagnostic; the state model excludes each evaluated image group and the action ranker is either grouped OOF or frozen zero-shot attention",
+    "seed": 17,
+    "split_group": "image_id",
+    "state_feature_count": 27,
+    "state_feature_mode": "context",
+    "state_training_target": "fixed_attention_action_has_positive_net_utility",
+    "top1_rescue_rate_within_helpful_states": 0.56,
+    "validation_fraction_within_outer_train": 0.2
+  },
+  "run": {
+    "action_feature_mode": "attention-fixed",
+    "bootstrap_resamples": 5000,
+    "bootstrap_seed": 20260828,
+    "code_revision": "869001d",
+    "features": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/textvqa/qwen3b-c4-seed0/features-question-region-attention.pt",
+    "features_sha256": "560538364f43467118d776178e8a3b6797ff5f22ddda469426992e4b79b4eada",
+    "lambda_cost": 0.05,
+    "outer_folds": 5,
+    "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/textvqa/qwen3b-c4-seed0/rollouts.jsonl",
+    "rollouts_sha256": "a94c72b1977e86436c6187248f64826a34b791151c52a7c7b73ca89f92b97ddb",
+    "seed": 17
+  },
+  "scientific_status": "exploratory nested grouped OOF two-stage diagnostic"
+}

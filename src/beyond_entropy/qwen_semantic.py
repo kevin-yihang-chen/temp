@@ -13,6 +13,17 @@ from .semantic import require_torch, roi_pool_spatial_tokens
 
 
 SEMANTIC_FEATURE_FORMAT_VERSION = 1
+SEMANTIC_OUTCOME_FIELDS = frozenset(
+    {
+        "answer_after",
+        "correct_after",
+        "correct_before",
+        "delta_success",
+        "entropy_after",
+        "success_after",
+        "success_before",
+    }
+)
 
 
 def reshape_merged_visual_tokens(
@@ -311,7 +322,7 @@ def validate_semantic_feature_dataset(
         )
         if list(decision["action_ids"]) != [record.action_id for record in zooms]:
             raise ValueError(f"semantic action IDs differ for decision {key!r}")
-        has_outcomes = "success_before" in decision or "success_after" in decision
+        outcome_fields = SEMANTIC_OUTCOME_FIELDS & set(decision)
         if require_outcomes:
             if "success_before" not in decision or "success_after" not in decision:
                 raise ValueError(f"semantic labels are missing for decision {key!r}")
@@ -326,8 +337,11 @@ def validate_semantic_feature_dataset(
                 )
             ) or not torch.equal(decision["success_after"], expected_after):
                 raise ValueError(f"semantic labels differ for decision {key!r}")
-        elif has_outcomes:
-            raise ValueError(f"outcome-free features contain labels for decision {key!r}")
+        elif outcome_fields:
+            raise ValueError(
+                f"outcome-free features contain labels for decision {key!r}: "
+                f"{sorted(outcome_fields)}"
+            )
     if not allow_partial and seen != set(grouped):
         missing = sorted(set(grouped) - seen)
         raise ValueError(f"semantic features are missing rollout decisions: {missing[:5]}")

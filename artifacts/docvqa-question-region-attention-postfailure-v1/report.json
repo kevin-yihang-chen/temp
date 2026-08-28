@@ -1,0 +1,252 @@
+{
+  "attention_bootstrap": {
+    "confidence": 0.95,
+    "lambda_cost": 0.05,
+    "metrics": {
+      "accuracy": {
+        "ci_high": 0.9333564419871294,
+        "ci_low": 0.8949883599259001,
+        "estimate": 0.9152911489114451
+      },
+      "accuracy_gain": {
+        "ci_high": 0.02694442224986161,
+        "ci_low": -0.002359025811965967,
+        "estimate": 0.012036558705791456
+      },
+      "answer_now_accuracy": {
+        "ci_high": 0.9235820009813756,
+        "ci_low": 0.8805336179174217,
+        "estimate": 0.9032545902056537
+      },
+      "avg_tool_calls": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "estimate": 1
+      },
+      "avg_visual_cost": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "estimate": 1.0
+      },
+      "correct_stopping_rate": {
+        "ci_high": 0.08626974483596597,
+        "ci_low": 0.048348615574179826,
+        "estimate": 0.06674757281553398
+      },
+      "marginal_accuracy_gain_per_tool_call": {
+        "ci_high": 0.02694442224986161,
+        "ci_low": -0.002359025811965967,
+        "estimate": 0.012036558705791456
+      },
+      "mean_oracle_regret": {
+        "ci_high": 0.08287273105299428,
+        "ci_low": 0.06313756017458867,
+        "estimate": 0.07285280602620842
+      },
+      "mean_policy_utility": {
+        "ci_high": -0.023055577750138067,
+        "ci_low": -0.052359025811966504,
+        "estimate": -0.03796344129420854
+      },
+      "mean_realized_voi": {
+        "ci_high": -0.023055577750138067,
+        "ci_low": -0.052359025811966504,
+        "estimate": -0.03796344129420854
+      },
+      "mean_success_gain": {
+        "ci_high": 0.02694442224986194,
+        "ci_low": -0.0023590258119665177,
+        "estimate": 0.012036558705791468
+      },
+      "missed_information_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "tool_use_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "estimate": 1.0
+      },
+      "unnecessary_tool_call_rate": {
+        "ci_high": 0.969325515105915,
+        "ci_low": 0.937046004842615,
+        "estimate": 0.9538834951456311
+      },
+      "zoom_rate": {
+        "ci_high": 1.0,
+        "ci_low": 1.0,
+        "estimate": 1
+      }
+    },
+    "n_clusters": 200,
+    "n_decisions": 824,
+    "n_resamples": 5000,
+    "n_states": 824,
+    "policy": "question_region_attention_top1",
+    "resampling_unit": "source_id",
+    "seed": 20260828
+  },
+  "attention_minus_random": {
+    "comparison": "right_minus_left",
+    "confidence": 0.95,
+    "lambda_cost": 0.05,
+    "left_policy": "uniform_random_zoom_expectation",
+    "metrics": {
+      "accuracy": {
+        "ci_high": 0.021006026815721352,
+        "ci_low": 0.003244274799847907,
+        "estimate": 0.01212408988396041
+      },
+      "accuracy_gain": {
+        "ci_high": 0.021006026815721352,
+        "ci_low": 0.003244274799847907,
+        "estimate": 0.01212408988396041
+      },
+      "answer_now_accuracy": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "avg_tool_calls": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "avg_visual_cost": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "correct_stopping_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "mean_oracle_regret": {
+        "ci_high": -0.003244274799847892,
+        "ci_low": -0.021006026815721553,
+        "estimate": -0.01212408988396034
+      },
+      "mean_policy_utility": {
+        "ci_high": 0.02100602681572151,
+        "ci_low": 0.003244274799847898,
+        "estimate": 0.01212408988396034
+      },
+      "mean_realized_voi": {
+        "ci_high": 0.02100602681572151,
+        "ci_low": 0.003244274799847898,
+        "estimate": 0.01212408988396034
+      },
+      "mean_success_gain": {
+        "ci_high": 0.021006026815721533,
+        "ci_low": 0.003244274799847901,
+        "estimate": 0.012124089883960344
+      },
+      "missed_information_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "tool_use_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      },
+      "unnecessary_tool_call_rate": {
+        "ci_high": 0.016667163289630554,
+        "ci_low": -0.0024362023143995847,
+        "estimate": 0.007281553398058249
+      },
+      "zoom_rate": {
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "estimate": 0.0
+      }
+    },
+    "n_clusters": 200,
+    "n_decisions": 824,
+    "n_resamples": 5000,
+    "n_states": 824,
+    "resampling_unit": "source_id",
+    "right_policy": "question_region_attention_top1",
+    "seed": 20260828
+  },
+  "attention_policy": {
+    "accuracy": 0.9152911489114451,
+    "accuracy_gain": 0.012036558705791456,
+    "answer_now_accuracy": 0.9032545902056537,
+    "avg_tool_calls": 1,
+    "avg_visual_cost": 1.0,
+    "correct_stopping_rate": 0.06674757281553398,
+    "marginal_accuracy_gain_per_tool_call": 0.012036558705791456,
+    "mean_oracle_regret": 0.07285280602620842,
+    "mean_policy_utility": -0.03796344129420854,
+    "mean_realized_voi": -0.03796344129420854,
+    "mean_success_gain": 0.012036558705791468,
+    "missed_information_rate": 0.0,
+    "n_decisions": 824,
+    "policy": "question_region_attention_top1",
+    "tool_use_rate": 1.0,
+    "unnecessary_tool_call_rate": 0.9538834951456311,
+    "zoom_rate": 1
+  },
+  "domain": "docvqa",
+  "lambda_cost": 0.05,
+  "random_policy": {
+    "accuracy": 0.9031670590274847,
+    "accuracy_gain": -8.753117816895362e-05,
+    "answer_now_accuracy": 0.9032545902056537,
+    "avg_tool_calls": 1,
+    "avg_visual_cost": 1.0,
+    "correct_stopping_rate": 0.06674757281553398,
+    "marginal_accuracy_gain_per_tool_call": -8.753117816895362e-05,
+    "mean_oracle_regret": 0.08497689591016876,
+    "mean_policy_utility": -0.05008753117816888,
+    "mean_realized_voi": -0.05008753117816888,
+    "mean_success_gain": -8.753117816887534e-05,
+    "missed_information_rate": 0.0,
+    "n_decisions": 824,
+    "policy": "uniform_random_zoom_expectation",
+    "tool_use_rate": 1.0,
+    "unnecessary_tool_call_rate": 0.9466019417475728,
+    "zoom_rate": 1
+  },
+  "ranking": {
+    "per_domain": {
+      "docvqa": {
+        "decisions": 824,
+        "helpful_states": 56,
+        "learned_top1_mean_gain": 0.012036558705791468,
+        "learned_top1_mean_utility_if_always_called": -0.03796344129420854,
+        "learned_top1_rescue_rate_within_helpful_states": 0.6785714285714286,
+        "oracle_crop_mean_gain_if_always_called": 0.0365085671349381,
+        "oracle_voi_mean_utility": 0.034889364731999876,
+        "random_crop_mean_gain": -8.753117816887577e-05,
+        "random_crop_mean_utility_if_always_called": -0.05008753117816888,
+        "random_rescue_rate_within_helpful_states": 0.45535714285714285
+      }
+    },
+    "pooled": {
+      "decisions": 824,
+      "helpful_states": 56,
+      "learned_top1_mean_gain": 0.012036558705791468,
+      "learned_top1_mean_utility_if_always_called": -0.03796344129420854,
+      "learned_top1_rescue_rate_within_helpful_states": 0.6785714285714286,
+      "oracle_crop_mean_gain_if_always_called": 0.0365085671349381,
+      "oracle_voi_mean_utility": 0.034889364731999876,
+      "random_crop_mean_gain": -8.753117816887577e-05,
+      "random_crop_mean_utility_if_always_called": -0.05008753117816888,
+      "random_rescue_rate_within_helpful_states": 0.45535714285714285
+    }
+  },
+  "run": {
+    "code_revision": "96076cc0321c1813f6e9a3dad74bdbf27ab888f7",
+    "features": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/docvqa/qwen3b-c4-seed0/features-question-region-attention.pt",
+    "features_sha256": "a4055bc8306321c0ca98577407e3d9ed1f4b983474178cb68422702bd6f9407a",
+    "formal_outcomes_used": false,
+    "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/docvqa/qwen3b-c4-seed0/rollouts.jsonl",
+    "rollouts_sha256": "4d3d3a33f644d1f5122aabecd47a8168d2dce2db5014692b508ba76ae4ddbe52"
+  },
+  "scientific_status": "development-only zero-shot ranking diagnostic; always-call policies are not deployable stopping rules"
+}
