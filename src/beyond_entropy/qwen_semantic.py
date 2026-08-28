@@ -320,8 +320,48 @@ def validate_semantic_feature_dataset(
             (record for record in grouped[key] if record.action_type == "ZOOM"),
             key=lambda record: record.action_id,
         )
+        baseline = next(
+            record for record in grouped[key] if record.action_type == "ANSWER"
+        )
+        for name, expected in (
+            ("source_id", baseline.source_id),
+            ("image_id", baseline.image_id),
+            ("question", baseline.question),
+        ):
+            if decision.get(name) != expected:
+                raise ValueError(
+                    f"semantic {name} differs for decision {key!r}"
+                )
         if list(decision["action_ids"]) != [record.action_id for record in zooms]:
             raise ValueError(f"semantic action IDs differ for decision {key!r}")
+        expected_costs = torch.tensor(
+            [record.tool_cost for record in zooms], dtype=torch.float32
+        )
+        stored_costs = decision.get("tool_costs")
+        if not isinstance(stored_costs, torch.Tensor) or not torch.equal(
+            stored_costs, expected_costs
+        ):
+            raise ValueError(f"semantic tool costs differ for decision {key!r}")
+        if any(record.candidate_bbox is None for record in zooms):
+            raise ValueError(f"semantic candidate bbox is missing for decision {key!r}")
+        expected_bboxes = torch.tensor(
+            # The missing-bbox case is rejected immediately above.
+            [record.candidate_bbox.to_list() for record in zooms],
+            dtype=torch.float32,
+        )
+        stored_bboxes = decision.get("bboxes")
+        if not isinstance(stored_bboxes, torch.Tensor) or not torch.equal(
+            stored_bboxes, expected_bboxes
+        ):
+            raise ValueError(f"semantic bounding boxes differ for decision {key!r}")
+        expected_state_signals = torch.tensor(
+            [baseline.entropy_before], dtype=torch.float32
+        )
+        stored_state_signals = decision.get("state_signals")
+        if not isinstance(stored_state_signals, torch.Tensor) or not torch.equal(
+            stored_state_signals, expected_state_signals
+        ):
+            raise ValueError(f"semantic state signals differ for decision {key!r}")
         outcome_fields = SEMANTIC_OUTCOME_FIELDS & set(decision)
         if require_outcomes:
             if "success_before" not in decision or "success_after" not in decision:
@@ -330,11 +370,7 @@ def validate_semantic_feature_dataset(
                 [record.correct_after for record in zooms], dtype=torch.float32
             )
             if float(decision["success_before"]) != float(
-                next(
-                    record.correct_before
-                    for record in grouped[key]
-                    if record.action_type == "ANSWER"
-                )
+                baseline.correct_before
             ) or not torch.equal(decision["success_after"], expected_after):
                 raise ValueError(f"semantic labels differ for decision {key!r}")
         elif outcome_fields:

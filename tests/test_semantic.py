@@ -83,7 +83,10 @@ def test_qwen_merged_tokens_restore_raster_grid():
 
 def test_label_free_semantic_decision_is_enforced_for_frozen_inference():
     torch = pytest.importorskip("torch")
-    records = simulate_counterfactual_dataset(n_states=1, num_candidates=4, seed=7)
+    generated = simulate_counterfactual_dataset(
+        n_states=2, num_candidates=4, seed=7
+    )
+    records = list(next(iter(group_by_decision(generated).values())))
     siblings = next(iter(group_by_decision(records).values()))
     zooms = sorted(
         (record for record in siblings if record.action_type == "ZOOM"),
@@ -114,6 +117,95 @@ def test_label_free_semantic_decision_is_enforced_for_frozen_inference():
     validate_semantic_feature_dataset(payload, records, require_outcomes=False)
     decision["success_before"] = 0.0
     with pytest.raises(ValueError, match="contain labels"):
+        validate_semantic_feature_dataset(payload, records, require_outcomes=False)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement", "message"),
+    [
+        ("source_id", "wrong-source", "source_id differs"),
+        ("image_id", "wrong-image", "image_id differs"),
+        ("question", "wrong question", "question differs"),
+    ],
+)
+def test_semantic_validation_rejects_identity_mismatch(
+    field, replacement, message
+):
+    torch = pytest.importorskip("torch")
+    generated = simulate_counterfactual_dataset(
+        n_states=2, num_candidates=4, seed=17
+    )
+    records = list(next(iter(group_by_decision(generated).values())))
+    siblings = next(iter(group_by_decision(records).values()))
+    zooms = sorted(
+        (record for record in siblings if record.action_type == "ZOOM"),
+        key=lambda record: record.action_id,
+    )
+    decision = semantic_decision_from_records(
+        siblings,
+        {
+            "question_embedding": torch.randn(8),
+            "global_visual_embedding": torch.randn(8),
+            "region_embeddings": torch.randn(4, 8),
+            "bboxes": torch.tensor(
+                [record.candidate_bbox.to_list() for record in zooms],
+                dtype=torch.float32,
+            ),
+            "visual_grid_hw": [2, 2],
+        },
+        include_outcomes=False,
+    )
+    decision[field] = replacement
+    payload = {
+        "format_version": 1,
+        "metadata": {"outcomes_included": False},
+        "decisions": [decision],
+    }
+    with pytest.raises(ValueError, match=message):
+        validate_semantic_feature_dataset(payload, records, require_outcomes=False)
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("tool_costs", "tool costs differ"),
+        ("bboxes", "bounding boxes differ"),
+        ("state_signals", "state signals differ"),
+    ],
+)
+def test_semantic_validation_rejects_preaction_tensor_mismatch(field, message):
+    torch = pytest.importorskip("torch")
+    generated = simulate_counterfactual_dataset(
+        n_states=2, num_candidates=4, seed=19
+    )
+    records = list(next(iter(group_by_decision(generated).values())))
+    siblings = next(iter(group_by_decision(records).values()))
+    zooms = sorted(
+        (record for record in siblings if record.action_type == "ZOOM"),
+        key=lambda record: record.action_id,
+    )
+    decision = semantic_decision_from_records(
+        siblings,
+        {
+            "question_embedding": torch.randn(8),
+            "global_visual_embedding": torch.randn(8),
+            "region_embeddings": torch.randn(4, 8),
+            "bboxes": torch.tensor(
+                [record.candidate_bbox.to_list() for record in zooms],
+                dtype=torch.float32,
+            ),
+            "visual_grid_hw": [2, 2],
+        },
+        include_outcomes=False,
+    )
+    decision[field] = decision[field].clone()
+    decision[field].reshape(-1)[0] += 1.0
+    payload = {
+        "format_version": 1,
+        "metadata": {"outcomes_included": False},
+        "decisions": [decision],
+    }
+    with pytest.raises(ValueError, match=message):
         validate_semantic_feature_dataset(payload, records, require_outcomes=False)
 
 
