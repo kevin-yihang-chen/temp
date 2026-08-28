@@ -29,7 +29,16 @@ survey and should be refreshed before submission.
    bar for learned zoom selection, but does not make calibrated
    task-improvement-minus-cost prediction the central object.
    <https://arxiv.org/abs/2511.19820>
-5. General value-of-information work formalizes whether the expected utility
+5. **AdaTooler-V** (Findings of ACL 2026) is the closest adaptive-tool-use
+   training baseline. It labels each query with a Tool Benefit Score computed
+   from eight teacher runs with tools and eight without tools, then uses that
+   query-level score to rescale GRPO rewards. It already establishes that
+   outcome improvement should supervise when-to-call. Our remaining
+   distinction must therefore be action-specific and pre-execution: predicting
+   *which* unexecuted observation will rescue or harm the current model, with
+   explicit deployment-time cost and no 72B teacher requirement.
+   <https://arxiv.org/abs/2512.16918>
+6. General value-of-information work formalizes whether the expected utility
    of an observation exceeds its acquisition cost, including recent work on
    clarification questions. This supplies decision-theoretic precedent but is
    not a visual acquisition method.
@@ -37,12 +46,15 @@ survey and should be refreshed before submission.
 
 ## Defensible contribution boundary
 
-The paper should not claim that it is the first method to learn when or where
-to zoom. That space is already crowded. The defensible claim is narrower:
+The paper should not claim that it is the first method to use task improvement
+to learn when to invoke visual tools; AdaTooler-V already does this at the
+query level. It also should not claim to be the first method to learn where to
+zoom. The defensible claim is narrower:
 
 > Learn a calibrated, pre-execution estimate of counterfactual task-success
-> gain for each visual action, explicitly subtract acquisition cost, and use
-> sibling rollouts to supervise both rescue and harm before the action is run.
+> gain for each *candidate visual action*, explicitly subtract acquisition
+> cost, and use sibling rollouts to supervise both rescue and harm before any
+> candidate action is run at deployment.
 
 The empirical contribution is equally important:
 
@@ -52,7 +64,10 @@ The empirical contribution is equally important:
 
 This connects the UG assumption (uncertainty as relevance) to the MED finding
 (tool correction versus tool harm), then turns the decomposition into a
-decision rule rather than only a retrospective analysis.
+decision rule rather than only a retrospective analysis. Relative to
+AdaTooler-V, the method must demonstrate region/action discrimination,
+model-specific counterfactual supervision, and cheaper deployment or training
+rather than merely adaptive tool invocation.
 
 ## What a top-tier version still needs
 
@@ -62,11 +77,11 @@ decision rule rather than only a retrospective analysis.
 - at least one untouched formal benchmark where utility is positive and its
   source-cluster confidence interval excludes zero;
 - cost curves, strong RL/tool-use baselines, entropy-search accounting for all
-  executed candidates, and rescue/harm ablations;
+  executed candidates, AdaTooler-V-style tool-benefit supervision, and
+  rescue/harm ablations;
 - ideally, integration of the learned counterfactual value as a process reward
   or critic for tool-use post-training, showing data-efficiency or safety gains
   beyond a standalone gate.
 
 Until these are met, the project has a publishable problem and rigorous
 negative evidence, but not yet a CVPR/ICCV/ECCV-level method result.
-
