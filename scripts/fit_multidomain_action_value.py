@@ -9,6 +9,10 @@ from pathlib import Path
 
 from beyond_entropy.action_value import fit_multidomain_action_value_model
 from beyond_entropy.dataset import read_jsonl
+from beyond_entropy.qwen_semantic import (
+    load_semantic_feature_dataset,
+    validate_semantic_feature_dataset,
+)
 
 
 def _sha256(path: Path) -> str:
@@ -42,6 +46,18 @@ def main() -> None:
         help="repeat NAME=ROLLOUTS_JSONL for each development-only domain",
     )
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--feature-mode",
+        choices=("context-geometry", "semantic-context"),
+        default="context-geometry",
+    )
+    parser.add_argument(
+        "--features",
+        type=_domain_path,
+        action="append",
+        default=[],
+        help="repeat NAME=FEATURES_PT for semantic-context mode",
+    )
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument(
@@ -60,9 +76,28 @@ def main() -> None:
     records_by_domain = {
         domain: read_jsonl(path) for domain, path in domain_paths.items()
     }
+    feature_paths = dict(args.features)
+    if len(feature_paths) != len(args.features):
+        raise SystemExit("semantic feature domain names must be unique")
+    if args.feature_mode == "semantic-context" and set(feature_paths) != set(
+        domain_paths
+    ):
+        raise SystemExit("semantic-context mode requires --features for every domain")
+    semantic_decisions_by_domain = None
+    if args.feature_mode == "semantic-context":
+        semantic_decisions_by_domain = {}
+        for domain, path in feature_paths.items():
+            payload = load_semantic_feature_dataset(path)
+            validate_semantic_feature_dataset(payload, records_by_domain[domain])
+            semantic_decisions_by_domain[domain] = {
+                (str(decision["state_id"]), str(decision["replicate_id"])): decision
+                for decision in payload["decisions"]
+            }
     alpha_values = args.alpha_values or [0.1, 1.0, 10.0, 100.0, 1000.0]
     report, model = fit_multidomain_action_value_model(
         records_by_domain,
+        feature_mode=args.feature_mode,
+        semantic_decisions_by_domain=semantic_decisions_by_domain,
         validation_fraction=args.validation_fraction,
         lambda_cost=args.lambda_cost,
         alpha_values=alpha_values,
@@ -86,6 +121,11 @@ def main() -> None:
         },
         "formal_outcomes_used": False,
     }
+    if feature_paths:
+        report["run"]["semantic_features"] = {
+            domain: {"path": str(path), "sha256": _sha256(path)}
+            for domain, path in sorted(feature_paths.items())
+        }
     args.output_dir.mkdir(parents=True, exist_ok=False)
     (args.output_dir / "report.json").write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",

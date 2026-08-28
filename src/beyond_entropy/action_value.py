@@ -13,6 +13,7 @@ from .metrics import bootstrap_policy_evaluation, evaluate_policy
 from .rescue_gate import (
     DecisionKey,
     PrecomputedActionGatePolicy,
+    compact_action_features,
     pre_action_context_features,
 )
 from .schema import ActionRecord, BBox
@@ -82,6 +83,48 @@ def context_geometry_action_features(
         for action_value in action_surface
     ]
     return [*context, *action_surface, *interactions]
+
+
+def semantic_context_action_features(
+    baseline: ActionRecord,
+    action: ActionRecord,
+    decision: Mapping[str, Any],
+) -> list[float]:
+    """Fuse normalized state context with frozen pre-action ROI similarities."""
+
+    if action.action_type != "ZOOM":
+        raise ValueError("semantic action-value candidate must be ZOOM")
+    action_ids = [str(value) for value in decision.get("action_ids", [])]
+    try:
+        action_index = action_ids.index(action.action_id)
+    except ValueError as exc:
+        raise ValueError(
+            f"semantic decision is missing action {action.action_id!r}"
+        ) from exc
+    normalized_baseline = replace(
+        baseline,
+        question=normalized_gate_question(baseline.question),
+    )
+    return [
+        *pre_action_context_features(normalized_baseline),
+        *compact_action_features(decision, action_index),
+    ]
+
+
+def _action_features(
+    baseline: ActionRecord,
+    action: ActionRecord,
+    *,
+    feature_mode: str,
+    semantic_decision: Mapping[str, Any] | None,
+) -> list[float]:
+    if feature_mode == "context-geometry":
+        return context_geometry_action_features(baseline, action)
+    if feature_mode == "semantic-context":
+        if semantic_decision is None:
+            raise ValueError("semantic-context mode requires frozen semantic decisions")
+        return semantic_context_action_features(baseline, action, semantic_decision)
+    raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
 
 
 def _decision_rows(
@@ -193,13 +236,23 @@ def _action_rows(
     baselines: Mapping[DecisionKey, ActionRecord],
     zooms: Mapping[DecisionKey, Sequence[ActionRecord]],
     domain_by_key: Mapping[DecisionKey, str],
+    *,
+    feature_mode: str,
+    semantic_by_key: Mapping[DecisionKey, Mapping[str, Any]],
 ) -> tuple[list[list[float]], list[float], list[str]]:
     features: list[list[float]] = []
     gains: list[float] = []
     domains: list[str] = []
     for key in keys:
         for action in zooms[key]:
-            features.append(context_geometry_action_features(baselines[key], action))
+            features.append(
+                _action_features(
+                    baselines[key],
+                    action,
+                    feature_mode=feature_mode,
+                    semantic_decision=semantic_by_key.get(key),
+                )
+            )
             gains.append(action.delta_success)
             domains.append(domain_by_key[key])
     return features, gains, domains
@@ -221,6 +274,8 @@ def _score_candidates(
     baselines: Mapping[DecisionKey, ActionRecord],
     zooms: Mapping[DecisionKey, Sequence[ActionRecord]],
     lambda_cost: float,
+    feature_mode: str,
+    semantic_by_key: Mapping[DecisionKey, Mapping[str, Any]],
 ) -> tuple[
     dict[DecisionKey, str | None],
     dict[DecisionKey, float],
@@ -234,7 +289,15 @@ def _score_candidates(
     for key in keys:
         candidates = zooms[key]
         features = np.asarray(
-            [context_geometry_action_features(baselines[key], action) for action in candidates],
+            [
+                _action_features(
+                    baselines[key],
+                    action,
+                    feature_mode=feature_mode,
+                    semantic_decision=semantic_by_key.get(key),
+                )
+                for action in candidates
+            ],
             dtype=np.float64,
         )
         predicted_gains = model.predict(scaler.transform(features)).tolist()
@@ -347,6 +410,11 @@ def _calibrate_domain_robust_threshold(
 def fit_multidomain_action_value_model(
     records_by_domain: Mapping[str, Sequence[ActionRecord]],
     *,
+    feature_mode: str = "context-geometry",
+    semantic_decisions_by_domain: Mapping[
+        str, Mapping[DecisionKey, Mapping[str, Any]]
+    ]
+    | None = None,
     validation_fraction: float = 0.2,
     lambda_cost: float = 0.05,
     alpha_values: Sequence[float] = (0.1, 1.0, 10.0, 100.0, 1000.0),
@@ -363,6 +431,24 @@ def fit_multidomain_action_value_model(
     if not alpha_values or any(alpha <= 0.0 for alpha in alpha_values):
         raise ValueError("alpha_values must be positive")
     domain_by_key, baselines, zooms = _validate_domains(records_by_domain)
+    if feature_mode not in {"context-geometry", "semantic-context"}:
+        raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
+    semantic_by_key: dict[DecisionKey, Mapping[str, Any]] = {}
+    if feature_mode == "semantic-context":
+        if semantic_decisions_by_domain is None or set(
+            semantic_decisions_by_domain
+        ) != set(records_by_domain):
+            raise ValueError(
+                "semantic-context mode requires one feature mapping per domain"
+            )
+        for domain in records_by_domain:
+            domain_decisions = semantic_decisions_by_domain[domain]
+            expected = {key for key, value in domain_by_key.items() if value == domain}
+            if set(domain_decisions) != expected:
+                raise ValueError(
+                    f"semantic decisions do not exactly cover domain {domain!r}"
+                )
+            semantic_by_key.update(domain_decisions)
     train_keys, validation_keys, split_counts = _domain_source_split(
         domain_by_key,
         baselines,
@@ -374,6 +460,8 @@ def fit_multidomain_action_value_model(
         baselines,
         zooms,
         domain_by_key,
+        feature_mode=feature_mode,
+        semantic_by_key=semantic_by_key,
     )
     scaler = StandardScaler().fit(np.asarray(train_features, dtype=np.float64))
     transformed_train = scaler.transform(np.asarray(train_features, dtype=np.float64))
@@ -392,6 +480,8 @@ def fit_multidomain_action_value_model(
             baselines=baselines,
             zooms=zooms,
             lambda_cost=lambda_cost,
+            feature_mode=feature_mode,
+            semantic_by_key=semantic_by_key,
         )
         threshold, selected, metrics = _calibrate_domain_robust_threshold(
             top_actions,
@@ -443,7 +533,7 @@ def fit_multidomain_action_value_model(
             "are excluded"
         ),
         "model_type": "multidomain_direct_action_value",
-        "feature_mode": "normalized-context-by-bbox-geometry",
+        "feature_mode": feature_mode,
         "decision_rule": (
             "argmax predicted_gain - lambda * tool_cost; call iff above frozen "
             "source-held-out domain-robust margin"
@@ -477,7 +567,7 @@ def fit_multidomain_action_value_model(
     }
     model_payload = {
         "model_type": "multidomain_direct_action_value",
-        "feature_mode": "normalized-context-by-bbox-geometry",
+        "feature_mode": feature_mode,
         "decision_rule": "predicted_net_value_above_frozen_margin",
         "seed": seed,
         "lambda_cost": lambda_cost,
@@ -496,6 +586,8 @@ def fit_multidomain_action_value_model(
 def select_frozen_action_value_actions(
     model: Mapping[str, Any],
     records: Sequence[ActionRecord],
+    *,
+    semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
 ) -> tuple[dict[DecisionKey, str | None], dict[DecisionKey, float]]:
     """Apply a serialized action-value model without reading target outcomes."""
 
@@ -512,10 +604,19 @@ def select_frozen_action_value_actions(
     selected: dict[DecisionKey, str | None] = {}
     scores: dict[DecisionKey, float] = {}
     lambda_cost = float(model["lambda_cost"])
+    feature_mode = str(model["feature_mode"])
+    semantic_by_key = {} if semantic_decisions is None else semantic_decisions
+    if feature_mode == "semantic-context" and set(semantic_by_key) != set(baselines):
+        raise ValueError("semantic decisions do not exactly cover frozen target")
     for key in sorted(baselines):
         scored_actions = []
         for action in zooms[key]:
-            features = context_geometry_action_features(baselines[key], action)
+            features = _action_features(
+                baselines[key],
+                action,
+                feature_mode=feature_mode,
+                semantic_decision=semantic_by_key.get(key),
+            )
             if len(features) != len(center):
                 raise ValueError("target action features differ from frozen model")
             predicted_gain = float(model["intercept"]) + sum(
@@ -544,10 +645,15 @@ def evaluate_frozen_action_value_model(
     bootstrap_resamples: int = 5000,
     bootstrap_seed: int = 0,
     cluster_by: str = "state_id",
+    semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate a frozen concrete-crop value policy on one labeled target."""
 
-    selected, scores = select_frozen_action_value_actions(model, records)
+    selected, scores = select_frozen_action_value_actions(
+        model,
+        records,
+        semantic_decisions=semantic_decisions,
+    )
     policy = PrecomputedActionGatePolicy(
         selected,
         name="frozen_multidomain_direct_action_value",

@@ -10,6 +10,7 @@ from beyond_entropy.action_value import (
     fit_multidomain_action_value_model,
     normalized_gate_question,
     select_frozen_action_value_actions,
+    semantic_context_action_features,
 )
 from beyond_entropy.dataset import group_by_decision
 from beyond_entropy.simulate import simulate_counterfactual_dataset
@@ -49,6 +50,34 @@ def test_context_geometry_features_ignore_counterfactual_outcomes():
         baseline,
         action,
     ) == context_geometry_action_features(baseline, changed)
+
+
+def test_semantic_context_features_ignore_stored_outcomes():
+    torch = pytest.importorskip("torch")
+    records = simulate_counterfactual_dataset(n_states=4, num_candidates=4, seed=8)
+    siblings = next(iter(group_by_decision(records).values()))
+    baseline = next(record for record in siblings if record.action_type == "ANSWER")
+    zooms = sorted(
+        (record for record in siblings if record.action_type == "ZOOM"),
+        key=lambda record: record.action_id,
+    )
+    decision = {
+        "action_ids": [record.action_id for record in zooms],
+        "question_embedding": torch.tensor([1.0, 0.0, 0.0]),
+        "global_visual_embedding": torch.tensor([0.0, 1.0, 0.0]),
+        "region_embeddings": torch.tensor(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 1.0, 0.0]]
+        ),
+        "bboxes": torch.tensor([record.candidate_bbox.to_list() for record in zooms]),
+        "state_signals": torch.tensor([baseline.entropy_before]),
+        "success_before": baseline.correct_before,
+        "success_after": torch.tensor([record.correct_after for record in zooms]),
+    }
+    original = semantic_context_action_features(baseline, zooms[0], decision)
+    changed = dict(decision)
+    changed["success_before"] = 1.0 - baseline.correct_before
+    changed["success_after"] = 1.0 - decision["success_after"]
+    assert semantic_context_action_features(baseline, zooms[0], changed) == original
 
 
 def test_multidomain_action_value_model_is_serializable_and_selects_concrete_crops():
