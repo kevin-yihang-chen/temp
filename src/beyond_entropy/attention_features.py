@@ -117,8 +117,13 @@ def augment_question_region_attention(
     else:
         completed = 0
         metadata = dict(source["metadata"])
+        outcomes_included = bool(metadata.get("outcomes_included", True))
         metadata["question_region_attention"] = {
-            "scientific_status": "development-only pre-action feature",
+            "scientific_status": (
+                "development-only pre-action feature"
+                if outcomes_included
+                else "frozen pre-action inference feature; target outcomes excluded"
+            ),
             "source_features": str(source_path),
             "source_features_sha256": source_sha256,
             "source_rollouts": str(records_path),

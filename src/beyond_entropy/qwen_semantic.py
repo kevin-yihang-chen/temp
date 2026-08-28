@@ -201,6 +201,8 @@ def _package_version(name: str) -> str | None:
 def semantic_decision_from_records(
     siblings: Sequence[ActionRecord],
     encoded: Mapping[str, Any],
+    *,
+    include_outcomes: bool = True,
 ) -> dict[str, Any]:
     require_torch()
     import torch  # type: ignore[import-not-found]
@@ -221,7 +223,7 @@ def semantic_decision_from_records(
     )
     if not torch.allclose(encoded["bboxes"], expected_bboxes, atol=1e-7, rtol=0.0):
         raise ValueError("encoded bbox order does not match sorted ZOOM actions")
-    return {
+    decision = {
         "state_id": baseline.state_id,
         "image_id": baseline.image_id,
         "source_id": baseline.source_id,
@@ -234,15 +236,21 @@ def semantic_decision_from_records(
         "region_embeddings": encoded["region_embeddings"],
         "bboxes": encoded["bboxes"],
         "state_signals": torch.tensor([baseline.entropy_before], dtype=torch.float32),
-        "success_before": float(baseline.correct_before),
-        "success_after": torch.tensor(
-            [record.correct_after for record in zooms], dtype=torch.float32
-        ),
         "tool_costs": torch.tensor(
             [record.tool_cost for record in zooms], dtype=torch.float32
         ),
         "visual_grid_hw": list(encoded["visual_grid_hw"]),
     }
+    if include_outcomes:
+        decision.update(
+            {
+                "success_before": float(baseline.correct_before),
+                "success_after": torch.tensor(
+                    [record.correct_after for record in zooms], dtype=torch.float32
+                ),
+            }
+        )
+    return decision
 
 
 def _atomic_torch_save(value: object, destination: Path) -> None:
@@ -275,6 +283,7 @@ def validate_semantic_feature_dataset(
     records: Sequence[ActionRecord],
     *,
     allow_partial: bool = False,
+    require_outcomes: bool | None = None,
 ) -> None:
     require_torch()
     import torch  # type: ignore[import-not-found]
@@ -283,6 +292,11 @@ def validate_semantic_feature_dataset(
     decisions = value.get("decisions")
     if not isinstance(decisions, list):
         raise ValueError("semantic feature decisions must be a list")
+    metadata = value.get("metadata")
+    if not isinstance(metadata, Mapping):
+        raise ValueError("semantic feature metadata must be a mapping")
+    if require_outcomes is None:
+        require_outcomes = bool(metadata.get("outcomes_included", True))
     seen: set[tuple[str, str]] = set()
     for decision in decisions:
         key = (str(decision["state_id"]), str(decision["replicate_id"]))
@@ -297,11 +311,23 @@ def validate_semantic_feature_dataset(
         )
         if list(decision["action_ids"]) != [record.action_id for record in zooms]:
             raise ValueError(f"semantic action IDs differ for decision {key!r}")
-        expected_after = torch.tensor(
-            [record.correct_after for record in zooms], dtype=torch.float32
-        )
-        if not torch.equal(decision["success_after"], expected_after):
-            raise ValueError(f"semantic labels differ for decision {key!r}")
+        has_outcomes = "success_before" in decision or "success_after" in decision
+        if require_outcomes:
+            if "success_before" not in decision or "success_after" not in decision:
+                raise ValueError(f"semantic labels are missing for decision {key!r}")
+            expected_after = torch.tensor(
+                [record.correct_after for record in zooms], dtype=torch.float32
+            )
+            if float(decision["success_before"]) != float(
+                next(
+                    record.correct_before
+                    for record in grouped[key]
+                    if record.action_type == "ANSWER"
+                )
+            ) or not torch.equal(decision["success_after"], expected_after):
+                raise ValueError(f"semantic labels differ for decision {key!r}")
+        elif has_outcomes:
+            raise ValueError(f"outcome-free features contain labels for decision {key!r}")
     if not allow_partial and seen != set(grouped):
         missing = sorted(set(grouped) - seen)
         raise ValueError(f"semantic features are missing rollout decisions: {missing[:5]}")
@@ -365,6 +391,7 @@ def extract_qwen_semantic_dataset(
     max_pixels: int = 768 * 28 * 28,
     local_files_only: bool = True,
     question_feature_mode: str = "input_mean",
+    include_outcomes: bool = True,
     resume: bool = False,
 ) -> dict[str, Any]:
     """Checkpoint frozen Qwen semantic features for every rollout decision."""
@@ -388,6 +415,7 @@ def extract_qwen_semantic_dataset(
         "local_files_only": local_files_only,
         "code_revision": os.environ.get("BE_CODE_REVISION"),
         "question_feature_mode": question_feature_mode,
+        "outcomes_included": include_outcomes,
         "question_feature": (
             "mean frozen Qwen input-token embedding"
             if question_feature_mode == "input_mean"
@@ -418,6 +446,7 @@ def extract_qwen_semantic_dataset(
             "question_feature_mode",
             "min_pixels",
             "max_pixels",
+            "outcomes_included",
         ):
             if existing_metadata.get(name) != metadata[name]:
                 raise ValueError(f"resume metadata mismatch for {name}")
@@ -470,7 +499,11 @@ def extract_qwen_semantic_dataset(
                     bboxes=[record.candidate_bbox for record in zooms if record.candidate_bbox],
                 )
             decisions.append(
-                semantic_decision_from_records(siblings, state_cache[exemplar.state_id])
+                semantic_decision_from_records(
+                    siblings,
+                    state_cache[exemplar.state_id],
+                    include_outcomes=include_outcomes,
+                )
             )
             payload = {
                 "format_version": SEMANTIC_FEATURE_FORMAT_VERSION,

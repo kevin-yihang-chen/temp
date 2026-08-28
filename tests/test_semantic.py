@@ -2,7 +2,11 @@ import pytest
 
 import beyond_entropy.semantic as semantic
 from beyond_entropy.dataset import group_by_decision
-from beyond_entropy.qwen_semantic import reshape_merged_visual_tokens
+from beyond_entropy.qwen_semantic import (
+    reshape_merged_visual_tokens,
+    semantic_decision_from_records,
+    validate_semantic_feature_dataset,
+)
 from beyond_entropy.semantic_training import (
     PrecomputedGainPolicy,
     cross_validated_linear_predictions,
@@ -75,6 +79,42 @@ def test_qwen_merged_tokens_restore_raster_grid():
     )
     assert restored.shape == (2, 3, 3)
     assert torch.equal(restored.reshape(6, 3), merged)
+
+
+def test_label_free_semantic_decision_is_enforced_for_frozen_inference():
+    torch = pytest.importorskip("torch")
+    records = simulate_counterfactual_dataset(n_states=1, num_candidates=4, seed=7)
+    siblings = next(iter(group_by_decision(records).values()))
+    zooms = sorted(
+        (record for record in siblings if record.action_type == "ZOOM"),
+        key=lambda record: record.action_id,
+    )
+    encoded = {
+        "question_embedding": torch.randn(8),
+        "global_visual_embedding": torch.randn(8),
+        "region_embeddings": torch.randn(4, 8),
+        "bboxes": torch.tensor(
+            [record.candidate_bbox.to_list() for record in zooms],
+            dtype=torch.float32,
+        ),
+        "visual_grid_hw": [2, 2],
+    }
+    decision = semantic_decision_from_records(
+        siblings,
+        encoded,
+        include_outcomes=False,
+    )
+    assert "success_before" not in decision
+    assert "success_after" not in decision
+    payload = {
+        "format_version": 1,
+        "metadata": {"outcomes_included": False},
+        "decisions": [decision],
+    }
+    validate_semantic_feature_dataset(payload, records, require_outcomes=False)
+    decision["success_before"] = 0.0
+    with pytest.raises(ValueError, match="contain labels"):
+        validate_semantic_feature_dataset(payload, records, require_outcomes=False)
 
 
 def test_affine_gain_calibration_is_monotone():

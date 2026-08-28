@@ -38,6 +38,11 @@ def main() -> None:
     parser.add_argument("--expected-model-sha256")
     parser.add_argument("--expected-rollouts-sha256")
     parser.add_argument("--expected-features-sha256")
+    parser.add_argument(
+        "--require-label-free-features",
+        action="store_true",
+        help="reject semantic feature files that contain target outcome fields",
+    )
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
     parser.add_argument(
@@ -73,7 +78,11 @@ def main() -> None:
         if "features" not in paths:
             raise ValueError("semantic action model requires --features")
         payload = load_semantic_feature_dataset(paths["features"])
-        validate_semantic_feature_dataset(payload, records)
+        validate_semantic_feature_dataset(
+            payload,
+            records,
+            require_outcomes=False if args.require_label_free_features else None,
+        )
         semantic_decisions = {
             (str(decision["state_id"]), str(decision["replicate_id"])): decision
             for decision in payload["decisions"]
@@ -119,6 +128,7 @@ def main() -> None:
             "bootstrap_resamples": args.bootstrap_resamples,
             "bootstrap_seed": args.bootstrap_seed,
             "cluster_by": args.cluster_by,
+            "required_label_free_features": args.require_label_free_features,
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

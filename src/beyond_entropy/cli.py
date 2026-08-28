@@ -565,6 +565,7 @@ def command_extract_qwen_features(args: argparse.Namespace) -> None:
         max_pixels=args.max_pixels,
         local_files_only=not args.allow_download,
         question_feature_mode=args.question_feature_mode,
+        include_outcomes=not args.exclude_outcomes,
         resume=args.resume,
     )
     print(
@@ -574,6 +575,7 @@ def command_extract_qwen_features(args: argparse.Namespace) -> None:
                 "decisions": len(result["decisions"]),
                 "source_rollouts_sha256": rollouts_sha256,
                 "model_revision": args.model_revision,
+                "outcomes_included": not args.exclude_outcomes,
             },
             indent=2,
         )
@@ -808,6 +810,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--question-feature-mode",
         choices=("input_mean", "contextual_text_mean"),
         default="input_mean",
+    )
+    extract_qwen_features.add_argument(
+        "--exclude-outcomes",
+        action="store_true",
+        help="write a deployment feature file with no correctness fields",
     )
     extract_qwen_features.add_argument("--allow-download", action="store_true")
     extract_qwen_features.set_defaults(func=command_extract_qwen_features)
