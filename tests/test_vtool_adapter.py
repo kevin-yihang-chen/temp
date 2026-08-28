@@ -2,10 +2,13 @@ import json
 
 import pytest
 
+from beyond_entropy.simulate import simulate_counterfactual_dataset
+from beyond_entropy.stopping import FrozenWhenToCallGate
 from beyond_entropy.stopping import StoppingDecision
 from beyond_entropy.vtool_adapter import (
     VTOOL_GATE_METADATA_KEY,
     VToolGateControl,
+    build_vtool_gate_manifest_rows,
 )
 
 
@@ -61,3 +64,31 @@ def test_vtool_gate_metadata_refuses_silent_overwrite():
     control = VToolGateControl.from_stopping_decision(_decision())
     with pytest.raises(ValueError, match="already contains"):
         control.merge_tools_metadata({VTOOL_GATE_METADATA_KEY: {}})
+
+
+def test_vtool_gate_manifest_rows_are_label_free():
+    records = simulate_counterfactual_dataset(n_states=3, num_candidates=2, seed=4)
+    model = {
+        "model_type": "factorized_context_cross_benchmark_transfer",
+        "threshold": 0.2,
+        "error_scaler_mean": [0.0] * 27,
+        "error_scaler_scale": [1.0] * 27,
+        "error_coefficient": [0.0] * 27,
+        "error_intercept": 0.0,
+        "rescue_scaler_mean": [0.0] * 27,
+        "rescue_scaler_scale": [1.0] * 27,
+        "rescue_coefficient": [0.0] * 27,
+        "rescue_intercept": 0.0,
+    }
+    rows = build_vtool_gate_manifest_rows(records, FrozenWhenToCallGate(model))
+
+    assert len(rows) == 3
+    serialized = json.dumps(rows)
+    assert "correct_before" not in serialized
+    assert "correct_after" not in serialized
+    assert "entropy_after" not in serialized
+    assert all(
+        VToolGateControl.from_tools_metadata(row["tools_kwargs_metadata"])
+        .should_call_tool
+        for row in rows
+    )

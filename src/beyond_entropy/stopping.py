@@ -40,6 +40,28 @@ class PreActionGateInput:
                 "normalized_token_entropies must be finite and non-negative"
             )
 
+    @classmethod
+    def from_answer_record(cls, record: ActionRecord) -> "PreActionGateInput":
+        if record.action_type != "ANSWER":
+            raise ValueError("pre-action gate input requires an ANSWER record")
+        backend = record.metadata.get("baseline_backend", {})
+        raw_entropies = (
+            backend.get("normalized_token_entropies", ())
+            if isinstance(backend, Mapping)
+            else ()
+        )
+        if not isinstance(raw_entropies, (list, tuple)):
+            raise ValueError("normalized_token_entropies must be a sequence")
+        if any(not isinstance(value, (int, float)) for value in raw_entropies):
+            raise ValueError("normalized_token_entropies must contain only numbers")
+        return cls(
+            state_id=record.state_id,
+            question=record.question,
+            answer_before=record.answer_before,
+            entropy_before=record.entropy_before,
+            normalized_token_entropies=tuple(float(value) for value in raw_entropies),
+        )
+
     def _feature_record(self) -> ActionRecord:
         """Build a label-free feature carrier for the existing frozen scorer."""
 

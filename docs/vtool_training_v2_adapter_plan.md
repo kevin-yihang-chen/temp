@@ -27,6 +27,18 @@ and store its decision under
 `VToolGateControl` schema records action, score, threshold, registered cost, and
 model hash while enforcing `spatial_action_id=None`.
 
+`scripts/export_vtool_gate_manifest.py` produces a label-free JSONL join table
+and a provenance JSON containing byte-level rollout, model, and output hashes.
+The join key is `(state_id, replicate_id)`; the exported row contains no answer,
+correctness, post-action entropy, or candidate outcome.
+
+The first export over the 4,500-state confirmation target is complete at
+`artifacts/gate3-vtool-chartqa-train-4500/frozen-when-to-call-v1/gate_manifest.jsonl`.
+It contains 4,500 rows and 288 calls (6.4%). Its SHA-256 is
+`e76ca67cd98edd015c4180e81a17fb91808e828984d7b335b2873fec3ed5e0b6`;
+the adjacent provenance file binds it to the confirmed rollout and model hashes.
+This is an integration artifact, not a new evaluation result.
+
 Route each sample as follows:
 
 - `ANSWER`: run one no-tool final-answer turn;

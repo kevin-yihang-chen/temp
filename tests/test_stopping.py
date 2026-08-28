@@ -1,7 +1,9 @@
 import json
+from dataclasses import replace
 
 import pytest
 
+from beyond_entropy.schema import BBox
 from beyond_entropy.stopping import FrozenWhenToCallGate, PreActionGateInput
 
 
@@ -85,4 +87,22 @@ def test_pre_action_gate_input_rejects_invalid_uncertainty():
             question="What is the total?",
             answer_before="42",
             entropy_before=float("nan"),
+        )
+
+
+def test_pre_action_gate_input_from_answer_record_uses_only_runtime_fields():
+    state = _runtime_state()
+    record = state._feature_record()
+    rebuilt = PreActionGateInput.from_answer_record(record)
+
+    assert rebuilt == state
+    with pytest.raises(ValueError, match="requires an ANSWER"):
+        PreActionGateInput.from_answer_record(
+            replace(
+                record,
+                action_id="crop-0",
+                action_type="ZOOM",
+                candidate_bbox=BBox(0.0, 0.0, 0.5, 0.5),
+                tool_cost=1.0,
+            )
         )

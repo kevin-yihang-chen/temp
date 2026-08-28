@@ -4,9 +4,16 @@ import json
 import math
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Mapping, cast
+from typing import Any, Mapping, Sequence, cast
 
-from .stopping import StoppingAction, StoppingDecision
+from .dataset import group_by_decision
+from .schema import ActionRecord
+from .stopping import (
+    FrozenWhenToCallGate,
+    PreActionGateInput,
+    StoppingAction,
+    StoppingDecision,
+)
 
 
 VTOOL_GATE_METADATA_KEY = "beyond_entropy_gate"
@@ -126,3 +133,28 @@ class VToolGateControl:
             registered_lambda_cost=float(payload["registered_lambda_cost"]),
             model_sha256=str(payload["model_sha256"]),
         )
+
+
+def build_vtool_gate_manifest_rows(
+    records: Sequence[ActionRecord],
+    gate: FrozenWhenToCallGate,
+) -> list[dict[str, Any]]:
+    """Build label-free gate rows keyed by rollout decision for parquet merging."""
+
+    rows: list[dict[str, Any]] = []
+    for (state_id, replicate_id), siblings in sorted(group_by_decision(records).items()):
+        answers = [record for record in siblings if record.action_type == "ANSWER"]
+        if len(answers) != 1:
+            raise ValueError(
+                f"decision {(state_id, replicate_id)!r} must contain one ANSWER"
+            )
+        decision = gate.decide(PreActionGateInput.from_answer_record(answers[0]))
+        control = VToolGateControl.from_stopping_decision(decision)
+        rows.append(
+            {
+                "state_id": state_id,
+                "replicate_id": replicate_id,
+                "tools_kwargs_metadata": control.merge_tools_metadata(),
+            }
+        )
+    return rows
