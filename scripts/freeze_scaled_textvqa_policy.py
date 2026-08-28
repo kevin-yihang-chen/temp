@@ -165,6 +165,8 @@ def main() -> None:
         "fit_script": repo_dir / "scripts/fit_scaled_textvqa_action_value.py",
         "calibration_script": repo_dir / "scripts/calibrate_scaled_textvqa_action_value.py",
         "formal_export_script": repo_dir / "scripts/export_textvqa_train_scale_formal.py",
+        "formal_export_job": repo_dir / "scripts/slurm_textvqa_train_scale_formal_export.sh",
+        "formal_export_submitter": repo_dir / "scripts/submit_textvqa_train_scale_formal_export.sh",
         "formal_gate_verifier": repo_dir / "scripts/verify_scaled_textvqa_formal_gate.py",
         "formal_rollout_submitter": repo_dir / "scripts/submit_textvqa_train_scale_formal_rollout.sh",
         "formal_feature_submitter": repo_dir / "scripts/submit_textvqa_train_scale_formal_features.sh",
