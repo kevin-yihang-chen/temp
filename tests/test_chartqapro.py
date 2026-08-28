@@ -88,6 +88,18 @@ def test_chartqapro_match_scores_only_final_conversation_turn():
     assert chartqapro_match("final answer", target) == 1.0
 
 
+def test_conversation_uses_final_year_flag_despite_upstream_length_anomaly():
+    target = GroundTruth(
+        chartqapro_target(
+            ["old answer", "2020"],
+            ["NO", "NO", "NO", "YES"],
+            "Conversational",
+        )
+    )
+    assert chartqapro_match("2020", target) == 1.0
+    assert chartqapro_match("2021", target) == 0.0
+
+
 def test_paper_spec_exact_match_is_frozen_as_sensitivity_metric():
     target = GroundTruth(chartqapro_target(["true"], ["NO"], "Fact Checking"))
     assert chartqapro_match("tru", target) == 0.75

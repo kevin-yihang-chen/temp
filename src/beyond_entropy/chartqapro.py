@@ -149,8 +149,6 @@ def chartqapro_target(
     flag_values = _string_sequence(year_flags, name="year_flags")
     if question_type not in CHARTQAPRO_QUESTION_TYPES:
         raise ValueError(f"unsupported ChartQAPro question type: {question_type!r}")
-    if question_type == "Conversational" and len(answer_values) != len(flag_values):
-        raise ValueError("conversational answers and year flags must align by turn")
     if any(flag.upper() not in {"YES", "NO"} for flag in flag_values):
         raise ValueError("year flags must contain only YES or NO")
     return {

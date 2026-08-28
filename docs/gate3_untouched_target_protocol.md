@@ -34,6 +34,13 @@ forces exact matching. Released-code parity remains primary for benchmark
 comparability; the paper-specified correction is always reported alongside it
 and cannot replace the primary after outcomes are inspected.
 
+The fixed Parquet also contains two structural `Year` anomalies: source index
+1326 has two conversational answer turns and four flags, while index 1358 has
+four answer turns and two flags. The exporter preserves these source values and
+records the anomaly. Both frozen scorers follow released behavior and use only
+the final flag for a Conversational row; no target answer is modified or
+discarded by this compatibility rule.
+
 ChartQAPro is preferred over the public VTool `Refocus_Chart` test because the
 latter has exact decoded-RGB-plus-question overlap with the project's ChartQA
 development data. It is preferred as the primary over ChartMuseum because its

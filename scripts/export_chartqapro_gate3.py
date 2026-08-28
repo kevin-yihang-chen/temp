@@ -264,6 +264,7 @@ def main() -> None:
         }
         question_type_counts: Counter[str] = Counter()
         paragraph_presence: Counter[str] = Counter()
+        year_flag_length_anomalies: list[dict[str, Any]] = []
         saved_images: set[str] = set()
         source_index = 0
 
@@ -297,6 +298,15 @@ def main() -> None:
                     paragraph,
                 )
                 target = chartqapro_target(answers, year_flags, question_type)
+                if len(answers) != len(year_flags):
+                    year_flag_length_anomalies.append(
+                        {
+                            "source_index": source_index,
+                            "question_type": question_type,
+                            "answer_turns": len(answers),
+                            "year_flags": len(year_flags),
+                        }
+                    )
                 question_digest = _question_digest(final_question)
                 joint_key = vtool_identity_join_key(image_id, final_question)
                 target_image_ids.append(image_id)
@@ -464,6 +474,11 @@ def main() -> None:
             "duplicate_joint_rows": duplicate_joint_rows,
             "question_type_counts": dict(sorted(question_type_counts.items())),
             "paragraph_presence": dict(sorted(paragraph_presence.items())),
+            "year_flag_length_anomalies": year_flag_length_anomalies,
+            "year_flag_anomaly_policy": (
+                "preserve source flags; released scorer uses only the final flag "
+                "for Conversational rows"
+            ),
             "excluded_source_indices": excluded_source_indices,
             "excluded_rows": len(excluded_source_indices),
             "eligible_rows": len(payloads),
