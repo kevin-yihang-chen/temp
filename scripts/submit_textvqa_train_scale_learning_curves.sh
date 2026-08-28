@@ -3,6 +3,8 @@
 set -euo pipefail
 
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
+: "${BE_SCALE_FIT_JOB_ID:?missing BE_SCALE_FIT_JOB_ID}"
+fit_job_id=${BE_SCALE_FIT_JOB_ID}
 mail_file="${repo_dir}/.slurm-notify-email"
 if [[ ! -r "${mail_file}" ]]; then
   echo "Missing private Slurm email file: ${mail_file}" >&2
@@ -15,7 +17,7 @@ if [[ "${notify_email}" != *@* ]]; then
 fi
 
 sbatch \
-  --dependency=afterok:190839 \
+  --dependency="afterok:${fit_job_id}" \
   --job-name=be-tvqa-scale-curves \
   --mail-user="${notify_email}" \
   --mail-type=ALL \
