@@ -2,7 +2,7 @@
 #SBATCH --partition=debug
 #SBATCH --gres=gpu:rtx_4090:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=32G
+#SBATCH --mem=48G
 #SBATCH --time=02:00:00
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-textvqa-train-scale-calibrate-%j.out
 #SBATCH --mail-type=ALL

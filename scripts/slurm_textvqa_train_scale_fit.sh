@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
 #SBATCH --gres=gpu:rtx_4090:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=48G
 #SBATCH --time=04:00:00
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-textvqa-train-scale-fit-%j.out
 #SBATCH --mail-type=ALL
