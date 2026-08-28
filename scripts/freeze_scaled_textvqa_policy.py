@@ -170,6 +170,7 @@ def main() -> None:
         "formal_feature_submitter": repo_dir / "scripts/submit_textvqa_train_scale_formal_features.sh",
         "formal_evaluation_job": repo_dir / "scripts/slurm_textvqa_train_scale_formal_evaluate.sh",
         "formal_evaluation_submitter": repo_dir / "scripts/submit_textvqa_train_scale_formal_evaluation.sh",
+        "formal_result_renderer": repo_dir / "scripts/render_scaled_textvqa_formal_result.py",
         "rollout_job": repo_dir / "scripts/slurm_textvqa_train_scale_rollout.sh",
         "feature_job": repo_dir / "scripts/slurm_textvqa_train_scale_features.sh",
     }
