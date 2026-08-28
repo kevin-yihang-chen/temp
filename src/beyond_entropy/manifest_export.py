@@ -146,6 +146,7 @@ def hash_ranked_source_group_indices(
     offset: int = 0,
     seed: int,
     namespace: str,
+    excluded_groups: Sequence[str] = (),
 ) -> list[int]:
     """Select whole source groups by an order-independent SHA-256 ranking."""
 
@@ -159,19 +160,25 @@ def hash_ranked_source_group_indices(
     normalized_groups = [str(group_id).strip() for group_id in group_ids]
     if not normalized_groups or any(not group_id for group_id in normalized_groups):
         raise ValueError("source group IDs must be non-empty")
+    excluded = {str(group_id).strip() for group_id in excluded_groups}
+    if "" in excluded:
+        raise ValueError("excluded source group IDs must be non-empty")
     unique_groups = set(normalized_groups)
-    if offset + count > len(unique_groups):
-        raise ValueError(
-            f"source-group slice [{offset}, {offset + count}) exceeds "
-            f"{len(unique_groups)} available groups"
-        )
 
     def rank(group_id: str) -> tuple[str, str]:
         payload = f"{normalized_namespace}\0{seed}\0{group_id}".encode()
         return hashlib.sha256(payload).hexdigest(), group_id
 
     ordered_groups = sorted(unique_groups, key=rank)
-    selected = set(ordered_groups[offset : offset + count])
+    eligible_groups = [
+        group_id for group_id in ordered_groups[offset:] if group_id not in excluded
+    ]
+    if count > len(eligible_groups):
+        raise ValueError(
+            f"source-group slice requires {count} eligible groups after offset "
+            f"{offset}, but only {len(eligible_groups)} are available"
+        )
+    selected = set(eligible_groups[:count])
     return [
         index for index, group_id in enumerate(normalized_groups) if group_id in selected
     ]

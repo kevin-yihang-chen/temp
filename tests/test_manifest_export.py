@@ -206,7 +206,7 @@ def test_hash_ranked_source_offsets_are_disjoint():
     assert {groups[index] for index in development}.isdisjoint(
         {groups[index] for index in formal}
     )
-    with pytest.raises(ValueError, match="exceeds"):
+    with pytest.raises(ValueError, match="eligible groups"):
         hash_ranked_source_group_indices(
             groups,
             count=8,
@@ -214,6 +214,30 @@ def test_hash_ranked_source_offsets_are_disjoint():
             seed=17,
             namespace="split-v1",
         )
+
+
+def test_hash_ranked_source_exclusion_backfills_without_changing_count():
+    groups = [f"source-{index}" for index in range(12)]
+    original = hash_ranked_source_group_indices(
+        groups,
+        count=5,
+        offset=3,
+        seed=17,
+        namespace="split-v1",
+    )
+    excluded = groups[original[0]]
+    replacement = hash_ranked_source_group_indices(
+        groups,
+        count=5,
+        offset=3,
+        seed=17,
+        namespace="split-v1",
+        excluded_groups=[excluded],
+    )
+    replacement_groups = {groups[index] for index in replacement}
+    assert len(replacement_groups) == 5
+    assert excluded not in replacement_groups
+    assert len(replacement_groups - {groups[index] for index in original}) == 1
 
 
 def test_export_docvqa_groups_questions_from_the_same_document(tmp_path):

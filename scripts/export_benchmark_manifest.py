@@ -27,13 +27,29 @@ def main() -> None:
         "--selection-namespace",
         default="beyond-entropy-source-selection-v1",
     )
+    parser.add_argument(
+        "--exclude-source-group",
+        action="append",
+        default=[],
+        help="skip a source group after the rank offset and deterministically backfill",
+    )
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--dataset-revision")
     parser.add_argument("--cache-dir", type=Path)
-    parser.add_argument(
+    input_group = parser.add_mutually_exclusive_group()
+    input_group.add_argument(
         "--arrow-file",
         type=Path,
         help="load a previously materialized datasets Arrow split without Hub access",
+    )
+    input_group.add_argument(
+        "--parquet-file",
+        type=Path,
+        action="append",
+        help=(
+            "load one or more pinned local Parquet shards without Hub access; "
+            "repeat the flag in canonical shard order"
+        ),
     )
     args = parser.parse_args()
 
@@ -48,6 +64,12 @@ def main() -> None:
     revision = args.dataset_revision or spec.default_revision
     if args.arrow_file:
         dataset = Dataset.from_file(str(args.arrow_file.resolve()))
+    elif args.parquet_file:
+        parquet_files = [path.resolve() for path in args.parquet_file]
+        missing = [path for path in parquet_files if not path.is_file()]
+        if missing:
+            raise FileNotFoundError(f"local Parquet shard does not exist: {missing[0]}")
+        dataset = Dataset.from_parquet([str(path) for path in parquet_files])
     else:
         dataset_args = [spec.dataset_id]
         if spec.dataset_name is not None:
@@ -96,6 +118,7 @@ def main() -> None:
             offset=args.source_group_offset,
             seed=args.seed,
             namespace=args.selection_namespace,
+            excluded_groups=args.exclude_source_group,
         )
         selected_group_ids = sorted({group_ids[index] for index in source_indices})
         selection = "SHA-256-ranked whole-source-group slice"
@@ -104,6 +127,7 @@ def main() -> None:
             "seed": args.seed,
             "source_group_count": args.source_group_count,
             "source_group_offset": args.source_group_offset,
+            "excluded_source_groups": sorted(set(args.exclude_source_group)),
             "source_group_ids": selected_group_ids,
         }
     rows = [dataset[index] for index in source_indices]
@@ -118,13 +142,25 @@ def main() -> None:
         selection=selection,
         selection_metadata=selection_metadata,
     )
+    local_sources = []
     if args.arrow_file:
-        digest = hashlib.sha256()
-        with args.arrow_file.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-        result["source_arrow"] = str(args.arrow_file.resolve())
-        result["source_arrow_sha256"] = digest.hexdigest()
+        local_sources = [args.arrow_file.resolve()]
+        result["source_arrow"] = str(local_sources[0])
+    elif args.parquet_file:
+        local_sources = [path.resolve() for path in args.parquet_file]
+        result["source_parquet_files"] = [str(path) for path in local_sources]
+    if local_sources:
+        source_hashes = []
+        for path in local_sources:
+            digest = hashlib.sha256()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            source_hashes.append(digest.hexdigest())
+        if args.arrow_file:
+            result["source_arrow_sha256"] = source_hashes[0]
+        else:
+            result["source_parquet_sha256"] = source_hashes
         provenance_path = args.output_dir / "manifest.provenance.json"
         provenance_path.write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n",

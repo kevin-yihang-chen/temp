@@ -2,10 +2,15 @@
 
 ## Status and purpose
 
-This branching rule is frozen while the 1,625-question ChartQAPro formal
-rollout is still running and before any formal target outcome is available.
+This branching rule was frozen while the 1,625-question ChartQAPro formal
+rollout was still running and before any formal target outcome was available.
 Its purpose is to prevent the project from turning one untouched evaluation
 into an iterative tuning set.
+
+Resolution (2026-08-28): the frozen primary failed the registered criterion,
+so **Branch B is active**. The immutable result, hashes, and descriptive
+diagnosis are recorded in `chartqapro_formal_result_2026-08-28.md`. ChartQAPro
+formal must not be used to fit or select a replacement model.
 
 The formal analysis is bound to:
 
