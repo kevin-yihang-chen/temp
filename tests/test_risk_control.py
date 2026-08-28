@@ -10,6 +10,7 @@ from beyond_entropy.risk_control import (
     bernoulli_relative_entropy,
     bounded_mean_lower_tail_pvalue,
     calibrate_source_risk_threshold,
+    calibrate_source_risk_threshold_fixed_sequence,
     threshold_grid_from_training_scores,
 )
 
@@ -177,4 +178,61 @@ def test_calibration_rejects_unfrozen_or_invalid_contracts():
             [0.0],
             constraints=[constraint],
             max_tool_cost=1.0,
+        )
+
+
+def test_fixed_sequence_stops_at_first_joint_risk_failure():
+    rows = []
+    for index in range(1000):
+        if index < 100:
+            score = 1.5
+            gain = 0.2
+        else:
+            score = 0.5
+            gain = -0.2
+        rows.append(
+            AcquisitionCalibrationRow(
+                source_id=f"source-{index:04d}",
+                score=score,
+                gain=gain,
+            )
+        )
+    report = calibrate_source_risk_threshold_fixed_sequence(
+        rows,
+        [2.0, 1.0, 0.0, -1.0],
+        constraints=[
+            RiskConstraint("induced_harm", 0.03),
+            RiskConstraint("net_negative_call_mass", 0.05),
+        ],
+        family_error=0.05,
+        min_source_call_rate=0.05,
+        min_source_utility=0.0,
+    )
+    assert report["method"] == "fixed_sequence_bounded_mean_kl_ltt_v1"
+    assert report["adjusted_p_cutoff"] == pytest.approx(0.025)
+    assert report["tested_threshold_count"] == 3
+    assert report["stopping_threshold"] == 0.0
+    assert report["untested_thresholds"] == [-1.0]
+    assert report["selected_threshold"] == 1.0
+    assert report["candidates"][0]["source_call_rate"] == 0.0
+    assert report["candidates"][1]["risk_accepted"]
+    assert not report["candidates"][2]["risk_accepted"]
+
+
+def test_fixed_sequence_requires_strict_to_permissive_order():
+    rows = [
+        AcquisitionCalibrationRow("source-a", score=1.0, gain=0.0),
+        AcquisitionCalibrationRow("source-b", score=0.0, gain=0.0),
+    ]
+    with pytest.raises(ValueError, match="strictly descending"):
+        calibrate_source_risk_threshold_fixed_sequence(
+            rows,
+            [0.0, 1.0],
+            constraints=[RiskConstraint("induced_harm", 0.1)],
+        )
+    with pytest.raises(ValueError, match="strictly descending"):
+        calibrate_source_risk_threshold_fixed_sequence(
+            rows,
+            [1.0, 1.0],
+            constraints=[RiskConstraint("induced_harm", 0.1)],
         )

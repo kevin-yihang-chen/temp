@@ -389,3 +389,143 @@ def calibrate_source_risk_threshold(
         "answer_now": answer_now,
         "candidates": candidates,
     }
+
+
+def calibrate_source_risk_threshold_fixed_sequence(
+    rows: Sequence[AcquisitionCalibrationRow],
+    thresholds: Sequence[float],
+    *,
+    constraints: Sequence[RiskConstraint],
+    lambda_cost: float = 0.05,
+    max_tool_cost: float = 1.0,
+    family_error: float = 0.05,
+    min_source_call_rate: float = 0.01,
+    min_source_utility: float = 0.0,
+) -> dict[str, object]:
+    """Calibrate a nested threshold family with fixed-sequence LTT.
+
+    Thresholds are tested from strict to permissive.  Each step Bonferroni-
+    corrects only across the registered risk constraints; testing stops at the
+    first joint failure and no more permissive threshold is summarized.  The
+    selected policy is the most permissive preceding threshold that also meets
+    the empirical non-degeneracy conditions.
+    """
+
+    materialized = list(rows)
+    if not materialized:
+        raise ValueError("risk calibration rows must be non-empty")
+    source_count = len({row.source_id for row in materialized})
+    if source_count < 2:
+        raise ValueError("risk calibration requires at least two source groups")
+    frozen_thresholds = [float(value) for value in thresholds]
+    if not frozen_thresholds or any(
+        not math.isfinite(value) for value in frozen_thresholds
+    ):
+        raise ValueError("frozen thresholds must be non-empty and finite")
+    if any(
+        strict <= permissive
+        for strict, permissive in zip(frozen_thresholds, frozen_thresholds[1:])
+    ):
+        raise ValueError(
+            "fixed-sequence thresholds must be unique and strictly descending"
+        )
+    frozen_constraints = list(constraints)
+    if not frozen_constraints:
+        raise ValueError("at least one risk constraint is required")
+    kinds = [constraint.kind for constraint in frozen_constraints]
+    if len(set(kinds)) != len(kinds):
+        raise ValueError("risk constraint kinds must be unique")
+    if lambda_cost < 0.0 or not math.isfinite(lambda_cost):
+        raise ValueError("lambda_cost must be finite and non-negative")
+    if max_tool_cost <= 0.0 or not math.isfinite(max_tool_cost):
+        raise ValueError("max_tool_cost must be finite and positive")
+    if any(row.tool_cost > max_tool_cost for row in materialized):
+        raise ValueError("calibration tool_cost exceeds the frozen maximum")
+    if not 0.0 < family_error < 1.0:
+        raise ValueError("family_error must lie in (0,1)")
+    if not 0.0 <= min_source_call_rate <= 1.0:
+        raise ValueError("min_source_call_rate must lie in [0,1]")
+    if not math.isfinite(min_source_utility):
+        raise ValueError("min_source_utility must be finite")
+    for constraint in frozen_constraints:
+        upper = _risk_upper_bound(
+            constraint.kind,
+            lambda_cost=lambda_cost,
+            max_tool_cost=max_tool_cost,
+        )
+        if constraint.limit >= upper:
+            raise ValueError(
+                f"risk limit for {constraint.kind} must be below {upper}"
+            )
+
+    adjusted_p_cutoff = family_error / len(frozen_constraints)
+    tested: list[dict[str, object]] = []
+    stopping_threshold = None
+    for threshold in frozen_thresholds:
+        candidate = _threshold_summary(
+            materialized,
+            threshold=threshold,
+            constraints=frozen_constraints,
+            lambda_cost=lambda_cost,
+            max_tool_cost=max_tool_cost,
+            adjusted_p_cutoff=adjusted_p_cutoff,
+        )
+        tested.append(candidate)
+        if not bool(candidate["risk_accepted"]):
+            stopping_threshold = threshold
+            break
+    eligible = [
+        candidate
+        for candidate in tested
+        if bool(candidate["risk_accepted"])
+        and float(candidate["source_call_rate"]) >= min_source_call_rate
+        and float(candidate["source_utility"]) >= min_source_utility
+    ]
+    selected = eligible[-1] if eligible else None
+    answer_now = _threshold_summary(
+        materialized,
+        threshold=None,
+        constraints=frozen_constraints,
+        lambda_cost=lambda_cost,
+        max_tool_cost=max_tool_cost,
+        adjusted_p_cutoff=adjusted_p_cutoff,
+    )
+    tested_count = len(tested)
+    return {
+        "scientific_status": (
+            "source-level fixed-sequence risk calibration; nested thresholds "
+            "are frozen before calibration outcomes"
+        ),
+        "method": "fixed_sequence_bounded_mean_kl_ltt_v1",
+        "threshold_order": "strict_to_permissive_descending",
+        "lambda_cost": lambda_cost,
+        "max_tool_cost": max_tool_cost,
+        "family_error": family_error,
+        "per_step_hypothesis_count": len(frozen_constraints),
+        "adjusted_p_cutoff": adjusted_p_cutoff,
+        "n_sources": source_count,
+        "n_decisions": len(materialized),
+        "constraints": [
+            {"kind": constraint.kind, "limit": constraint.limit}
+            for constraint in frozen_constraints
+        ],
+        "min_source_call_rate": min_source_call_rate,
+        "min_source_utility": min_source_utility,
+        "selection_objective": (
+            "most_permissive_pre_failure_with_non_degeneracy"
+        ),
+        "selected_threshold": (
+            float(selected["threshold"]) if selected is not None else None
+        ),
+        "selection_status": (
+            "selected_non_degenerate_safe_threshold"
+            if selected is not None
+            else "no_non_degenerate_safe_threshold"
+        ),
+        "selected": selected,
+        "answer_now": answer_now,
+        "tested_threshold_count": tested_count,
+        "stopping_threshold": stopping_threshold,
+        "candidates": tested,
+        "untested_thresholds": frozen_thresholds[tested_count:],
+    }
