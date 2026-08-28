@@ -119,3 +119,13 @@ action proposal: no current spatial selector has confirmed improvement.
   exact RGB-plus-question audit shows all 826 rows overlap the ChartQA
   development set. Formal Gate 3 evaluation requires a newly registered target
   with zero identity overlap.
+
+The untouched formal target is now registered as ChartQAPro at pinned dataset
+revision `e27c2874825874d6767d2bbc538ed4f0dc2c64c2`. The protocol first removes
+any RGB overlap with all prior project splits, then assigns 200 deterministic
+image groups to a compatibility-only pilot and reserves every other image group
+for formal evaluation. The frozen factorized gate, threshold, four UG crops,
+uniform one-crop expectation, `lambda=0.05`, and paired question/image bootstrap
+criteria cannot be tuned on the target. ChartMuseum is reserved as a secondary
+real-world robustness benchmark because its official evaluation depends on an
+LLM judge. See `docs/gate3_untouched_target_protocol.md`.
