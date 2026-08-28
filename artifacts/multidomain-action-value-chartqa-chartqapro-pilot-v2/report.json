@@ -1,0 +1,204 @@
+{
+  "candidate_validation_metrics": [
+    {
+      "alpha": 0.1,
+      "domain_balanced_mean_utility": 0.0005277777777777777,
+      "per_domain": {
+        "chartqa": {
+          "decisions": 900,
+          "mean_gain": 0.0011111111111111111,
+          "mean_utility": 0.0010555555555555555,
+          "tool_rate": 0.0011111111111111111
+        },
+        "chartqapro_pilot": {
+          "decisions": 58,
+          "mean_gain": 0.0,
+          "mean_utility": 0.0,
+          "tool_rate": 0.0
+        }
+      },
+      "pooled_mean_gain": 0.0010438413361169101,
+      "pooled_mean_utility": 0.0009916492693110646,
+      "pooled_tool_rate": 0.0010438413361169101,
+      "threshold": 0.36477430187046483,
+      "worst_domain_utility": 0.0
+    },
+    {
+      "alpha": 1.0,
+      "domain_balanced_mean_utility": 0.0005277777777777777,
+      "per_domain": {
+        "chartqa": {
+          "decisions": 900,
+          "mean_gain": 0.0011111111111111111,
+          "mean_utility": 0.0010555555555555555,
+          "tool_rate": 0.0011111111111111111
+        },
+        "chartqapro_pilot": {
+          "decisions": 58,
+          "mean_gain": 0.0,
+          "mean_utility": 0.0,
+          "tool_rate": 0.0
+        }
+      },
+      "pooled_mean_gain": 0.0010438413361169101,
+      "pooled_mean_utility": 0.0009916492693110646,
+      "pooled_tool_rate": 0.0010438413361169101,
+      "threshold": 0.34374826539233416,
+      "worst_domain_utility": 0.0
+    },
+    {
+      "alpha": 10.0,
+      "domain_balanced_mean_utility": 0.0,
+      "per_domain": {
+        "chartqa": {
+          "decisions": 900,
+          "mean_gain": 0.0,
+          "mean_utility": 0.0,
+          "tool_rate": 0.0
+        },
+        "chartqapro_pilot": {
+          "decisions": 58,
+          "mean_gain": 0.0,
+          "mean_utility": 0.0,
+          "tool_rate": 0.0
+        }
+      },
+      "pooled_mean_gain": 0.0,
+      "pooled_mean_utility": 0.0,
+      "pooled_tool_rate": 0.0,
+      "threshold": 0.29194546461480597,
+      "worst_domain_utility": 0.0
+    },
+    {
+      "alpha": 100.0,
+      "domain_balanced_mean_utility": 0.0010277777777777776,
+      "per_domain": {
+        "chartqa": {
+          "decisions": 900,
+          "mean_gain": 0.0022222222222222222,
+          "mean_utility": 0.0020555555555555553,
+          "tool_rate": 0.0033333333333333335
+        },
+        "chartqapro_pilot": {
+          "decisions": 58,
+          "mean_gain": 0.0,
+          "mean_utility": 0.0,
+          "tool_rate": 0.0
+        }
+      },
+      "pooled_mean_gain": 0.0020876826722338203,
+      "pooled_mean_utility": 0.0019311064718162839,
+      "pooled_tool_rate": 0.003131524008350731,
+      "threshold": 0.15734063751165248,
+      "worst_domain_utility": 0.0
+    },
+    {
+      "alpha": 1000.0,
+      "domain_balanced_mean_utility": 0.0004444444444444444,
+      "per_domain": {
+        "chartqa": {
+          "decisions": 900,
+          "mean_gain": 0.0011111111111111111,
+          "mean_utility": 0.0008888888888888888,
+          "tool_rate": 0.0044444444444444444
+        },
+        "chartqapro_pilot": {
+          "decisions": 58,
+          "mean_gain": 0.0,
+          "mean_utility": 0.0,
+          "tool_rate": 0.0
+        }
+      },
+      "pooled_mean_gain": 0.0010438413361169101,
+      "pooled_mean_utility": 0.0008350730688935281,
+      "pooled_tool_rate": 0.0041753653444676405,
+      "threshold": 0.12468595329554447,
+      "worst_domain_utility": 0.0
+    }
+  ],
+  "decision_rule": "argmax predicted_gain - lambda * tool_cost; call iff above frozen source-held-out domain-robust margin",
+  "domains": [
+    "chartqa",
+    "chartqapro_pilot"
+  ],
+  "feature_count": 307,
+  "feature_mode": "normalized-context-by-bbox-geometry",
+  "lambda_cost": 0.05,
+  "model_type": "multidomain_direct_action_value",
+  "run": {
+    "code_revision": "e4e329029998da8c90ec4a12480df469c019a468",
+    "development_inputs": {
+      "chartqa": {
+        "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/replication-chartqa-train-4500/qwen3b-c4-concise-seed0/rollouts.jsonl",
+        "records": 22500,
+        "sha256": "f32d8ab8d5ad46ba264de97667540d41022b52aaae8ef3f0ce3a2df939cc36f9"
+      },
+      "chartqapro_pilot": {
+        "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/gate3-chartqapro-pilot-309/qwen3b-c4-direct-seed0/rollouts.jsonl",
+        "records": 1545,
+        "sha256": "f4483dbd24733ab698abd1a402333cd830aeae5c7818b5b38be14c60656dbcda"
+      }
+    },
+    "formal_outcomes_used": false
+  },
+  "scientific_status": "development-only source-held-out selection; formal benchmark outcomes are excluded",
+  "seed": 20260828,
+  "selected_alpha": 100.0,
+  "selected_threshold": 0.15734063751165248,
+  "selection_objective": "worst-domain utility, then domain-balanced mean utility, pooled utility, lower tool rate, lower alpha; no-call is an explicit candidate",
+  "split_counts": {
+    "chartqa": {
+      "train_sources": 3600,
+      "validation_sources": 900
+    },
+    "chartqapro_pilot": {
+      "train_sources": 160,
+      "validation_sources": 40
+    }
+  },
+  "target": "counterfactual task-score gain",
+  "train_action_rows": 15404,
+  "train_decisions": 3851,
+  "validation_decisions": 958,
+  "validation_fraction": 0.2,
+  "validation_metrics": {
+    "domain_balanced_mean_utility": 0.0010277777777777776,
+    "per_domain": {
+      "chartqa": {
+        "decisions": 900,
+        "mean_gain": 0.0022222222222222222,
+        "mean_utility": 0.0020555555555555553,
+        "tool_rate": 0.0033333333333333335
+      },
+      "chartqapro_pilot": {
+        "decisions": 58,
+        "mean_gain": 0.0,
+        "mean_utility": 0.0,
+        "tool_rate": 0.0
+      }
+    },
+    "pooled_mean_gain": 0.0020876826722338203,
+    "pooled_mean_utility": 0.0019311064718162839,
+    "pooled_tool_rate": 0.003131524008350731,
+    "worst_domain_utility": 0.0
+  },
+  "validation_policy_result": {
+    "accuracy": 0.7667644232362395,
+    "accuracy_gain": 0.0020876826722338038,
+    "answer_now_accuracy": 0.7646767405640057,
+    "avg_tool_calls": 0.003131524008350731,
+    "avg_visual_cost": 0.003131524008350731,
+    "correct_stopping_rate": 0.9519832985386222,
+    "marginal_accuracy_gain_per_tool_call": 0.6666666666666613,
+    "mean_oracle_regret": 0.04393080823143453,
+    "mean_policy_utility": 0.0019311064718162839,
+    "mean_realized_voi": 0.0019311064718162839,
+    "mean_success_gain": 0.0020876826722338203,
+    "missed_information_rate": 0.04712041884816754,
+    "n_decisions": 958,
+    "policy": "multidomain_direct_action_value",
+    "tool_use_rate": 0.003131524008350731,
+    "unnecessary_tool_call_rate": 0.3333333333333333,
+    "zoom_rate": 0.003131524008350731
+  }
+}
