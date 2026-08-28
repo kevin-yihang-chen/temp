@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from statistics import mean
 from typing import Any, Mapping, Sequence
 
@@ -16,6 +17,121 @@ from .rescue_gate import (
     tune_rescue_gate_threshold,
 )
 from .schema import ActionRecord
+
+
+@dataclass(frozen=True)
+class _FrozenFactorizedParameters:
+    error_mean: tuple[float, ...]
+    error_scale: tuple[float, ...]
+    error_coefficient: tuple[float, ...]
+    error_intercept: float
+    error_feature_mode: str
+    rescue_mean: tuple[float, ...]
+    rescue_scale: tuple[float, ...]
+    rescue_coefficient: tuple[float, ...]
+    rescue_intercept: float
+    rescue_feature_mode: str
+
+
+def _frozen_factorized_parameters(
+    model: Mapping[str, Any],
+) -> _FrozenFactorizedParameters:
+    if model.get("model_type") != "factorized_context_cross_benchmark_transfer":
+        raise ValueError("unsupported frozen factorized model type")
+    parameters = _FrozenFactorizedParameters(
+        error_mean=tuple(float(value) for value in model["error_scaler_mean"]),
+        error_scale=tuple(float(value) for value in model["error_scaler_scale"]),
+        error_coefficient=tuple(float(value) for value in model["error_coefficient"]),
+        error_intercept=float(model["error_intercept"]),
+        error_feature_mode=str(model.get("error_feature_mode", "context")),
+        rescue_mean=tuple(float(value) for value in model["rescue_scaler_mean"]),
+        rescue_scale=tuple(float(value) for value in model["rescue_scaler_scale"]),
+        rescue_coefficient=tuple(float(value) for value in model["rescue_coefficient"]),
+        rescue_intercept=float(model["rescue_intercept"]),
+        rescue_feature_mode=str(model.get("rescue_feature_mode", "context")),
+    )
+    error_dimensions = {
+        len(parameters.error_mean),
+        len(parameters.error_scale),
+        len(parameters.error_coefficient),
+    }
+    rescue_dimensions = {
+        len(parameters.rescue_mean),
+        len(parameters.rescue_scale),
+        len(parameters.rescue_coefficient),
+    }
+    if (
+        len(error_dimensions) != 1
+        or len(rescue_dimensions) != 1
+        or any(
+            value <= 0.0
+            for value in parameters.error_scale + parameters.rescue_scale
+        )
+    ):
+        raise ValueError("frozen factorized model has inconsistent feature dimensions")
+    return parameters
+
+
+def _sigmoid(value: float) -> float:
+    import math
+
+    if value >= 0.0:
+        inverse = math.exp(-value)
+        return 1.0 / (1.0 + inverse)
+    exponent = math.exp(value)
+    return exponent / (1.0 + exponent)
+
+
+def _score_frozen_factorized_baseline(
+    parameters: _FrozenFactorizedParameters,
+    baseline: ActionRecord,
+) -> float:
+    error_features = pre_action_context_feature_subset(
+        baseline,
+        parameters.error_feature_mode,
+    )
+    rescue_features = pre_action_context_feature_subset(
+        baseline,
+        parameters.rescue_feature_mode,
+    )
+    if (
+        len(error_features) != len(parameters.error_mean)
+        or len(rescue_features) != len(parameters.rescue_mean)
+    ):
+        raise ValueError("frozen factorized feature modes differ from model dimensions")
+    error_logit = parameters.error_intercept + sum(
+        coefficient * (feature - center) / scale
+        for coefficient, feature, center, scale in zip(
+            parameters.error_coefficient,
+            error_features,
+            parameters.error_mean,
+            parameters.error_scale,
+        )
+    )
+    rescue_logit = parameters.rescue_intercept + sum(
+        coefficient * (feature - center) / scale
+        for coefficient, feature, center, scale in zip(
+            parameters.rescue_coefficient,
+            rescue_features,
+            parameters.rescue_mean,
+            parameters.rescue_scale,
+        )
+    )
+    return _sigmoid(error_logit) * _sigmoid(rescue_logit)
+
+
+def score_frozen_factorized_context_baseline(
+    model: Mapping[str, Any],
+    baseline: ActionRecord,
+) -> float:
+    """Score one pre-action ANSWER state without requiring ZOOM outcomes."""
+
+    if baseline.action_type != "ANSWER":
+        raise ValueError("frozen stopping score requires an ANSWER baseline")
+    return _score_frozen_factorized_baseline(
+        _frozen_factorized_parameters(model),
+        baseline,
+    )
 
 
 def threshold_for_target_rate(scores: Sequence[float], target_rate: float) -> float:
@@ -38,68 +154,13 @@ def score_frozen_factorized_context_model(
 ) -> dict[DecisionKey, float]:
     """Score states from serialized scaler/logistic parameters without refitting."""
 
-    import math
-
-    if model.get("model_type") != "factorized_context_cross_benchmark_transfer":
-        raise ValueError("unsupported frozen factorized model type")
     baselines = _baselines(records)
     keys = sorted(baselines)
-    error_mean = [float(value) for value in model["error_scaler_mean"]]
-    error_scale = [float(value) for value in model["error_scaler_scale"]]
-    error_coefficient = [float(value) for value in model["error_coefficient"]]
-    rescue_mean = [float(value) for value in model["rescue_scaler_mean"]]
-    rescue_scale = [float(value) for value in model["rescue_scaler_scale"]]
-    rescue_coefficient = [float(value) for value in model["rescue_coefficient"]]
-    error_dimensions = {len(error_mean), len(error_scale), len(error_coefficient)}
-    rescue_dimensions = {len(rescue_mean), len(rescue_scale), len(rescue_coefficient)}
-    if (
-        len(error_dimensions) != 1
-        or len(rescue_dimensions) != 1
-        or any(value <= 0.0 for value in error_scale + rescue_scale)
-    ):
-        raise ValueError("frozen factorized model has inconsistent feature dimensions")
-    error_feature_mode = str(model.get("error_feature_mode", "context"))
-    rescue_feature_mode = str(model.get("rescue_feature_mode", "context"))
-
-    def sigmoid(value: float) -> float:
-        if value >= 0.0:
-            inverse = math.exp(-value)
-            return 1.0 / (1.0 + inverse)
-        exponent = math.exp(value)
-        return exponent / (1.0 + exponent)
-
-    scores = {}
-    for key in keys:
-        error_features = pre_action_context_feature_subset(
-            baselines[key],
-            error_feature_mode,
-        )
-        rescue_features = pre_action_context_feature_subset(
-            baselines[key],
-            rescue_feature_mode,
-        )
-        if len(error_features) != len(error_mean) or len(rescue_features) != len(rescue_mean):
-            raise ValueError("frozen factorized feature modes differ from model dimensions")
-        error_logit = float(model["error_intercept"]) + sum(
-            coefficient * (feature - center) / scale
-            for coefficient, feature, center, scale in zip(
-                error_coefficient,
-                error_features,
-                error_mean,
-                error_scale,
-            )
-        )
-        rescue_logit = float(model["rescue_intercept"]) + sum(
-            coefficient * (feature - center) / scale
-            for coefficient, feature, center, scale in zip(
-                rescue_coefficient,
-                rescue_features,
-                rescue_mean,
-                rescue_scale,
-            )
-        )
-        scores[key] = sigmoid(error_logit) * sigmoid(rescue_logit)
-    return scores
+    parameters = _frozen_factorized_parameters(model)
+    return {
+        key: _score_frozen_factorized_baseline(parameters, baselines[key])
+        for key in keys
+    }
 
 
 def select_frozen_context_quadrant_actions(

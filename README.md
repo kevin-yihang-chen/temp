@@ -147,6 +147,10 @@ when-to-call integration/ablation; where-to-look learning remains gated. See
 `docs/replication_protocol_chartqa_train.md` for the evidence hierarchy,
 frozen protocol, and completed result.
 
+The bounded runtime integration is documented in
+`docs/gate3_when_to_call.md`. Its API accepts only pre-action state fields and
+returns `ANSWER` or `CALL_VISUAL_TOOL`; it deliberately cannot choose a crop.
+
 ## Semantic gain head
 
 Install the optional PyTorch dependency:
