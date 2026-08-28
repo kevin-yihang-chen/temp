@@ -56,6 +56,7 @@ def main() -> None:
             "context-geometry",
             "spatial-context-geometry",
             "semantic-context",
+            "hybrid-context-semantic",
         ),
         default="context-geometry",
     )
@@ -69,7 +70,7 @@ def main() -> None:
         type=_domain_path,
         action="append",
         default=[],
-        help="repeat NAME=FEATURES_PT for semantic-context mode",
+        help="repeat NAME=FEATURES_PT for semantic action feature modes",
     )
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--oof-folds", type=int, default=5)
@@ -94,12 +95,11 @@ def main() -> None:
     feature_paths = dict(args.features)
     if len(feature_paths) != len(args.features):
         raise SystemExit("semantic feature domain names must be unique")
-    if args.feature_mode == "semantic-context" and set(feature_paths) != set(
-        domain_paths
-    ):
-        raise SystemExit("semantic-context mode requires --features for every domain")
+    semantic_modes = {"semantic-context", "hybrid-context-semantic"}
+    if args.feature_mode in semantic_modes and set(feature_paths) != set(domain_paths):
+        raise SystemExit("semantic action modes require --features for every domain")
     semantic_decisions_by_domain = None
-    if args.feature_mode == "semantic-context":
+    if args.feature_mode in semantic_modes:
         semantic_decisions_by_domain = {}
         for domain, path in feature_paths.items():
             payload = load_semantic_feature_dataset(path)

@@ -66,9 +66,12 @@ def main() -> None:
     model: dict[str, Any] = json.loads(paths["model"].read_text(encoding="utf-8"))
     records = read_jsonl(paths["rollouts"])
     semantic_decisions = None
-    if model.get("feature_mode") == "semantic-context":
+    if model.get("feature_mode") in {
+        "semantic-context",
+        "hybrid-context-semantic",
+    }:
         if "features" not in paths:
-            raise ValueError("semantic-context model requires --features")
+            raise ValueError("semantic action model requires --features")
         payload = load_semantic_feature_dataset(paths["features"])
         validate_semantic_feature_dataset(payload, records)
         semantic_decisions = {

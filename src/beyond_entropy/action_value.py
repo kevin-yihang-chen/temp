@@ -185,9 +185,9 @@ def _action_features(
         return context_geometry_action_features(baseline, action)
     if feature_mode == "spatial-context-geometry":
         return spatial_context_geometry_action_features(baseline, action)
-    if feature_mode == "semantic-context":
+    if feature_mode in {"semantic-context", "hybrid-context-semantic"}:
         if semantic_decision is None:
-            raise ValueError("semantic-context mode requires frozen semantic decisions")
+            raise ValueError("semantic action mode requires frozen semantic decisions")
         return semantic_context_action_features(baseline, action, semantic_decision)
     raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
 
@@ -209,6 +209,8 @@ def _state_features(
             *pre_action_context_features(normalized_baseline),
             *spatial_question_features(normalized_baseline.question),
         ]
+    if feature_mode == "hybrid-context-semantic":
+        return pre_action_context_features(normalized_baseline)
     if feature_mode == "semantic-context":
         if semantic_decision is None:
             raise ValueError("semantic-context mode requires frozen semantic decisions")
@@ -230,15 +232,16 @@ def _semantic_feature_index(
         "context-geometry",
         "spatial-context-geometry",
         "semantic-context",
+        "hybrid-context-semantic",
     }:
         raise ValueError(f"unsupported action-value feature mode: {feature_mode}")
     semantic_by_key: dict[DecisionKey, Mapping[str, Any]] = {}
-    if feature_mode == "semantic-context":
+    if feature_mode in {"semantic-context", "hybrid-context-semantic"}:
         if semantic_decisions_by_domain is None or set(
             semantic_decisions_by_domain
         ) != set(records_by_domain):
             raise ValueError(
-                "semantic-context mode requires one feature mapping per domain"
+                "semantic action modes require one feature mapping per domain"
             )
         for domain in records_by_domain:
             domain_decisions = semantic_decisions_by_domain[domain]
@@ -1188,7 +1191,10 @@ def select_frozen_factorized_action_value_actions(
     baselines, zooms = _decision_rows(records)
     feature_mode = str(model["feature_mode"])
     semantic_by_key = {} if semantic_decisions is None else semantic_decisions
-    if feature_mode == "semantic-context" and set(semantic_by_key) != set(baselines):
+    if feature_mode in {
+        "semantic-context",
+        "hybrid-context-semantic",
+    } and set(semantic_by_key) != set(baselines):
         raise ValueError("semantic decisions do not exactly cover frozen target")
     selected: dict[DecisionKey, str | None] = {}
     scores: dict[DecisionKey, float] = {}
@@ -1298,7 +1304,10 @@ def select_frozen_action_value_actions(
     lambda_cost = float(model["lambda_cost"])
     feature_mode = str(model["feature_mode"])
     semantic_by_key = {} if semantic_decisions is None else semantic_decisions
-    if feature_mode == "semantic-context" and set(semantic_by_key) != set(baselines):
+    if feature_mode in {
+        "semantic-context",
+        "hybrid-context-semantic",
+    } and set(semantic_by_key) != set(baselines):
         raise ValueError("semantic decisions do not exactly cover frozen target")
     for key in sorted(baselines):
         scored_actions = []

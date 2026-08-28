@@ -258,3 +258,70 @@ def test_source_grouped_oof_factorized_model_refits_and_round_trips():
         model, auxiliary
     )
     assert len(selected) == len(scores) == 150
+
+
+def test_hybrid_factorized_model_uses_context_state_and_semantic_actions():
+    torch = pytest.importorskip("torch")
+    source = _namespace(
+        simulate_counterfactual_dataset(n_states=140, num_candidates=4, seed=47),
+        "source",
+    )
+    auxiliary = _namespace(
+        simulate_counterfactual_dataset(n_states=120, num_candidates=4, seed=53),
+        "auxiliary",
+    )
+
+    def semantic_index(records):
+        result = {}
+        for key, siblings in group_by_decision(records).items():
+            baseline = next(
+                record for record in siblings if record.action_type == "ANSWER"
+            )
+            zooms = sorted(
+                (record for record in siblings if record.action_type == "ZOOM"),
+                key=lambda record: record.action_id,
+            )
+            result[key] = {
+                "action_ids": [record.action_id for record in zooms],
+                "question_embedding": torch.tensor([1.0, 0.5, 0.25]),
+                "global_visual_embedding": torch.tensor([0.25, 1.0, 0.5]),
+                "region_embeddings": torch.tensor(
+                    [
+                        [
+                            record.candidate_bbox.x1,
+                            record.candidate_bbox.y1,
+                            1.0,
+                        ]
+                        for record in zooms
+                    ]
+                ),
+                "bboxes": torch.tensor(
+                    [record.candidate_bbox.to_list() for record in zooms]
+                ),
+                "state_signals": torch.tensor([baseline.entropy_before]),
+                "success_before": baseline.correct_before,
+                "success_after": torch.tensor(
+                    [record.correct_after for record in zooms]
+                ),
+            }
+        return result
+
+    semantic = {
+        "source": semantic_index(source),
+        "auxiliary": semantic_index(auxiliary),
+    }
+    report, model = fit_multidomain_factorized_action_value_model(
+        {"source": source, "auxiliary": auxiliary},
+        feature_mode="hybrid-context-semantic",
+        semantic_decisions_by_domain=semantic,
+        alpha_values=(10.0,),
+        seed=23,
+    )
+    assert report["state_feature_count"] == 27
+    assert report["action_feature_count"] == 42
+    selected, scores = select_frozen_factorized_action_value_actions(
+        model,
+        auxiliary,
+        semantic_decisions=semantic["auxiliary"],
+    )
+    assert len(selected) == len(scores) == 120
