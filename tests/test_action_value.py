@@ -18,6 +18,7 @@ from beyond_entropy.action_value import (
     spatial_question_features,
 )
 from beyond_entropy.dataset import group_by_decision
+from beyond_entropy.oof_action_value import fit_oof_factorized_action_value_model
 from beyond_entropy.simulate import simulate_counterfactual_dataset
 
 
@@ -221,3 +222,39 @@ def test_factorized_risk_rescue_harm_model_round_trips():
         bootstrap_resamples=20,
     )
     assert evaluated["n_decisions"] == 160
+
+
+def test_source_grouped_oof_factorized_model_refits_and_round_trips():
+    source = _namespace(
+        simulate_counterfactual_dataset(
+            n_states=180,
+            num_candidates=4,
+            questions_per_image=2,
+            seed=41,
+        ),
+        "source",
+    )
+    auxiliary = _namespace(
+        simulate_counterfactual_dataset(
+            n_states=150,
+            num_candidates=4,
+            questions_per_image=2,
+            seed=43,
+        ),
+        "auxiliary",
+    )
+    report, model = fit_oof_factorized_action_value_model(
+        {"source": source, "auxiliary": auxiliary},
+        n_folds=3,
+        alpha_values=(10.0,),
+        seed=17,
+        bootstrap_resamples=20,
+    )
+    assert report["training_protocol"] == "source_grouped_oof_v1"
+    assert report["development_decisions"] == 330
+    assert report["oof_policy_result"]["n_decisions"] == 330
+    assert model["training_protocol"] == "source_grouped_oof_v1"
+    selected, scores = select_frozen_factorized_action_value_actions(
+        model, auxiliary
+    )
+    assert len(selected) == len(scores) == 150

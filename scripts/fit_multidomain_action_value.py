@@ -12,6 +12,7 @@ from beyond_entropy.action_value import (
     fit_multidomain_factorized_action_value_model,
 )
 from beyond_entropy.dataset import read_jsonl
+from beyond_entropy.oof_action_value import fit_oof_factorized_action_value_model
 from beyond_entropy.qwen_semantic import (
     load_semantic_feature_dataset,
     validate_semantic_feature_dataset,
@@ -60,7 +61,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--model-family",
-        choices=("direct", "factorized"),
+        choices=("direct", "factorized", "factorized-oof"),
         default="direct",
     )
     parser.add_argument(
@@ -71,6 +72,8 @@ def main() -> None:
         help="repeat NAME=FEATURES_PT for semantic-context mode",
     )
     parser.add_argument("--validation-fraction", type=float, default=0.2)
+    parser.add_argument("--oof-folds", type=int, default=5)
+    parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument(
         "--alpha",
@@ -106,20 +109,31 @@ def main() -> None:
                 for decision in payload["decisions"]
             }
     alpha_values = args.alpha_values or [0.1, 1.0, 10.0, 100.0, 1000.0]
-    fit_model = (
-        fit_multidomain_factorized_action_value_model
-        if args.model_family == "factorized"
-        else fit_multidomain_action_value_model
-    )
-    report, model = fit_model(
-        records_by_domain,
-        feature_mode=args.feature_mode,
-        semantic_decisions_by_domain=semantic_decisions_by_domain,
-        validation_fraction=args.validation_fraction,
-        lambda_cost=args.lambda_cost,
-        alpha_values=alpha_values,
-        seed=args.seed,
-    )
+    common = {
+        "feature_mode": args.feature_mode,
+        "semantic_decisions_by_domain": semantic_decisions_by_domain,
+        "lambda_cost": args.lambda_cost,
+        "alpha_values": alpha_values,
+        "seed": args.seed,
+    }
+    if args.model_family == "factorized-oof":
+        report, model = fit_oof_factorized_action_value_model(
+            records_by_domain,
+            n_folds=args.oof_folds,
+            bootstrap_resamples=args.bootstrap_resamples,
+            **common,
+        )
+    else:
+        fit_model = (
+            fit_multidomain_factorized_action_value_model
+            if args.model_family == "factorized"
+            else fit_multidomain_action_value_model
+        )
+        report, model = fit_model(
+            records_by_domain,
+            validation_fraction=args.validation_fraction,
+            **common,
+        )
     code_revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         check=True,
