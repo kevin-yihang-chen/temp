@@ -18,7 +18,10 @@ from beyond_entropy.action_value import (
     spatial_question_features,
 )
 from beyond_entropy.dataset import group_by_decision
-from beyond_entropy.oof_action_value import fit_oof_factorized_action_value_model
+from beyond_entropy.oof_action_value import (
+    _domain_source_balanced_weights,
+    fit_oof_factorized_action_value_model,
+)
 from beyond_entropy.simulate import simulate_counterfactual_dataset
 
 
@@ -39,6 +42,21 @@ def test_question_normalization_removes_wrappers_but_not_question():
         "Answer briefly. Question: What is the total?"
     ) == "What is the total?"
     assert normalized_gate_question("What is the total? Answer:") == "What is the total?"
+
+
+def test_domain_source_balanced_weights_equalize_source_and_domain_mass():
+    domains = ["a", "a", "a", "a", "b", "b", "b"]
+    sources = ["a1", "a1", "a1", "a2", "b1", "b2", "b2"]
+    weights = _domain_source_balanced_weights(domains, sources)
+    mass = {}
+    for domain, source, weight in zip(domains, sources, weights):
+        mass[(domain, source)] = mass.get((domain, source), 0.0) + weight
+    assert sum(weights) == pytest.approx(len(weights))
+    assert mass[("a", "a1")] == pytest.approx(mass[("a", "a2")])
+    assert mass[("b", "b1")] == pytest.approx(mass[("b", "b2")])
+    assert sum(value for (domain, _), value in mass.items() if domain == "a") == pytest.approx(
+        sum(value for (domain, _), value in mass.items() if domain == "b")
+    )
 
 
 def test_context_geometry_features_ignore_counterfactual_outcomes():
@@ -252,7 +270,13 @@ def test_source_grouped_oof_factorized_model_refits_and_round_trips():
         seed=17,
         bootstrap_resamples=20,
     )
-    assert report["training_protocol"] == "source_grouped_oof_v1"
+    assert (
+        report["training_protocol"]
+        == "source_grouped_oof_domain_source_balanced_v2"
+    )
+    assert report["sample_weighting"] == (
+        "equal_domain_then_equal_source_then_equal_row"
+    )
     assert report["development_decisions"] == 330
     assert report["oof_policy_result"]["n_decisions"] == 330
     tail = report["development_tail_risk_diagnostic"]
@@ -261,7 +285,10 @@ def test_source_grouped_oof_factorized_model_refits_and_round_trips():
     assert [
         item["target_pooled_call_rate"] for item in tail["requested_thresholds"]
     ] == [0.005, 0.01, 0.015, 0.02, 0.03, 0.05]
-    assert model["training_protocol"] == "source_grouped_oof_v1"
+    assert (
+        model["training_protocol"]
+        == "source_grouped_oof_domain_source_balanced_v2"
+    )
     selected, scores = select_frozen_factorized_action_value_actions(
         model, auxiliary
     )

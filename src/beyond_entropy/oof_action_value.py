@@ -7,7 +7,6 @@ from typing import Any, Mapping, Sequence
 from .action_value import (
     _action_features,
     _calibrate_domain_robust_threshold,
-    _domain_balanced_weights,
     _ranking_diagnostics,
     _score_factorized_candidates,
     _semantic_feature_index,
@@ -22,6 +21,39 @@ from .risk_control import (
     calibrate_source_risk_threshold,
 )
 from .schema import ActionRecord
+
+
+def _domain_source_balanced_weights(
+    domains: Sequence[str],
+    sources: Sequence[str],
+) -> list[float]:
+    """Give every domain, then every source within a domain, equal mass.
+
+    Rows from a source share that source's mass.  This prevents sources with
+    several questions or action candidates from dominating the OOF heads while
+    retaining equal total weight for every development domain.
+    """
+
+    if not domains or len(domains) != len(sources):
+        raise ValueError("domains and sources must be non-empty and aligned")
+    rows_per_source: dict[tuple[str, str], int] = {}
+    sources_per_domain: dict[str, set[str]] = {}
+    for domain, source in zip(domains, sources):
+        pair = (domain, source)
+        rows_per_source[pair] = rows_per_source.get(pair, 0) + 1
+        sources_per_domain.setdefault(domain, set()).add(source)
+    n_domains = len(sources_per_domain)
+    raw = [
+        1.0
+        / (
+            n_domains
+            * len(sources_per_domain[domain])
+            * rows_per_source[(domain, source)]
+        )
+        for domain, source in zip(domains, sources)
+    ]
+    scale = len(raw) / sum(raw)
+    return [value * scale for value in raw]
 
 
 def _source_folds(
@@ -146,14 +178,20 @@ def _fit_heads(
     error_domains = [domain_by_key[key] for key in keys]
     rescue_domains = [domain_by_key[key] for key, _ in rescue_rows]
     harm_domains = [domain_by_key[key] for key, _ in harm_rows]
+    error_sources = [baselines[key].source_id for key in keys]
+    rescue_sources = [baselines[key].source_id for key, _ in rescue_rows]
+    harm_sources = [baselines[key].source_id for key, _ in harm_rows]
     error_weights = np.asarray(
-        _domain_balanced_weights(error_domains), dtype=np.float64
+        _domain_source_balanced_weights(error_domains, error_sources),
+        dtype=np.float64,
     )
     rescue_weights = np.asarray(
-        _domain_balanced_weights(rescue_domains), dtype=np.float64
+        _domain_source_balanced_weights(rescue_domains, rescue_sources),
+        dtype=np.float64,
     )
     harm_weights = np.asarray(
-        _domain_balanced_weights(harm_domains), dtype=np.float64
+        _domain_source_balanced_weights(harm_domains, harm_sources),
+        dtype=np.float64,
     )
     error_model = LogisticRegression(**model_kwargs).fit(
         error_scaler.transform(state_array),
@@ -458,7 +496,8 @@ def fit_oof_factorized_action_value_model(
             "refit; formal benchmark outcomes are excluded"
         ),
         "model_type": "multidomain_factorized_action_value",
-        "training_protocol": "source_grouped_oof_v1",
+        "training_protocol": "source_grouped_oof_domain_source_balanced_v2",
+        "sample_weighting": "equal_domain_then_equal_source_then_equal_row",
         "feature_mode": feature_mode,
         "decision_rule": (
             "P(error)*P(rescue|error,action)*rescue_magnitude - "
@@ -513,7 +552,8 @@ def fit_oof_factorized_action_value_model(
     }
     model_payload = {
         "model_type": "multidomain_factorized_action_value",
-        "training_protocol": "source_grouped_oof_v1",
+        "training_protocol": "source_grouped_oof_domain_source_balanced_v2",
+        "sample_weighting": "equal_domain_then_equal_source_then_equal_row",
         "feature_mode": feature_mode,
         "decision_rule": "factorized_expected_net_value_above_frozen_oof_margin",
         "seed": seed,
