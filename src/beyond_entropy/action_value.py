@@ -17,6 +17,7 @@ from .rescue_gate import (
     compact_rescue_features,
     pre_action_context_features,
 )
+from .risk_control import AcquisitionCalibrationRow
 from .schema import ActionRecord, BBox
 
 
@@ -1260,6 +1261,41 @@ def select_frozen_factorized_action_value_actions(
         for key, score in scores.items()
     }
     return selected, scores
+
+
+def factorized_acquisition_calibration_rows(
+    model: Mapping[str, Any],
+    records: Sequence[ActionRecord],
+    *,
+    semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
+) -> list[AcquisitionCalibrationRow]:
+    """Join ungated frozen predictions to exactly one sibling crop outcome."""
+
+    actions, scores = predict_frozen_factorized_action_values(
+        model,
+        records,
+        semantic_decisions=semantic_decisions,
+    )
+    baselines, zooms = _decision_rows(records)
+    if set(actions) != set(scores) or set(actions) != set(baselines):
+        raise RuntimeError("factorized calibration predictions are incomplete")
+    rows = []
+    for key in sorted(actions):
+        matches = [
+            action for action in zooms[key] if action.action_id == actions[key]
+        ]
+        if len(matches) != 1:
+            raise RuntimeError("factorized calibration action is not unique")
+        action = matches[0]
+        rows.append(
+            AcquisitionCalibrationRow(
+                source_id=baselines[key].source_id,
+                score=scores[key],
+                gain=action.delta_success,
+                tool_cost=action.tool_cost,
+            )
+        )
+    return rows
 
 
 def evaluate_frozen_factorized_action_value_model(

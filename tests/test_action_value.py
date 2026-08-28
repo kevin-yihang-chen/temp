@@ -8,6 +8,7 @@ from beyond_entropy.action_value import (
     context_geometry_action_features,
     evaluate_frozen_action_value_model,
     evaluate_frozen_factorized_action_value_model,
+    factorized_acquisition_calibration_rows,
     fit_multidomain_action_value_model,
     fit_multidomain_factorized_action_value_model,
     normalized_gate_question,
@@ -241,6 +242,12 @@ def test_factorized_risk_rescue_harm_model_round_trips():
     assert len(actions) == len(ungated_scores) == 160
     assert all(action.startswith("zoom-") for action in actions.values())
     assert ungated_scores == pytest.approx(scores)
+    calibration_rows = factorized_acquisition_calibration_rows(model, auxiliary)
+    assert len(calibration_rows) == 160
+    assert {row.source_id for row in calibration_rows} == {
+        record.source_id for record in auxiliary if record.action_type == "ANSWER"
+    }
+    assert all(row.tool_cost > 0.0 for row in calibration_rows)
     evaluated = evaluate_frozen_factorized_action_value_model(
         model,
         auxiliary,
