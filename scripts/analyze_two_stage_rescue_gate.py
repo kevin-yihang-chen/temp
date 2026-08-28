@@ -65,7 +65,7 @@ def main() -> None:
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument(
         "--action-feature-mode",
-        choices=("semantic", "context-quadrant"),
+        choices=("semantic", "context-quadrant", "attention-fixed"),
         default="semantic",
     )
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)

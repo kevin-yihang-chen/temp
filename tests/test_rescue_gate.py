@@ -14,6 +14,7 @@ from beyond_entropy.rescue_gate import (
     fit_nested_oof_rescue_gate,
     fit_nested_oof_two_stage_gate,
     context_quadrant_action_features,
+    question_region_attention_features,
     pre_action_context_feature_subset,
     pre_action_context_features,
     tune_rescue_gate_threshold,
@@ -214,6 +215,50 @@ def test_nested_oof_two_stage_gate_runs_without_post_action_features():
     assert report["policy_result"]["n_decisions"] == 120
     assert report["action_feature_count"] == 15
     assert len(model["fold_models"]) == 5
+
+
+def test_attention_fixed_two_stage_gate_uses_frozen_region_ranking():
+    torch = pytest.importorskip("torch")
+    records = simulate_counterfactual_dataset(
+        n_states=120,
+        num_candidates=4,
+        questions_per_image=2,
+        seed=9,
+    )
+    decisions = {}
+    generator = torch.Generator().manual_seed(3)
+    for key, siblings in group_by_decision(records).items():
+        zooms = sorted(
+            (record for record in siblings if record.action_type == "ZOOM"),
+            key=lambda record: record.action_id,
+        )
+        baseline = next(record for record in siblings if record.action_type == "ANSWER")
+        decisions[key] = {
+            "action_ids": [record.action_id for record in zooms],
+            "question_embedding": torch.randn(8, generator=generator),
+            "global_visual_embedding": torch.randn(8, generator=generator),
+            "region_embeddings": torch.randn(4, 8, generator=generator),
+            "bboxes": torch.tensor(
+                [record.candidate_bbox.to_list() for record in zooms],
+                dtype=torch.float32,
+            ),
+            "state_signals": torch.tensor([baseline.entropy_before]),
+            "question_region_attention": torch.tensor([0.1, 0.2, 0.6, 0.1]),
+        }
+    report, model = fit_nested_oof_two_stage_gate(
+        records,
+        decisions,
+        action_feature_mode="attention-fixed",
+        c_values=(0.1,),
+        bootstrap_resamples=20,
+        seed=4,
+    )
+    assert report["n_decisions"] == 120
+    assert report["action_feature_count"] == 1
+    assert all(fold["selected_action_c"] is None for fold in report["folds"])
+    assert all("action_coefficient" not in fold for fold in model["fold_models"])
+    exemplar = next(iter(decisions.values()))
+    assert question_region_attention_features(exemplar, 2) == pytest.approx([0.6])
 
 
 def test_context_quadrant_action_features_do_not_use_action_outcomes():

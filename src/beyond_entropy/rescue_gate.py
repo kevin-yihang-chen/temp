@@ -303,6 +303,26 @@ def context_quadrant_action_features(
     return [*context, *one_hot, *interactions]
 
 
+def question_region_attention_features(
+    decision: Mapping[str, Any],
+    action_index: int,
+) -> list[float]:
+    """Return the frozen pre-execution attention score for one candidate region."""
+
+    raw_attention = decision.get("question_region_attention")
+    action_ids = decision.get("action_ids")
+    if raw_attention is None or not isinstance(action_ids, (list, tuple)):
+        raise ValueError("attention-fixed ranking requires action IDs and region attention")
+    if tuple(raw_attention.shape) != (len(action_ids),):
+        raise ValueError("question-region attention must cover every action")
+    if not 0 <= action_index < len(action_ids):
+        raise ValueError("action index is outside the attention vector")
+    score = float(raw_attention[action_index])
+    if not math.isfinite(score):
+        raise ValueError("question-region attention must be finite")
+    return [score]
+
+
 def _decision_baselines(records: Sequence[ActionRecord]) -> dict[DecisionKey, ActionRecord]:
     baselines: dict[DecisionKey, ActionRecord] = {}
     for key, siblings in group_by_decision(records).items():
@@ -1538,7 +1558,11 @@ def fit_nested_oof_two_stage_gate(
         raise ValueError("c_values must contain positive regularization values")
     grouped = group_by_decision(records)
     all_keys = sorted(grouped)
-    if action_feature_mode not in ("semantic", "context-quadrant"):
+    if action_feature_mode not in (
+        "semantic",
+        "context-quadrant",
+        "attention-fixed",
+    ):
         raise ValueError(f"unsupported action feature mode: {action_feature_mode}")
     missing = set(all_keys) - set(decision_by_key)
     if missing:
@@ -1564,18 +1588,23 @@ def fit_nested_oof_two_stage_gate(
             raise ValueError(f"semantic action IDs differ for decision {key!r}")
         zooms_by_key[key] = zooms
         for action_index, record in enumerate(zooms):
-            action_features[(key, record.action_id)] = (
-                compact_action_features(
+            if action_feature_mode == "semantic":
+                features = compact_action_features(
                     decision_by_key[key],
                     action_index,
                 )
-                if action_feature_mode == "semantic"
-                else context_quadrant_action_features(
+            elif action_feature_mode == "context-quadrant":
+                features = context_quadrant_action_features(
                     baselines[key],
                     action_index,
                     action_count=len(zooms),
                 )
-            )
+            else:
+                features = question_region_attention_features(
+                    decision_by_key[key],
+                    action_index,
+                )
+            action_features[(key, record.action_id)] = features
     outer_folds = _grouped_crossfit_records(
         records,
         split_group=split_group,
@@ -1630,58 +1659,84 @@ def fit_nested_oof_two_stage_gate(
                 )
             )
 
-        action_train_rows = [
-            (key, zoom)
-            for key in train_keys
-            if baselines[key].correct_before < 0.5
-            for zoom in zooms_by_key[key]
-        ]
-        action_scaler = StandardScaler().fit(
-            np.asarray(
-                [action_features[(key, zoom.action_id)] for key, zoom in action_train_rows],
-                dtype=np.float64,
-            )
-        )
-        action_train_features = action_scaler.transform(
-            np.asarray(
-                [action_features[(key, zoom.action_id)] for key, zoom in action_train_rows],
-                dtype=np.float64,
-            )
-        )
-        action_train_labels = np.asarray(
-            [zoom.delta_success > 0.0 for _, zoom in action_train_rows],
-            dtype=np.int64,
-        )
-        action_models = []
-        for action_c in c_values:
-            action_model = LogisticRegression(
-                C=float(action_c),
-                class_weight="balanced",
-                solver="liblinear",
-                max_iter=2000,
-                random_state=seed + fold_index,
-            ).fit(action_train_features, action_train_labels)
+        action_models: list[tuple[float, Any, dict[DecisionKey, ActionRecord]]] = []
+        if action_feature_mode == "attention-fixed":
             validation_top_actions = {}
             for key in validation_keys:
-                candidate_features = action_scaler.transform(
-                    np.asarray(
-                        [
-                            action_features[(key, zoom.action_id)]
-                            for zoom in zooms_by_key[key]
-                        ],
-                        dtype=np.float64,
-                    )
-                )
-                candidate_scores = action_model.decision_function(candidate_features)
+                fixed_scores = [
+                    action_features[(key, zoom.action_id)][0]
+                    for zoom in zooms_by_key[key]
+                ]
                 selected_index = max(
                     range(len(zooms_by_key[key])),
                     key=lambda index: (
-                        float(candidate_scores[index]),
+                        float(fixed_scores[index]),
                         zooms_by_key[key][index].action_id,
                     ),
                 )
                 validation_top_actions[key] = zooms_by_key[key][selected_index]
-            action_models.append((float(action_c), action_model, validation_top_actions))
+            action_scaler = None
+            action_models.append((0.0, None, validation_top_actions))
+        else:
+            action_train_rows = [
+                (key, zoom)
+                for key in train_keys
+                if baselines[key].correct_before < 0.5
+                for zoom in zooms_by_key[key]
+            ]
+            action_scaler = StandardScaler().fit(
+                np.asarray(
+                    [
+                        action_features[(key, zoom.action_id)]
+                        for key, zoom in action_train_rows
+                    ],
+                    dtype=np.float64,
+                )
+            )
+            action_train_features = action_scaler.transform(
+                np.asarray(
+                    [
+                        action_features[(key, zoom.action_id)]
+                        for key, zoom in action_train_rows
+                    ],
+                    dtype=np.float64,
+                )
+            )
+            action_train_labels = np.asarray(
+                [zoom.delta_success > 0.0 for _, zoom in action_train_rows],
+                dtype=np.int64,
+            )
+            for action_c in c_values:
+                action_model = LogisticRegression(
+                    C=float(action_c),
+                    class_weight="balanced",
+                    solver="liblinear",
+                    max_iter=2000,
+                    random_state=seed + fold_index,
+                ).fit(action_train_features, action_train_labels)
+                validation_top_actions = {}
+                for key in validation_keys:
+                    candidate_features = action_scaler.transform(
+                        np.asarray(
+                            [
+                                action_features[(key, zoom.action_id)]
+                                for zoom in zooms_by_key[key]
+                            ],
+                            dtype=np.float64,
+                        )
+                    )
+                    candidate_scores = action_model.decision_function(candidate_features)
+                    selected_index = max(
+                        range(len(zooms_by_key[key])),
+                        key=lambda index: (
+                            float(candidate_scores[index]),
+                            zooms_by_key[key][index].action_id,
+                        ),
+                    )
+                    validation_top_actions[key] = zooms_by_key[key][selected_index]
+                action_models.append(
+                    (float(action_c), action_model, validation_top_actions)
+                )
 
         candidates: list[tuple[float, float, float, float, float, Any, Any]] = []
         for state_c, state_model, validation_state_scores in state_models:
@@ -1719,17 +1774,30 @@ def fit_nested_oof_two_stage_gate(
         test_action_labels: list[int] = []
         test_action_scores: list[float] = []
         for key, state_score in zip(test_keys, test_state_scores.tolist()):
-            candidate_features = action_scaler.transform(
-                np.asarray(
-                    [action_features[(key, zoom.action_id)] for zoom in zooms_by_key[key]],
+            if action_feature_mode == "attention-fixed":
+                test_candidate_scores = np.asarray(
+                    [
+                        action_features[(key, zoom.action_id)][0]
+                        for zoom in zooms_by_key[key]
+                    ],
                     dtype=np.float64,
                 )
-            )
-            candidate_scores = action_model.decision_function(candidate_features)
+            else:
+                assert action_scaler is not None and action_model is not None
+                candidate_features = action_scaler.transform(
+                    np.asarray(
+                        [
+                            action_features[(key, zoom.action_id)]
+                            for zoom in zooms_by_key[key]
+                        ],
+                        dtype=np.float64,
+                    )
+                )
+                test_candidate_scores = action_model.decision_function(candidate_features)
             selected_index = max(
                 range(len(zooms_by_key[key])),
                 key=lambda index: (
-                    float(candidate_scores[index]),
+                    float(test_candidate_scores[index]),
                     zooms_by_key[key][index].action_id,
                 ),
             )
@@ -1743,7 +1811,9 @@ def fit_nested_oof_two_stage_gate(
                 test_action_labels.extend(
                     int(zoom.delta_success > 0.0) for zoom in zooms_by_key[key]
                 )
-                test_action_scores.extend(float(score) for score in candidate_scores.tolist())
+                test_action_scores.extend(
+                    float(score) for score in test_candidate_scores.tolist()
+                )
         overlap = set(fold_selected_actions) & set(pooled_selected_actions)
         if overlap:
             raise RuntimeError(f"nested OOF test decisions overlap: {sorted(overlap)[:5]}")
@@ -1768,7 +1838,11 @@ def fit_nested_oof_two_stage_gate(
                 "validation_decisions": len(validation_keys),
                 "test_decisions": len(test_keys),
                 "selected_state_c": -negative_state_c,
-                "selected_action_c": -negative_action_c,
+                "selected_action_c": (
+                    None
+                    if action_feature_mode == "attention-fixed"
+                    else -negative_action_c
+                ),
                 "validation_threshold": threshold,
                 "validation_utility": validation_utility,
                 "validation_tool_rate": -negative_tool_rate,
@@ -1803,11 +1877,14 @@ def fit_nested_oof_two_stage_gate(
                 "policy_result": fold_result,
             }
         )
-        fold_models.append(
-            {
+        fold_model = {
                 "fold": fold_index,
                 "selected_state_c": -negative_state_c,
-                "selected_action_c": -negative_action_c,
+                "selected_action_c": (
+                    None
+                    if action_feature_mode == "attention-fixed"
+                    else -negative_action_c
+                ),
                 "threshold": threshold,
                 "state_scaler_mean": [
                     float(value) for value in state_scaler.mean_.tolist()
@@ -1819,6 +1896,11 @@ def fit_nested_oof_two_stage_gate(
                     float(value) for value in state_model.coef_[0].tolist()
                 ],
                 "state_intercept": float(state_model.intercept_[0]),
+        }
+        if action_feature_mode != "attention-fixed":
+            assert action_scaler is not None and action_model is not None
+            fold_model.update(
+                {
                 "action_scaler_mean": [
                     float(value) for value in action_scaler.mean_.tolist()
                 ],
@@ -1829,8 +1911,9 @@ def fit_nested_oof_two_stage_gate(
                     float(value) for value in action_model.coef_[0].tolist()
                 ],
                 "action_intercept": float(action_model.intercept_[0]),
-            }
-        )
+                }
+            )
+        fold_models.append(fold_model)
     if set(pooled_selected_actions) != set(all_keys):
         missing_oof = sorted(set(all_keys) - set(pooled_selected_actions))
         raise RuntimeError(f"nested OOF predictions are incomplete: {missing_oof[:5]}")
@@ -1859,8 +1942,9 @@ def fit_nested_oof_two_stage_gate(
     helpful_keys = [key for key in all_keys if state_labels[key]]
     report = {
         "scientific_status": (
-            "nested grouped OOF two-stage diagnostic; state and action models both "
-            "exclude each evaluated image group"
+            "nested grouped OOF two-stage diagnostic; the state model excludes each "
+            "evaluated image group and the action ranker is either grouped OOF or "
+            "frozen zero-shot attention"
         ),
         "seed": seed,
         "state_feature_mode": state_feature_mode,
