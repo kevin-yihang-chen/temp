@@ -44,6 +44,7 @@ def main() -> None:
         help="reject semantic feature files that contain target outcome fields",
     )
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
+    parser.add_argument("--bootstrap-confidence", type=float, default=0.95)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
     parser.add_argument(
         "--cluster-by",
@@ -96,6 +97,7 @@ def main() -> None:
             model,
             records,
             bootstrap_resamples=args.bootstrap_resamples,
+            bootstrap_confidence=args.bootstrap_confidence,
             bootstrap_seed=args.bootstrap_seed,
             cluster_by=args.cluster_by,
             semantic_decisions=semantic_decisions,
@@ -105,6 +107,7 @@ def main() -> None:
             model,
             records,
             bootstrap_resamples=args.bootstrap_resamples,
+            bootstrap_confidence=args.bootstrap_confidence,
             bootstrap_seed=args.bootstrap_seed,
             cluster_by=args.cluster_by,
             semantic_decisions=semantic_decisions,
@@ -126,6 +129,7 @@ def main() -> None:
             "paths": {name: str(path) for name, path in paths.items()},
             "sha256": hashes,
             "bootstrap_resamples": args.bootstrap_resamples,
+            "bootstrap_confidence": args.bootstrap_confidence,
             "bootstrap_seed": args.bootstrap_seed,
             "cluster_by": args.cluster_by,
             "required_label_free_features": args.require_label_free_features,

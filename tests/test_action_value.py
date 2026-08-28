@@ -220,8 +220,10 @@ def test_factorized_risk_rescue_harm_model_round_trips():
         model,
         auxiliary,
         bootstrap_resamples=20,
+        bootstrap_confidence=0.9,
     )
     assert evaluated["n_decisions"] == 160
+    assert evaluated["bootstrap"]["confidence"] == 0.9
 
 
 def test_source_grouped_oof_factorized_model_refits_and_round_trips():

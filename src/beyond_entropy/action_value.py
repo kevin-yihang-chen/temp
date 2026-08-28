@@ -1243,6 +1243,7 @@ def evaluate_frozen_factorized_action_value_model(
     records: Sequence[ActionRecord],
     *,
     bootstrap_resamples: int = 5000,
+    bootstrap_confidence: float = 0.95,
     bootstrap_seed: int = 0,
     cluster_by: str = "state_id",
     semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
@@ -1265,6 +1266,7 @@ def evaluate_frozen_factorized_action_value_model(
         policy,
         lambda_cost=lambda_cost,
         n_resamples=bootstrap_resamples,
+        confidence=bootstrap_confidence,
         seed=bootstrap_seed,
         cluster_by=cluster_by,  # type: ignore[arg-type]
     )
@@ -1344,6 +1346,7 @@ def evaluate_frozen_action_value_model(
     records: Sequence[ActionRecord],
     *,
     bootstrap_resamples: int = 5000,
+    bootstrap_confidence: float = 0.95,
     bootstrap_seed: int = 0,
     cluster_by: str = "state_id",
     semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
@@ -1368,6 +1371,7 @@ def evaluate_frozen_action_value_model(
         policy,
         lambda_cost=lambda_cost,
         n_resamples=bootstrap_resamples,
+        confidence=bootstrap_confidence,
         seed=bootstrap_seed,
         cluster_by=cluster_by,  # type: ignore[arg-type]
     )
