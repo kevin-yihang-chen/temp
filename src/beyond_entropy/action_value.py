@@ -364,6 +364,87 @@ def _validation_objective(
     }
 
 
+def _ranking_diagnostics(
+    top_actions: Mapping[DecisionKey, str],
+    keys: Sequence[DecisionKey],
+    zooms: Mapping[DecisionKey, Sequence[ActionRecord]],
+    domain_by_key: Mapping[DecisionKey, str],
+    *,
+    lambda_cost: float,
+) -> dict[str, Any]:
+    by_domain: dict[str, list[DecisionKey]] = {}
+    for key in keys:
+        by_domain.setdefault(domain_by_key[key], []).append(key)
+
+    def summarize(domain_keys: Sequence[DecisionKey]) -> dict[str, Any]:
+        learned = [
+            next(
+                action
+                for action in zooms[key]
+                if action.action_id == top_actions[key]
+            )
+            for key in domain_keys
+        ]
+        helpful_keys = [
+            key
+            for key in domain_keys
+            if any(action.delta_success > 0.0 for action in zooms[key])
+        ]
+        return {
+            "decisions": len(domain_keys),
+            "helpful_states": len(helpful_keys),
+            "learned_top1_mean_gain": mean(action.delta_success for action in learned),
+            "learned_top1_mean_utility_if_always_called": mean(
+                action.voi(lambda_cost) for action in learned
+            ),
+            "random_crop_mean_gain": mean(
+                mean(action.delta_success for action in zooms[key])
+                for key in domain_keys
+            ),
+            "random_crop_mean_utility_if_always_called": mean(
+                mean(action.voi(lambda_cost) for action in zooms[key])
+                for key in domain_keys
+            ),
+            "oracle_crop_mean_gain_if_always_called": mean(
+                max(action.delta_success for action in zooms[key])
+                for key in domain_keys
+            ),
+            "oracle_voi_mean_utility": mean(
+                max(0.0, *(action.voi(lambda_cost) for action in zooms[key]))
+                for key in domain_keys
+            ),
+            "learned_top1_rescue_rate_within_helpful_states": (
+                mean(
+                    next(
+                        action.delta_success
+                        for action in zooms[key]
+                        if action.action_id == top_actions[key]
+                    )
+                    > 0.0
+                    for key in helpful_keys
+                )
+                if helpful_keys
+                else None
+            ),
+            "random_rescue_rate_within_helpful_states": (
+                mean(
+                    mean(action.delta_success > 0.0 for action in zooms[key])
+                    for key in helpful_keys
+                )
+                if helpful_keys
+                else None
+            ),
+        }
+
+    return {
+        "pooled": summarize(keys),
+        "per_domain": {
+            domain: summarize(domain_keys)
+            for domain, domain_keys in sorted(by_domain.items())
+        },
+    }
+
+
 def _calibrate_domain_robust_threshold(
     top_actions: Mapping[DecisionKey, str],
     best_values: Mapping[DecisionKey, float],
@@ -500,6 +581,13 @@ def fit_multidomain_action_value_model(
                 "best_values": best_values,
                 "top_actions": top_actions,
                 "metrics": metrics,
+                "ranking_diagnostics": _ranking_diagnostics(
+                    top_actions,
+                    validation_keys,
+                    zooms,
+                    domain_by_key,
+                    lambda_cost=lambda_cost,
+                ),
             }
         )
     winner = max(
@@ -559,6 +647,7 @@ def fit_multidomain_action_value_model(
                 "alpha": candidate["alpha"],
                 "threshold": candidate["threshold"],
                 **candidate["metrics"],
+                "ranking_diagnostics": candidate["ranking_diagnostics"],
             }
             for candidate in candidates
         ],
