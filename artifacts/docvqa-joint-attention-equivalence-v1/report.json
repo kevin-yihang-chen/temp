@@ -1,0 +1,44 @@
+{
+  "decisions": 824,
+  "frozen_policy": {
+    "exact_decision_agreement": 0.9987864077669902,
+    "joint_calls": 42,
+    "reference_calls": 41
+  },
+  "predicted_net_value_absolute_difference": {
+    "maximum": 0.007639288354455376,
+    "mean": 0.00021884322516327334,
+    "minimum": 3.7032022908584095e-07,
+    "p95": 0.000869228518726714
+  },
+  "question_embedding_cosine": {
+    "maximum": 0.999901533126831,
+    "mean": 0.9996685196907775,
+    "minimum": 0.997679591178894,
+    "p95": 0.999828577041626
+  },
+  "question_embedding_max_absolute_difference": {
+    "maximum": 3.8125,
+    "mean": 0.9382896052980886,
+    "minimum": 0.296875,
+    "p95": 1.75
+  },
+  "question_region_attention_max_absolute_difference": {
+    "maximum": 0.0,
+    "mean": 0.0,
+    "minimum": 0.0,
+    "p95": 0.0
+  },
+  "run": {
+    "formal_outcomes_used": false,
+    "joint": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/docvqa/qwen3b-c4-seed0/features-joint-question-attention.pt",
+    "joint_sha256": "5768ca892a177a0f27ba006dc60153b2a16bd8e2791eb50958dc454e22803622",
+    "model": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-oof-factorized-action-value-attention-semantic-postfailure-v1/model.json",
+    "model_sha256": "1f8b6cf5d026bcd9921434c1c6ef0c753259d36504dedc040b8145c76bd06ff3",
+    "reference": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/docvqa/qwen3b-c4-seed0/features-question-region-attention.pt",
+    "reference_sha256": "a4055bc8306321c0ca98577407e3d9ed1f4b983474178cb68422702bd6f9407a",
+    "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/docvqa/qwen3b-c4-seed0/rollouts.jsonl",
+    "rollouts_sha256": "4d3d3a33f644d1f5122aabecd47a8168d2dce2db5014692b508ba76ae4ddbe52"
+  },
+  "scientific_status": "development-only engineering equivalence check; no outcome metric used"
+}

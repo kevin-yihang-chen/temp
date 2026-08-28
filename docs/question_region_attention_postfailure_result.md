@@ -79,3 +79,21 @@ robustness, and the positive lower bound is narrow. The next decisive evidence
 is a label-free frozen evaluation on the untouched DocVQA formal partition,
 with multiplicity correction because the original context policy remains the
 registered primary analysis.
+
+## Baseline-forward reuse audit
+
+A post-freeze engineering diagnostic recomputed the multimodal question state
+inside the same eager forward pass used for attention instead of running a
+separate SDPA pass. On all 824 DocVQA development decisions:
+
+- region-attention vectors were bit-identical (maximum absolute difference 0);
+- question embeddings had mean cosine similarity `0.999669`;
+- frozen predicted values differed by `0.000219` on average;
+- 823/824 complete stop/action decisions agreed (`99.879%`), with 41 versus 42
+  calls.
+
+Thus attention and question conditioning can practically share one original-
+image forward pass. This does not alter the separately frozen formal policy,
+whose exact feature construction remains the preregistered two-pass replay.
+The joint-equivalence report SHA-256 is
+`7a1f972989ddaae682ab139bb6b1efd45e8b59dff16b755f0ec5aa798de1bafd`.
