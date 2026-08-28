@@ -1,0 +1,563 @@
+{
+  "baseline_mean_score": 0.9032545902056537,
+  "baseline_wrong_rate": 0.08009708737864078,
+  "candidate_counts": [
+    4
+  ],
+  "decisions": 824,
+  "harm_action_rate_on_correct_baselines": 0.03133245382585752,
+  "harmful_state_rate": 0.08009708737864078,
+  "helpful_state_rate": 0.06796116504854369,
+  "images": 200,
+  "lambda_cost": 0.05,
+  "policies": {
+    "answer_now": {
+      "accuracy": 0.9032545902056537,
+      "accuracy_gain": 0.0,
+      "answer_now_accuracy": 0.9032545902056537,
+      "avg_tool_calls": 0,
+      "avg_visual_cost": 0.0,
+      "bootstrap": {
+        "confidence": 0.95,
+        "lambda_cost": 0.05,
+        "metrics": {
+          "accuracy": {
+            "ci_high": 0.9237464262353876,
+            "ci_low": 0.8816626662596666,
+            "estimate": 0.9032545902056537
+          },
+          "accuracy_gain": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "answer_now_accuracy": {
+            "ci_high": 0.9237464262353876,
+            "ci_low": 0.8816626662596666,
+            "estimate": 0.9032545902056537
+          },
+          "avg_tool_calls": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0
+          },
+          "avg_visual_cost": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "correct_stopping_rate": {
+            "ci_high": 0.9511905099724338,
+            "ci_low": 0.9133162099094044,
+            "estimate": 0.933252427184466
+          },
+          "marginal_accuracy_gain_per_tool_call": {
+            "ci_high": null,
+            "ci_low": null,
+            "estimate": null
+          },
+          "mean_oracle_regret": {
+            "ci_high": 0.04719576714472712,
+            "ci_low": 0.023970547709696186,
+            "estimate": 0.034889364731999876
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "mean_realized_voi": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "mean_success_gain": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "missed_information_rate": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "tool_use_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "unnecessary_tool_call_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "zoom_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0
+          }
+        },
+        "n_clusters": 200,
+        "n_decisions": 824,
+        "n_resamples": 5000,
+        "n_states": 824,
+        "policy": "answer_now",
+        "resampling_unit": "source_id",
+        "seed": 0
+      },
+      "correct_stopping_rate": 0.933252427184466,
+      "marginal_accuracy_gain_per_tool_call": null,
+      "mean_oracle_regret": 0.034889364731999876,
+      "mean_policy_utility": 0.0,
+      "mean_realized_voi": 0.0,
+      "mean_success_gain": 0.0,
+      "missed_information_rate": 0.06674757281553398,
+      "n_decisions": 824,
+      "policy": "answer_now",
+      "tool_use_rate": 0.0,
+      "unnecessary_tool_call_rate": 0.0,
+      "zoom_rate": 0
+    },
+    "exhaustive_entropy_search": {
+      "accuracy": 0.9124281072938004,
+      "accuracy_gain": 0.009173517088146732,
+      "answer_now_accuracy": 0.9032545902056537,
+      "avg_tool_calls": 4,
+      "avg_visual_cost": 4.0,
+      "bootstrap": {
+        "confidence": 0.95,
+        "lambda_cost": 0.05,
+        "metrics": {
+          "accuracy": {
+            "ci_high": 0.9332666256145274,
+            "ci_low": 0.88968962532167,
+            "estimate": 0.9124281072938004
+          },
+          "accuracy_gain": {
+            "ci_high": 0.02338429884250705,
+            "ci_low": -0.005679292090198389,
+            "estimate": 0.009173517088146732
+          },
+          "answer_now_accuracy": {
+            "ci_high": 0.9237464262353876,
+            "ci_low": 0.8816626662596666,
+            "estimate": 0.9032545902056537
+          },
+          "avg_tool_calls": {
+            "ci_high": 4.0,
+            "ci_low": 4.0,
+            "estimate": 4
+          },
+          "avg_visual_cost": {
+            "ci_high": 4.0,
+            "ci_low": 4.0,
+            "estimate": 4.0
+          },
+          "correct_stopping_rate": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "marginal_accuracy_gain_per_tool_call": {
+            "ci_high": 0.005846074710626763,
+            "ci_low": -0.0014198230225495974,
+            "estimate": 0.002293379272036683
+          },
+          "mean_oracle_regret": {
+            "ci_high": 0.24015219693676826,
+            "ci_low": 0.2140503535004038,
+            "estimate": 0.22571584764385308
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.176615701157493,
+            "ci_low": -0.20567929209019867,
+            "estimate": -0.1908264829118532
+          },
+          "mean_realized_voi": {
+            "ci_high": -0.176615701157493,
+            "ci_low": -0.20567929209019867,
+            "estimate": -0.1908264829118532
+          },
+          "mean_success_gain": {
+            "ci_high": 0.023384298842506944,
+            "ci_low": -0.005679292090198615,
+            "estimate": 0.009173517088146808
+          },
+          "missed_information_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "tool_use_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1.0
+          },
+          "unnecessary_tool_call_rate": {
+            "ci_high": 0.978391547216091,
+            "ci_low": 0.9547169811320755,
+            "estimate": 0.9672330097087378
+          },
+          "zoom_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1
+          }
+        },
+        "n_clusters": 200,
+        "n_decisions": 824,
+        "n_resamples": 5000,
+        "n_states": 824,
+        "policy": "entropy_search",
+        "resampling_unit": "source_id",
+        "seed": 0
+      },
+      "correct_stopping_rate": 0.06674757281553398,
+      "marginal_accuracy_gain_per_tool_call": 0.002293379272036683,
+      "mean_oracle_regret": 0.22571584764385308,
+      "mean_policy_utility": -0.1908264829118532,
+      "mean_realized_voi": -0.1908264829118532,
+      "mean_success_gain": 0.009173517088146808,
+      "missed_information_rate": 0.0,
+      "n_decisions": 824,
+      "policy": "entropy_search",
+      "tool_use_rate": 1.0,
+      "unnecessary_tool_call_rate": 0.9672330097087378,
+      "zoom_rate": 1
+    },
+    "fixed_center_crop": {
+      "accuracy": 0.8972945386395198,
+      "accuracy_gain": -0.005960051566133884,
+      "answer_now_accuracy": 0.9032545902056537,
+      "avg_tool_calls": 1,
+      "avg_visual_cost": 1.0,
+      "bootstrap": {
+        "confidence": 0.95,
+        "lambda_cost": 0.05,
+        "metrics": {
+          "accuracy": {
+            "ci_high": 0.918273252342496,
+            "ci_low": 0.8740151436485993,
+            "estimate": 0.8972945386395198
+          },
+          "accuracy_gain": {
+            "ci_high": 0.006931486318278402,
+            "ci_low": -0.01936819974618145,
+            "estimate": -0.005960051566133884
+          },
+          "answer_now_accuracy": {
+            "ci_high": 0.9237464262353876,
+            "ci_low": 0.8816626662596666,
+            "estimate": 0.9032545902056537
+          },
+          "avg_tool_calls": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1
+          },
+          "avg_visual_cost": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1.0
+          },
+          "correct_stopping_rate": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "marginal_accuracy_gain_per_tool_call": {
+            "ci_high": 0.006931486318278402,
+            "ci_low": -0.01936819974618145,
+            "estimate": -0.005960051566133884
+          },
+          "mean_oracle_regret": {
+            "ci_high": 0.10357669764648397,
+            "ci_low": 0.07914189988912475,
+            "estimate": 0.09084941629813369
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.04306851368172157,
+            "ci_low": -0.0693681997461815,
+            "estimate": -0.05596005156613381
+          },
+          "mean_realized_voi": {
+            "ci_high": -0.04306851368172157,
+            "ci_low": -0.0693681997461815,
+            "estimate": -0.05596005156613381
+          },
+          "mean_success_gain": {
+            "ci_high": 0.0069314863182784285,
+            "ci_low": -0.01936819974618148,
+            "estimate": -0.005960051566133805
+          },
+          "missed_information_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "tool_use_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1.0
+          },
+          "unnecessary_tool_call_rate": {
+            "ci_high": 0.9864864864864865,
+            "ci_low": 0.9637952559300874,
+            "estimate": 0.9757281553398058
+          },
+          "zoom_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1
+          }
+        },
+        "n_clusters": 200,
+        "n_decisions": 824,
+        "n_resamples": 5000,
+        "n_states": 824,
+        "policy": "fixed_center_zoom",
+        "resampling_unit": "source_id",
+        "seed": 0
+      },
+      "correct_stopping_rate": 0.06674757281553398,
+      "marginal_accuracy_gain_per_tool_call": -0.005960051566133884,
+      "mean_oracle_regret": 0.09084941629813369,
+      "mean_policy_utility": -0.05596005156613381,
+      "mean_realized_voi": -0.05596005156613381,
+      "mean_success_gain": -0.005960051566133805,
+      "missed_information_rate": 0.0,
+      "n_decisions": 824,
+      "policy": "fixed_center_zoom",
+      "tool_use_rate": 1.0,
+      "unnecessary_tool_call_rate": 0.9757281553398058,
+      "zoom_rate": 1
+    },
+    "oracle_voi": {
+      "accuracy": 0.9414813335784302,
+      "accuracy_gain": 0.03822674337277654,
+      "answer_now_accuracy": 0.9032545902056537,
+      "avg_tool_calls": 0.06674757281553398,
+      "avg_visual_cost": 0.06674757281553398,
+      "bootstrap": {
+        "confidence": 0.95,
+        "lambda_cost": 0.05,
+        "metrics": {
+          "accuracy": {
+            "ci_high": 0.9585509892326646,
+            "ci_low": 0.9221580800184916,
+            "estimate": 0.9414813335784302
+          },
+          "accuracy_gain": {
+            "ci_high": 0.051277892776847044,
+            "ci_low": 0.026693822233382236,
+            "estimate": 0.03822674337277654
+          },
+          "answer_now_accuracy": {
+            "ci_high": 0.9237464262353876,
+            "ci_low": 0.8816626662596666,
+            "estimate": 0.9032545902056537
+          },
+          "avg_tool_calls": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "avg_visual_cost": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "correct_stopping_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1
+          },
+          "marginal_accuracy_gain_per_tool_call": {
+            "ci_high": 0.6893751279014636,
+            "ci_low": 0.45814688265116577,
+            "estimate": 0.5727061188939613
+          },
+          "mean_oracle_regret": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.04719576714472712,
+            "ci_low": 0.023970547709696186,
+            "estimate": 0.034889364731999876
+          },
+          "mean_realized_voi": {
+            "ci_high": 0.04719576714472712,
+            "ci_low": 0.023970547709696186,
+            "estimate": 0.034889364731999876
+          },
+          "mean_success_gain": {
+            "ci_high": 0.05127789277684719,
+            "ci_low": 0.026693822233382354,
+            "estimate": 0.038226743372776574
+          },
+          "missed_information_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "tool_use_rate": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "unnecessary_tool_call_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "zoom_rate": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          }
+        },
+        "n_clusters": 200,
+        "n_decisions": 824,
+        "n_resamples": 5000,
+        "n_states": 824,
+        "policy": "oracle_voi",
+        "resampling_unit": "source_id",
+        "seed": 0
+      },
+      "correct_stopping_rate": 1,
+      "marginal_accuracy_gain_per_tool_call": 0.5727061188939613,
+      "mean_oracle_regret": 0.0,
+      "mean_policy_utility": 0.034889364731999876,
+      "mean_realized_voi": 0.034889364731999876,
+      "mean_success_gain": 0.038226743372776574,
+      "missed_information_rate": 0.0,
+      "n_decisions": 824,
+      "policy": "oracle_voi",
+      "tool_use_rate": 0.06674757281553398,
+      "unnecessary_tool_call_rate": 0.0,
+      "zoom_rate": 0.06674757281553398
+    },
+    "random_one_crop": {
+      "accuracy": 0.9031670590274847,
+      "accuracy_gain": -8.753117816895362e-05,
+      "answer_now_accuracy": 0.9032545902056537,
+      "avg_tool_calls": 1,
+      "avg_visual_cost": 1.0,
+      "bootstrap": {
+        "confidence": 0.95,
+        "lambda_cost": 0.05,
+        "metrics": {
+          "accuracy": {
+            "ci_high": 0.9220655751915529,
+            "ci_low": 0.8829210428478602,
+            "estimate": 0.9031670590274847
+          },
+          "accuracy_gain": {
+            "ci_high": 0.009676056694281222,
+            "ci_low": -0.009817194513479486,
+            "estimate": -8.753117816895362e-05
+          },
+          "answer_now_accuracy": {
+            "ci_high": 0.9237464262353876,
+            "ci_low": 0.8816626662596666,
+            "estimate": 0.9032545902056537
+          },
+          "avg_tool_calls": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1
+          },
+          "avg_visual_cost": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1.0
+          },
+          "correct_stopping_rate": {
+            "ci_high": 0.08668379009059549,
+            "ci_low": 0.04880949002756607,
+            "estimate": 0.06674757281553398
+          },
+          "marginal_accuracy_gain_per_tool_call": {
+            "ci_high": 0.009676056694281222,
+            "ci_low": -0.009817194513479486,
+            "estimate": -8.753117816895362e-05
+          },
+          "mean_oracle_regret": {
+            "ci_high": 0.09445501980895352,
+            "ci_low": 0.0766958875346615,
+            "estimate": 0.08497689591016876
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.04032394330571872,
+            "ci_low": -0.059817194513478986,
+            "estimate": -0.05008753117816888
+          },
+          "mean_realized_voi": {
+            "ci_high": -0.04032394330571872,
+            "ci_low": -0.059817194513478986,
+            "estimate": -0.05008753117816888
+          },
+          "mean_success_gain": {
+            "ci_high": 0.009676056694281267,
+            "ci_low": -0.009817194513479009,
+            "estimate": -8.753117816887534e-05
+          },
+          "missed_information_rate": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "estimate": 0.0
+          },
+          "tool_use_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1.0
+          },
+          "unnecessary_tool_call_rate": {
+            "ci_high": 0.961950737624501,
+            "ci_low": 0.9295938518941813,
+            "estimate": 0.9466019417475728
+          },
+          "zoom_rate": {
+            "ci_high": 1.0,
+            "ci_low": 1.0,
+            "estimate": 1
+          }
+        },
+        "n_clusters": 200,
+        "n_decisions": 824,
+        "n_resamples": 5000,
+        "n_states": 824,
+        "policy": "uniform_random_zoom_expectation",
+        "resampling_unit": "source_id",
+        "seed": 0
+      },
+      "correct_stopping_rate": 0.06674757281553398,
+      "marginal_accuracy_gain_per_tool_call": -8.753117816895362e-05,
+      "mean_oracle_regret": 0.08497689591016876,
+      "mean_policy_utility": -0.05008753117816888,
+      "mean_realized_voi": -0.05008753117816888,
+      "mean_success_gain": -8.753117816887534e-05,
+      "missed_information_rate": 0.0,
+      "n_decisions": 824,
+      "policy": "uniform_random_zoom_expectation",
+      "tool_use_rate": 1.0,
+      "unnecessary_tool_call_rate": 0.9466019417475728,
+      "zoom_rate": 1
+    }
+  },
+  "random_crop_harm_rate_within_harmful_states": 0.35984848484848486,
+  "random_crop_rescue_rate_within_helpful_states": 0.45535714285714285,
+  "rescue_action_rate_on_wrong_baselines": 0.1893939393939394,
+  "run": {
+    "bootstrap_resamples": 5000,
+    "bootstrap_seed": 0,
+    "cluster_by": "source_id",
+    "code_revision": "c10e735ad74b40638c811189bc9950bb8041e541",
+    "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/cross-benchmark-dev-v1/docvqa/qwen3b-c4-seed0/rollouts.jsonl",
+    "rollouts_sha256": "4d3d3a33f644d1f5122aabecd47a8168d2dce2db5014692b508ba76ae4ddbe52"
+  },
+  "sources": 200,
+  "states": 824
+}

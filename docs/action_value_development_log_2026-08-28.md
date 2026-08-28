@@ -62,6 +62,11 @@ The bank supplies two distinct pieces of evidence:
   `[0.00510, 0.03146]` for task-score gain and `[-0.00538, 0.02026]` for
   cost-adjusted utility. Its OOF top crop rescues 52% of helpful states versus
   41% for a uniformly random crop.
+- Exhaustive UG-style post-action entropy selection improves task score by
+  `0.01604`, close to the learned policy's `0.01730`, but it must inspect all
+  four candidates. Charging those four visual observations gives utility
+  `-0.18396` with 95% CI `[-0.20694, -0.16000]`, versus `0.217` calls and a
+  positive utility point estimate for the pre-action value policy.
 
 The OOF result is encouraging but not yet a confirmation: its utility interval
 includes zero and the no-call margin and regularizer were selected on the OOF
@@ -96,6 +101,11 @@ semantic-ROI ablation is more conservative but weaker (`0.00149` utility,
 `0.00485` tool rate). The context model is therefore frozen for the
 outcome-unseen DocVQA formal-v2 split; as on TextVQA, its positive utility point
 estimate is encouraging but not a development-set significance claim.
+Exhaustive lowest-post-entropy crop selection obtains a similar ANLS gain
+(`0.00917`) only after four candidate observations, giving utility `-0.19083`
+with 95% CI `[-0.20568, -0.17662]`. This matched task-gain / radically
+different cost contrast is the direct empirical motivation for predicting
+task value before acquiring each crop.
 
 ## Reproducibility anchors
 
