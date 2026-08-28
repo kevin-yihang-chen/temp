@@ -491,7 +491,7 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     provenance_path = args.output.with_suffix(".provenance.json")
     output_sha256 = hashlib.sha256(args.output.read_bytes()).hexdigest()
     provenance = {
-        "scientific_status": "diagnostic; not a benchmark claim",
+        "scientific_status": args.scientific_status,
         "code_revision": os.environ.get("BE_CODE_REVISION"),
         "manifest": str(args.manifest.resolve()),
         "manifest_sha256": manifest_sha256,
@@ -759,6 +759,11 @@ def build_parser() -> argparse.ArgumentParser:
     collect_qwen.add_argument("--generation-seeds", type=int, nargs="+", default=[0])
     collect_qwen.add_argument("--bootstrap-resamples", type=int, default=2000)
     collect_qwen.add_argument("--bootstrap-seed", type=int, default=0)
+    collect_qwen.add_argument(
+        "--scientific-status",
+        default="diagnostic; not a benchmark claim",
+        help="provenance-only status label fixed by the calling protocol",
+    )
     collect_qwen.add_argument("--limit", type=int)
     collect_qwen.add_argument("--max-new-tokens", type=int, default=16)
     collect_qwen.add_argument("--min-pixels", type=int, default=256 * 28 * 28)
