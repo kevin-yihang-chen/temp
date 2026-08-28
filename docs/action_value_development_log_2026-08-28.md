@@ -79,6 +79,24 @@ value learning. Explicit spatial-word features and simple frozen-Qwen ROI
 cosines are retained as negative ablations; neither improved the OOF context
 model.
 
+## DocVQA development evidence
+
+The registered DocVQA development bank completed with 824 decisions from 200
+source documents (4,120 sibling records), rollout SHA-256
+`4d3d3a33f644d1f5122aabecd47a8168d2dce2db5014692b508ba76ae4ddbe52`.
+Uniform-random crop use has mean utility `-0.05009`; the action-and-stopping
+oracle has utility `0.03489` with source-clustered 95% CI
+`[0.02397, 0.04720]`.
+
+The five-fold source-grouped OOF context model obtains ANLS gain `0.00854`,
+tool rate `0.0983`, and utility `0.00363`. Its 95% intervals are
+`[0.00261, 0.01529]` for ANLS gain and `[-0.00186, 0.00965]` for utility.
+The spatial-language ablation is weaker (`0.00263` utility), and the frozen
+semantic-ROI ablation is more conservative but weaker (`0.00149` utility,
+`0.00485` tool rate). The context model is therefore frozen for the
+outcome-unseen DocVQA formal-v2 split; as on TextVQA, its positive utility point
+estimate is encouraging but not a development-set significance claim.
+
 ## Reproducibility anchors
 
 | Version | Report SHA-256 | Model SHA-256 |
@@ -89,13 +107,14 @@ model.
 | v5 | `ab224498e2fee0a8436dd9f42d5fd9bf573bba986e607fa141ca3bce675641e4` | `fd0a8b36b7805e22f12f524f04a809473581ab6f367fda26410812ba6784b4d6` |
 | v6 | `f6c1290c73736eeb948f8252a301761b336cc841ad552b42d741efb444a11743` | `744e54c9410204699c90328b5cddccd07d13dfa77317dc186205354953c4e3ac` |
 | TextVQA OOF context v13 | `2d81ddbcdd6fea2308c4ebe20a3f2ed307846530689d20cbbfec9a436fdd960e` | `ca224964aeb429478aeffaa3f084750cab05daf2c56be0b3f70fda68dceadc33` |
+| DocVQA OOF context v1 | `0307851cf4597dcab7299cd716127523289efbe1fd73c0199f43920ceada0aae` | `33f2e0b1fd29e52c878bbbf2cd9819cd3c7e65e12afbabbdc5fa1f6687c8496b` |
 
 ## Next evidence required
 
-TextVQA now demonstrates non-chart oracle headroom and a positive OOF point
-estimate, but not a cost-adjusted confidence interval above zero. Registered
-DocVQA development siblings are still required to test whether the same pattern
-recurs with denser document text and more development states. A new formal
-protocol will freeze the exact per-domain or shared calibration choice before
-any DocVQA/TextVQA formal outcomes are generated; the existing formal outcomes
-remain untouched.
+TextVQA and DocVQA both demonstrate non-chart oracle headroom, positive OOF
+task-score gain intervals, and positive cost-adjusted point estimates, although
+neither development utility interval excludes zero. Separate target-domain
+models and pass criteria are frozen before their formal outcomes. The next
+decisive evidence is therefore whether either exact serialized policy has a
+strictly positive source-clustered utility interval on its untouched formal
+split.
