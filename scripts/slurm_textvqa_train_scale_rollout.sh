@@ -31,6 +31,23 @@ if [[ "$(wc -l < "${BE_SCALE_MANIFEST}")" -ne "${BE_SCALE_EXPECTED_STATES}" ]]; 
   echo "Manifest state count mismatch inside Slurm job" >&2
   exit 2
 fi
+if [[ -n "${BE_SCALE_POLICY_FREEZE:-}" ]]; then
+  : "${BE_SCALE_POLICY_FREEZE_SHA256:?missing BE_SCALE_POLICY_FREEZE_SHA256}"
+  : "${BE_SCALE_FROZEN_MODEL:?missing BE_SCALE_FROZEN_MODEL}"
+  : "${BE_SCALE_FROZEN_MODEL_SHA256:?missing BE_SCALE_FROZEN_MODEL_SHA256}"
+  : "${BE_SCALE_FORMAL_AUDIT:?missing BE_SCALE_FORMAL_AUDIT}"
+  : "${BE_SCALE_FORMAL_AUDIT_SHA256:?missing BE_SCALE_FORMAL_AUDIT_SHA256}"
+  PYTHONPATH="${repo_dir}/src" /userhome/cs3/yihangc/anaconda3/bin/python \
+    "${repo_dir}/scripts/verify_scaled_textvqa_formal_gate.py" \
+    --policy-freeze "${BE_SCALE_POLICY_FREEZE}" \
+    --expected-policy-freeze-sha256 "${BE_SCALE_POLICY_FREEZE_SHA256}" \
+    --model "${BE_SCALE_FROZEN_MODEL}" \
+    --expected-model-sha256 "${BE_SCALE_FROZEN_MODEL_SHA256}" \
+    --manifest "${BE_SCALE_MANIFEST}" \
+    --expected-manifest-sha256 "${BE_SCALE_MANIFEST_SHA256}" \
+    --audit "${BE_SCALE_FORMAL_AUDIT}" \
+    --expected-audit-sha256 "${BE_SCALE_FORMAL_AUDIT_SHA256}"
+fi
 
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
