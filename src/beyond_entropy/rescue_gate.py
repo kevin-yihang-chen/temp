@@ -1575,7 +1575,11 @@ def fit_nested_oof_two_stage_gate(
         baselines,
         feature_mode=state_feature_mode,
     )
-    state_labels = {key: int(bool(outcomes[key]["helpful"])) for key in all_keys}
+    diagnostic_helpful_labels = {
+        key: int(bool(outcomes[key]["helpful"])) for key in all_keys
+    }
+    state_labels = dict(diagnostic_helpful_labels)
+    state_training_target = "any_candidate_has_positive_gain"
     zooms_by_key: dict[DecisionKey, list[ActionRecord]] = {}
     action_features: dict[tuple[DecisionKey, str], list[float]] = {}
     for key in all_keys:
@@ -1605,6 +1609,18 @@ def fit_nested_oof_two_stage_gate(
                     action_index,
                 )
             action_features[(key, record.action_id)] = features
+    if action_feature_mode == "attention-fixed":
+        state_labels = {}
+        for key in all_keys:
+            selected = max(
+                zooms_by_key[key],
+                key=lambda zoom: (
+                    action_features[(key, zoom.action_id)][0],
+                    zoom.action_id,
+                ),
+            )
+            state_labels[key] = int(selected.voi(lambda_cost) > 0.0)
+        state_training_target = "fixed_attention_action_has_positive_net_utility"
     outer_folds = _grouped_crossfit_records(
         records,
         split_group=split_group,
@@ -1830,7 +1846,7 @@ def fit_nested_oof_two_stage_gate(
         )
         has_both_state_classes = len(set(test_state_labels.tolist())) == 2
         has_both_action_classes = len(set(test_action_labels)) == 2
-        helpful_keys = [key for key in test_keys if state_labels[key]]
+        helpful_keys = [key for key in test_keys if diagnostic_helpful_labels[key]]
         fold_reports.append(
             {
                 "fold": fold_index,
@@ -1939,7 +1955,7 @@ def fit_nested_oof_two_stage_gate(
         [pooled_state_margins[key] for key in all_keys],
         dtype=np.float64,
     )
-    helpful_keys = [key for key in all_keys if state_labels[key]]
+    helpful_keys = [key for key in all_keys if diagnostic_helpful_labels[key]]
     report = {
         "scientific_status": (
             "nested grouped OOF two-stage diagnostic; the state model excludes each "
@@ -1948,6 +1964,7 @@ def fit_nested_oof_two_stage_gate(
         ),
         "seed": seed,
         "state_feature_mode": state_feature_mode,
+        "state_training_target": state_training_target,
         "action_feature_mode": action_feature_mode,
         "state_feature_count": len(state_features[all_keys[0]]),
         "action_feature_count": len(next(iter(action_features.values()))),
@@ -1978,6 +1995,7 @@ def fit_nested_oof_two_stage_gate(
         "model_type": "nested_oof_two_stage_state_and_action_gate",
         "seed": seed,
         "state_feature_mode": state_feature_mode,
+        "state_training_target": state_training_target,
         "action_feature_mode": action_feature_mode,
         "n_outer_folds": n_outer_folds,
         "fold_models": fold_models,

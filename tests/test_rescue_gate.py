@@ -255,6 +255,10 @@ def test_attention_fixed_two_stage_gate_uses_frozen_region_ranking():
     )
     assert report["n_decisions"] == 120
     assert report["action_feature_count"] == 1
+    assert (
+        report["state_training_target"]
+        == "fixed_attention_action_has_positive_net_utility"
+    )
     assert all(fold["selected_action_c"] is None for fold in report["folds"])
     assert all("action_coefficient" not in fold for fold in model["fold_models"])
     exemplar = next(iter(decisions.values()))
