@@ -11,6 +11,7 @@ from beyond_entropy.action_value import (
     fit_multidomain_action_value_model,
     fit_multidomain_factorized_action_value_model,
     normalized_gate_question,
+    predict_frozen_factorized_action_values,
     select_frozen_action_value_actions,
     select_frozen_factorized_action_value_actions,
     semantic_context_action_features,
@@ -234,6 +235,12 @@ def test_factorized_risk_rescue_harm_model_round_trips():
         model, auxiliary
     )
     assert len(selected) == len(scores) == 160
+    actions, ungated_scores = predict_frozen_factorized_action_values(
+        model, auxiliary
+    )
+    assert len(actions) == len(ungated_scores) == 160
+    assert all(action.startswith("zoom-") for action in actions.values())
+    assert ungated_scores == pytest.approx(scores)
     evaluated = evaluate_frozen_factorized_action_value_model(
         model,
         auxiliary,

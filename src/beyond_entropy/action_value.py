@@ -1178,13 +1178,13 @@ def _serialized_probability(
     return exponent / (1.0 + exponent)
 
 
-def select_frozen_factorized_action_value_actions(
+def predict_frozen_factorized_action_values(
     model: Mapping[str, Any],
     records: Sequence[ActionRecord],
     *,
     semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
-) -> tuple[dict[DecisionKey, str | None], dict[DecisionKey, float]]:
-    """Apply serialized risk/rescue/harm heads without reading target outcomes."""
+) -> tuple[dict[DecisionKey, str], dict[DecisionKey, float]]:
+    """Predict every decision's best crop and value without applying a gate."""
 
     if model.get("model_type") != "multidomain_factorized_action_value":
         raise ValueError("unsupported frozen factorized action-value model type")
@@ -1196,7 +1196,7 @@ def select_frozen_factorized_action_value_actions(
         "hybrid-context-semantic",
     } and set(semantic_by_key) != set(baselines):
         raise ValueError("semantic decisions do not exactly cover frozen target")
-    selected: dict[DecisionKey, str | None] = {}
+    actions: dict[DecisionKey, str] = {}
     scores: dict[DecisionKey, float] = {}
     for key in sorted(baselines):
         error_probability = _serialized_probability(
@@ -1232,9 +1232,33 @@ def select_frozen_factorized_action_value_actions(
             scored_actions.append((net_value, action.action_id))
         best_value, best_action_id = max(scored_actions)
         scores[key] = best_value
-        selected[key] = (
-            best_action_id if best_value >= float(model["threshold"]) else None
-        )
+        actions[key] = best_action_id
+    return actions, scores
+
+
+def select_frozen_factorized_action_value_actions(
+    model: Mapping[str, Any],
+    records: Sequence[ActionRecord],
+    *,
+    semantic_decisions: Mapping[DecisionKey, Mapping[str, Any]] | None = None,
+) -> tuple[dict[DecisionKey, str | None], dict[DecisionKey, float]]:
+    """Apply serialized risk/rescue/harm heads without reading target outcomes."""
+
+    actions, scores = predict_frozen_factorized_action_values(
+        model,
+        records,
+        semantic_decisions=semantic_decisions,
+    )
+    raw_threshold = model.get("threshold")
+    if not isinstance(raw_threshold, (int, float)) or not math.isfinite(
+        float(raw_threshold)
+    ):
+        raise ValueError("frozen factorized model requires a finite threshold")
+    threshold = float(raw_threshold)
+    selected = {
+        key: actions[key] if score >= threshold else None
+        for key, score in scores.items()
+    }
     return selected, scores
 
 
