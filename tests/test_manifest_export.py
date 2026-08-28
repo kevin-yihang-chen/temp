@@ -417,3 +417,38 @@ def test_collect_qwen_accepts_cross_benchmark_scorers(tmp_path, scorer):
         ]
     )
     assert args.scorer == scorer
+
+
+def test_collect_qwen_accepts_batched_atomic_checkpoint_interval(tmp_path):
+    args = build_parser().parse_args(
+        [
+            "collect-qwen",
+            "--manifest",
+            str(tmp_path / "manifest.jsonl"),
+            "--output",
+            str(tmp_path / "output.jsonl"),
+            "--scorer",
+            "textvqa",
+            "--checkpoint-interval",
+            "32",
+        ]
+    )
+    assert args.checkpoint_interval == 32
+
+
+def test_collect_qwen_rejects_nonpositive_checkpoint_interval_before_io(tmp_path):
+    args = build_parser().parse_args(
+        [
+            "collect-qwen",
+            "--manifest",
+            str(tmp_path / "missing-manifest.jsonl"),
+            "--output",
+            str(tmp_path / "output.jsonl"),
+            "--scorer",
+            "textvqa",
+            "--checkpoint-interval",
+            "0",
+        ]
+    )
+    with pytest.raises(ValueError, match="checkpoint_interval"):
+        args.func(args)

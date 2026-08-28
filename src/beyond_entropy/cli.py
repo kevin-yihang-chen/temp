@@ -329,6 +329,8 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     from .qwen_backend import Qwen25VLBackend
     from .rollout import CachedVisualBackend, collect_sibling_rollouts
 
+    if args.checkpoint_interval <= 0:
+        raise ValueError("checkpoint_interval must be positive")
     manifest_sha256 = hashlib.sha256(args.manifest.read_bytes()).hexdigest()
     if (
         args.expected_manifest_sha256
@@ -458,19 +460,24 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
                     generation_seeds=args.generation_seeds,
                 )
             )
-            write_jsonl(records, args.output)
-            print(
-                json.dumps(
-                    {
-                        "checkpoint": str(args.output),
-                        "completed_this_run": position,
-                        "pending_this_run": len(pending) - position,
-                        "total_completed": len(checkpoint_counts) + position,
-                        "total_examples": len(examples),
-                    }
-                ),
-                flush=True,
+            checkpoint_due = (
+                position % args.checkpoint_interval == 0 or position == len(pending)
             )
+            if checkpoint_due:
+                write_jsonl(records, args.output)
+                print(
+                    json.dumps(
+                        {
+                            "checkpoint": str(args.output),
+                            "checkpoint_interval": args.checkpoint_interval,
+                            "completed_this_run": position,
+                            "pending_this_run": len(pending) - position,
+                            "total_completed": len(checkpoint_counts) + position,
+                            "total_examples": len(examples),
+                        }
+                    ),
+                    flush=True,
+                )
     diagnostic_path = args.output.with_suffix(".diagnostic.json")
     diagnostic = {
         "point_estimate": diagnostic_to_dict(entropy_diagnostic(records)),
@@ -504,6 +511,7 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         "examples": len(examples),
         "completed_examples": len(examples),
         "resumed_from_records": initial_record_count,
+        "checkpoint_interval": args.checkpoint_interval,
         "candidate_count": args.candidate_count,
         "proposer": args.proposer,
         "visual_crop_ratio": args.visual_crop_ratio,
@@ -727,6 +735,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--resume",
         action="store_true",
         help="resume from a checkpoint containing only complete states",
+    )
+    collect_qwen.add_argument(
+        "--checkpoint-interval",
+        type=int,
+        default=1,
+        help=(
+            "atomically rewrite the complete-state checkpoint after this many "
+            "new states"
+        ),
     )
     collect_qwen.add_argument(
         "--model",
