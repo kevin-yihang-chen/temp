@@ -22,8 +22,17 @@ The primary target is ChartQAPro:
   `e27c2874825874d6767d2bbc538ed4f0dc2c64c2`;
 - official code: `vis-nlp/ChartQAPro` revision
   `4b422c658270aff1d3105fd0fb39b1dd5de9f08c`; and
-- scorer: the official ANLS-based evaluation, including its question-type and
-  year handling.
+- primary scorer: byte-semantic parity with the released official evaluator and
+  the pinned VLMEvalKit adapter; and
+- scorer sensitivity: the paper-specified exact-match rule for Fact Checking
+  and Multi Choice.
+
+The sensitivity is registered because both released implementations compute an
+`always_use_exact_match` category flag but fail to pass it to the scoring
+helper. Consequently their actual behavior applies ANLS unless a `Year` flag
+forces exact matching. Released-code parity remains primary for benchmark
+comparability; the paper-specified correction is always reported alongside it
+and cannot replace the primary after outcomes are inspected.
 
 ChartQAPro is preferred over the public VTool `Refocus_Chart` test because the
 latter has exact decoded-RGB-plus-question overlap with the project's ChartQA

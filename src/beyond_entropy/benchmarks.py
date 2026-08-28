@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 from .rollout import AgentState, GroundTruth, TaskExample
+from .chartqapro import chartqapro_match, chartqapro_spec_match
 
 
 def load_manifest(path: str | Path, *, limit: int | None = None) -> list[TaskExample]:
@@ -118,4 +119,8 @@ def scorer_by_name(name: str) -> Callable[[str, GroundTruth], float]:
         return vstar_match
     if name == "chartqa":
         return chartqa_relaxed_match
+    if name == "chartqapro":
+        return chartqapro_match
+    if name == "chartqapro-spec":
+        return chartqapro_spec_match
     raise ValueError(f"unsupported benchmark scorer: {name}")

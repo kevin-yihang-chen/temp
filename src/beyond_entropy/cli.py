@@ -715,7 +715,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--ug-revision",
         default="13050ee49865e4330519108f42d1ccfccff1aee1",
     )
-    collect_qwen.add_argument("--scorer", choices=("vstar", "chartqa"), required=True)
+    collect_qwen.add_argument(
+        "--scorer",
+        choices=("vstar", "chartqa", "chartqapro", "chartqapro-spec"),
+        required=True,
+    )
     collect_qwen.add_argument("--candidate-count", type=int, default=4)
     collect_qwen.add_argument(
         "--proposer",
