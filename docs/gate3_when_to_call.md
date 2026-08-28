@@ -50,6 +50,11 @@ tool calls (6.4%), exactly matching the registered analysis, and all 4,500
 decisions retained `spatial_action_id=None`. This is a parity check, not a new
 experiment or additional model result.
 
+`VToolGateControl` serializes this decision into the current training-v2
+`tools_kwargs.metadata` contract without overwriting its existing chart bbox
+metadata. The staged upstream integration is specified in
+`docs/vtool_training_v2_adapter_plan.md`.
+
 ## Matched-compute ablation
 
 The initial VTool-R1/training-v2 experiment should compare:

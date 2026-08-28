@@ -42,6 +42,9 @@ Sources:
 - <https://github.com/VTOOL-R1/vtool-r1>
 - <https://github.com/VTool-R1/training-v2>
 
+Current training-v2 adapter target (inspected 2026-08-28):
+`d2aa28353ec10c7f91b39f502925003a81d6982d`.
+
 The main repository describes outcome-reward training on ChartQA/TableQA. It now
 points to `training-v2`, based on asynchronous agent loops in `verl`, as the
 recommended training path; its README explicitly labels the original path as old.
@@ -58,6 +61,12 @@ Planned adapter boundary after the Stage-1 value model succeeds:
 No large-scale RL result is claimed in the current repository. Published resource
 estimates in the reference README make the diagnostic and value-head stages the
 appropriate first gate.
+
+After stopping passed independent confirmation, a bounded binary adapter was
+added. The pinned upstream loop masks the entire first assistant tool segment
+and trains only the final assistant answer, so visual-action credit requires an
+explicit new mask/advantage branch rather than a reward-manager-only patch. See
+`docs/vtool_training_v2_adapter_plan.md` for the staged, matched-compute design.
 
 ## Reproducibility rule
 

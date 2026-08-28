@@ -3,6 +3,7 @@
 from .schema import ActionRecord, BBox
 from .rollout import ActionSpec, AgentState, GroundTruth, TaskExample
 from .stopping import FrozenWhenToCallGate, PreActionGateInput, StoppingDecision
+from .vtool_adapter import VToolGateControl
 
 __all__ = [
     "ActionRecord",
@@ -14,5 +15,6 @@ __all__ = [
     "PreActionGateInput",
     "StoppingDecision",
     "TaskExample",
+    "VToolGateControl",
 ]
 __version__ = "0.2.0"
