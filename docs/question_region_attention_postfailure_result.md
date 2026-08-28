@@ -80,6 +80,13 @@ is a label-free frozen evaluation on the untouched DocVQA formal partition,
 with multiplicity correction because the original context policy remains the
 registered primary analysis.
 
+A subsequent shared DocVQA+TextVQA development fit produced positive OOF
+utility point estimates in both domains (`+0.00151` and `+0.00220`) and pooled
+utility `+0.00170`, but its pooled 95% interval
+`[-0.00068, +0.00466]` still includes zero. See
+`docs/multidomain_attention_action_value_result.md`. This is cross-domain
+directional evidence only and does not change the frozen formal analysis.
+
 ## Baseline-forward reuse audit
 
 A post-freeze engineering diagnostic recomputed the multimodal question state
