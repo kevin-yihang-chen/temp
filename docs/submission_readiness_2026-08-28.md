@@ -9,9 +9,10 @@ remain part of the record and are not overwritten by later experiments.
 
 The project has a credible problem, a differentiated measurement object, a
 reproducible counterfactual data pipeline, and strong oracle headroom. It does
-not yet have the transferable positive method result required for a competitive
-main-conference submission. The fresh TextVQA confirmation is the current
-decision experiment.
+not yet have the transferable positive cost-sensitive method result required
+for a competitive main-conference submission. The fresh TextVQA confirmation
+produced a positive raw-gain interval but failed its utility interval, so Branch
+B below is now active.
 
 | Requirement | Status | Evidence or missing item |
 | --- | --- | --- |
@@ -27,6 +28,10 @@ decision experiment.
 | Agent post-training contribution | not ready | Counterfactual visual credit has not yet improved tool-use RL under a matched budget. |
 
 ## Decision after fresh TextVQA confirmation
+
+Observed outcome: **Branch B**. The frozen policy gained `+0.004675` raw score
+with a strictly positive 97.5% interval, but utility was `+0.000032` with
+97.5% CI `[-0.003541, +0.003852]`. The pass criterion was not met.
 
 ### Branch A — registered pass
 
@@ -88,9 +93,12 @@ Before drafting a submission as a method paper, require all of the following:
 
 ## Immediate execution order
 
-1. Complete the fresh TextVQA rollouts without inspecting partial outcomes.
-2. Verify row count, provenance, Slurm exit, and artifact hash.
-3. Extract and audit outcome-free question-region attention features.
-4. Run the frozen evaluator exactly once.
-5. Lock the result and follow Branch A or Branch B without moving its criteria.
-
+1. Implement source-level risk-control calibration and synthetic unit tests.
+2. Export outcome-independent TextVQA train source partitions and audit decoded
+   RGB overlap against every prior bank.
+3. Collect the 5,000-source ranker-training bank and 3,000-source calibration
+   bank with restart-safe, emailed Slurm jobs.
+4. Compare fixed low-capacity, listwise/pairwise ranking, separated call heads,
+   and risk-controlled thresholds without touching formal sources.
+5. Freeze one policy and evaluate it once on the reserved 5,000-source formal
+   bank under a multiplicity-aware source interval.

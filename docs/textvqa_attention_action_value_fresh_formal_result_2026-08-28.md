@@ -71,6 +71,34 @@ the deployment cost. This narrows the failure from "the policy never helps" to
 "the policy does not select a sufficiently high-value subset to pay for its
 calls."
 
+## Post-hoc failure decomposition
+
+The following diagnostics were run only after the primary result and its hash
+were locked. They do not change the pass/fail decision.
+
+| Diagnostic policy | Mean utility |
+| --- | ---: |
+| Frozen stopping and frozen ranking | +0.000032 |
+| Frozen stopping, oracle action | +0.011560 |
+| Oracle stopping, frozen ranking | +0.028174 |
+| Oracle stopping and oracle action | +0.051516 |
+
+The frozen gate called 294 times. Its precision for calling a state with any
+positive-gain crop was 23.47%, recall was 29.49%, and only 12.24% of calls
+realized positive utility with the selected crop. The frozen learned top crop
+rescued 52.99% of the 234 states that contained a helpful crop. Both stopping
+and ranking have substantial headroom, but replacing stopping gives the larger
+oracle improvement.
+
+Raw question-region attention alone rescued 52.14% of helpful states versus a
+41.77% expectation for a uniform random crop. Its all-state mean gain was
+`-0.002116`, versus `-0.003846` for random. The attention-minus-random gain
+difference was `+0.001729` with 95% paired source-bootstrap CI
+`[-0.003618, +0.007078]`; the localization signal is directionally useful but
+not confirmed. The learned factorized ranker only slightly improved on raw
+attention, so the new scale study must improve both risk-calibrated stopping
+and within-state ranking rather than simply reusing attention scores.
+
 ## Bound artifacts
 
 - manifest SHA-256:
@@ -85,6 +113,10 @@ calls."
   `6d553ec8fd4f6351ab24f015adb2eda6df988accc4b0bc92a221d08ba295c46e`
 - frozen evaluation SHA-256:
   `bb7814fe7b3d62bf3d458768e80c0f174afb2b5d0c2e2bcba855c3bb7b213e1c`
+- post-hoc stopping/ranking decomposition SHA-256:
+  `52909a34a2bcaed5bdc4a61e5f32d3224ef17ff6b833ce9f28367fed114128d6`
+- post-hoc attention-ranking report SHA-256:
+  `14bf3119307295a0da8fc7c7399e7837065f52d02226251e492d3731b9279e2d`
 - rollout code revision:
   `1c3caae033adc34d934e88b08554f7471c0ea511`
 - evaluation code revision:

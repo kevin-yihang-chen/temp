@@ -156,7 +156,7 @@ secondary evaluation on the same outcome-unseen formal bank used a corrected
 `[-0.01085, -0.00122]`. Only 7.53% of its formal calls realized positive
 utility. See `docvqa_attention_action_value_formal_result_2026-08-28.md`.
 
-## Fresh TextVQA prospective confirmation
+## Fresh TextVQA prospective confirmation and outcome
 
 Before any new target rollout, the existing TextVQA-only attention model was
 bound to 2,000 previously unused validation image sources at hash-rank offsets
@@ -170,3 +170,17 @@ This experiment is a transparent post-failure confirmation on genuinely new
 sources. It cannot erase the earlier negative results. It tests whether the
 question-conditioned value architecture transfers within TextVQA when given a
 sample large enough to resolve the small development effect.
+
+The frozen evaluation failed the cost-sensitive criterion. Raw score gain was
+`+0.004675` with 97.5% source CI `[+0.001112, +0.008549]`, so the policy did
+improve task score on the fresh sources. However, its 9.286% call rate gave
+utility `+0.000032` with 97.5% CI `[-0.003541, +0.003852]`. Gain per call was
+`0.05034`, almost exactly the registered cost, and 87.76% of calls had
+non-positive realized utility.
+
+Post-hoc decomposition retains large oracle headroom (`+0.051516`) and shows
+that fixing stopping alone yields more utility than fixing ranking alone.
+Question-region attention rescues 52.14% of helpful states versus 41.77% for a
+random crop, but its paired mean-gain advantage is not significant. The
+200-source policy family is closed on all opened targets. See
+`textvqa_attention_action_value_fresh_formal_result_2026-08-28.md`.

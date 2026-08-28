@@ -157,10 +157,15 @@ outcome-unseen confirmation. The attention policy's DocVQA utility is
 `-0.00573` with a 97.5% source interval fully below zero, despite oracle utility
 `+0.03394`; post-hoc decomposition identifies poor stopping precision and
 weaker learned ranking as separate transfer failures. These are retained as
-negative results. A pre-registered 2,000-source, source/RGB-disjoint TextVQA
-attention confirmation is the next prospective test. See
+negative results. The subsequent pre-registered 2,000-source, source/RGB-
+disjoint TextVQA attention confirmation improves raw score by `+0.00467` with
+a 97.5% interval `[+0.00111, +0.00855]`, but its 9.29% tool rate leaves utility
+at only `+0.00003` with interval `[-0.00354, +0.00385]`. It therefore also
+fails the frozen cost-sensitive criterion. The current 200-source attention
+family is closed; the next method phase uses separate risk calibration and a
+larger TextVQA train source bank. See
 `docs/docvqa_attention_action_value_formal_result_2026-08-28.md` and
-`docs/textvqa_attention_action_value_fresh_split_preregistration.md`.
+`docs/textvqa_attention_action_value_fresh_formal_result_2026-08-28.md`.
 
 ## Semantic gain head
 
