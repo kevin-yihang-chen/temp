@@ -255,6 +255,12 @@ def test_source_grouped_oof_factorized_model_refits_and_round_trips():
     assert report["training_protocol"] == "source_grouped_oof_v1"
     assert report["development_decisions"] == 330
     assert report["oof_policy_result"]["n_decisions"] == 330
+    tail = report["development_tail_risk_diagnostic"]
+    assert tail["valid_for_formal_selection"] is False
+    assert tail["n_decisions"] == 330
+    assert [
+        item["target_pooled_call_rate"] for item in tail["requested_thresholds"]
+    ] == [0.005, 0.01, 0.015, 0.02, 0.03, 0.05]
     assert model["training_protocol"] == "source_grouped_oof_v1"
     selected, scores = select_frozen_factorized_action_value_actions(
         model, auxiliary

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from typing import Any, Mapping, Sequence
 
 from .action_value import (
@@ -15,6 +16,11 @@ from .action_value import (
 )
 from .metrics import bootstrap_policy_evaluation, evaluate_policy
 from .rescue_gate import DecisionKey, PrecomputedActionGatePolicy
+from .risk_control import (
+    AcquisitionCalibrationRow,
+    RiskConstraint,
+    calibrate_source_risk_threshold,
+)
 from .schema import ActionRecord
 
 
@@ -236,6 +242,76 @@ def _serialized_head(prefix: str, scaler: Any, model: Any) -> dict[str, Any]:
     }
 
 
+def _development_tail_risk_diagnostic(
+    *,
+    values: Mapping[DecisionKey, float],
+    actions: Mapping[DecisionKey, str],
+    baselines: Mapping[DecisionKey, ActionRecord],
+    zooms: Mapping[DecisionKey, Sequence[ActionRecord]],
+    lambda_cost: float,
+    target_call_rates: Sequence[float],
+) -> dict[str, Any]:
+    """Summarize high-score OOF tails without claiming fresh calibration validity."""
+
+    rates = [float(value) for value in target_call_rates]
+    if not rates or any(not 0.0 < value <= 1.0 for value in rates):
+        raise ValueError("tail call rates must lie in (0,1]")
+    if rates != sorted(set(rates)):
+        raise ValueError("tail call rates must be sorted and unique")
+    ordered_scores = sorted((float(value) for value in values.values()), reverse=True)
+    requested_thresholds = [
+        {
+            "target_pooled_call_rate": rate,
+            "threshold": ordered_scores[
+                min(
+                    len(ordered_scores) - 1,
+                    max(0, math.ceil(rate * len(ordered_scores)) - 1),
+                )
+            ],
+        }
+        for rate in rates
+    ]
+    thresholds = list(
+        dict.fromkeys(float(item["threshold"]) for item in requested_thresholds)
+    )
+    rows: list[AcquisitionCalibrationRow] = []
+    for key in sorted(values):
+        action_id = actions[key]
+        matches = [action for action in zooms[key] if action.action_id == action_id]
+        if len(matches) != 1:
+            raise RuntimeError("OOF tail action does not uniquely match a candidate")
+        action = matches[0]
+        rows.append(
+            AcquisitionCalibrationRow(
+                source_id=baselines[key].source_id,
+                score=float(values[key]),
+                gain=action.delta_success,
+                tool_cost=action.tool_cost,
+            )
+        )
+    diagnostic = calibrate_source_risk_threshold(
+        rows,
+        thresholds,
+        constraints=[
+            RiskConstraint("induced_harm", 0.005),
+            RiskConstraint("net_negative_call_mass", 0.02),
+        ],
+        lambda_cost=lambda_cost,
+        max_tool_cost=1.0,
+        family_error=0.05,
+        min_source_call_rate=0.01,
+        min_source_utility=0.001,
+        selection_objective="source_utility",
+    )
+    diagnostic["scientific_status"] = (
+        "development-only source-OOF tail diagnostic; hyperparameters and tails "
+        "use development outcomes and cannot replace fresh risk calibration"
+    )
+    diagnostic["valid_for_formal_selection"] = False
+    diagnostic["requested_thresholds"] = requested_thresholds
+    return diagnostic
+
+
 def fit_oof_factorized_action_value_model(
     records_by_domain: Mapping[str, Sequence[ActionRecord]],
     *,
@@ -249,6 +325,7 @@ def fit_oof_factorized_action_value_model(
     alpha_values: Sequence[float] = (0.1, 1.0, 10.0, 100.0, 1000.0),
     seed: int = 20260828,
     bootstrap_resamples: int = 2000,
+    tail_call_rates: Sequence[float] = (0.005, 0.01, 0.015, 0.02, 0.03, 0.05),
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Select a factorized model from source-grouped out-of-fold predictions.
 
@@ -336,6 +413,8 @@ def fit_oof_factorized_action_value_model(
                     lambda_cost=lambda_cost,
                 ),
                 "fold_counts": fold_train_counts,
+                "oof_values": oof_values,
+                "oof_actions": oof_actions,
             }
         )
     winner = max(
@@ -411,6 +490,14 @@ def fit_oof_factorized_action_value_model(
         "oof_metrics": winner["metrics"],
         "oof_policy_result": policy_result,
         "oof_bootstrap": bootstrap,
+        "development_tail_risk_diagnostic": _development_tail_risk_diagnostic(
+            values=winner["oof_values"],
+            actions=winner["oof_actions"],
+            baselines=baselines,
+            zooms=zooms,
+            lambda_cost=lambda_cost,
+            target_call_rates=tail_call_rates,
+        ),
         "refit": {
             key: full_heads[key]
             for key in (

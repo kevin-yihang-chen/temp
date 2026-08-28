@@ -56,6 +56,11 @@ if [[ "${actual_features_sha256}" != "${expected_features_sha256}" ]]; then
   exit 2
 fi
 
+alpha_args=()
+if [[ -n "${BE_FACTOR_ALPHA:-}" ]]; then
+  alpha_args=(--alpha "${BE_FACTOR_ALPHA}")
+fi
+
 "${python_bin}" scripts/fit_multidomain_action_value.py \
   --domain "textvqa=${rollouts}" \
   --features "textvqa=${features}" \
@@ -64,4 +69,5 @@ fi
   --model-family factorized-oof \
   --oof-folds 5 \
   --bootstrap-resamples 2000 \
-  --lambda-cost 0.05
+  --lambda-cost 0.05 \
+  "${alpha_args[@]}"
