@@ -11,6 +11,7 @@ from beyond_entropy.risk_control import (
     bounded_mean_lower_tail_pvalue,
     calibrate_source_risk_threshold,
     calibrate_source_risk_threshold_fixed_sequence,
+    threshold_grid_from_target_call_rates,
     threshold_grid_from_training_scores,
 )
 
@@ -31,6 +32,18 @@ def test_threshold_grid_is_deterministic_bounded_and_outcome_free():
         5.0,
         0.0,
     ]
+
+
+def test_target_call_rate_grid_is_strict_to_permissive_and_dedupes_ties():
+    thresholds = threshold_grid_from_target_call_rates(
+        [5.0, 4.0, 4.0, 3.0, 2.0, 1.0],
+        [0.1, 0.25, 0.5, 1.0],
+    )
+    assert thresholds[0] > 5.0
+    assert thresholds[1:] == [5.0, 4.0, 1.0]
+    assert all(left > right for left, right in zip(thresholds, thresholds[1:]))
+    with pytest.raises(ValueError, match="sorted, unique"):
+        threshold_grid_from_target_call_rates([1.0, 0.0], [0.5, 0.1])
 
 
 def test_bounded_mean_kl_pvalue_has_expected_endpoints():

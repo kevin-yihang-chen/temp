@@ -80,6 +80,36 @@ def threshold_grid_from_training_scores(
     return [values[index] for index in sorted(indices)]
 
 
+def threshold_grid_from_target_call_rates(
+    scores: Sequence[float],
+    target_call_rates: Sequence[float],
+) -> list[float]:
+    """Freeze strict-to-permissive score thresholds at training quantiles.
+
+    The first threshold is one floating-point step above the largest observed
+    score.  Remaining thresholds target increasing call rates and are deduped
+    when tied scores induce the same call set.
+    """
+
+    ordered = sorted((float(value) for value in scores), reverse=True)
+    if not ordered or any(not math.isfinite(value) for value in ordered):
+        raise ValueError("training scores must be non-empty and finite")
+    rates = [float(value) for value in target_call_rates]
+    if (
+        not rates
+        or any(not math.isfinite(value) or not 0.0 < value <= 1.0 for value in rates)
+        or rates != sorted(set(rates))
+    ):
+        raise ValueError("target call rates must be sorted, unique, and in (0,1]")
+    thresholds = [math.nextafter(ordered[0], math.inf)]
+    for rate in rates:
+        index = min(len(ordered) - 1, max(0, math.ceil(rate * len(ordered)) - 1))
+        threshold = ordered[index]
+        if threshold < thresholds[-1]:
+            thresholds.append(threshold)
+    return thresholds
+
+
 def bernoulli_relative_entropy(observed: float, null: float) -> float:
     """Return KL(Bernoulli(observed) || Bernoulli(null))."""
 
