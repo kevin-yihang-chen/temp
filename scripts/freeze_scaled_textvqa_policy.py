@@ -181,6 +181,34 @@ def _validate_calibrated_model_derivation(
     )
 
 
+def _complete_implementation_paths(
+    repo_dir: Path,
+    named_paths: Mapping[str, Path],
+) -> dict[str, Path]:
+    """Freeze every repository Python/shell implementation file transitively."""
+
+    result = dict(named_paths)
+    included = {path.resolve() for path in result.values()}
+    for prefix, directory, patterns in (
+        ("package", repo_dir / "src/beyond_entropy", ("*.py",)),
+        ("script", repo_dir / "scripts", ("*.py", "*.sh")),
+    ):
+        for pattern in patterns:
+            for path in sorted(directory.glob(pattern)):
+                resolved = path.resolve()
+                if resolved in included:
+                    continue
+                key = f"{prefix}_{path.name.replace('.', '_')}"
+                if key in result:
+                    raise ValueError(f"duplicate implementation freeze key: {key}")
+                result[key] = resolved
+                included.add(resolved)
+    project_config = (repo_dir / "pyproject.toml").resolve()
+    if project_config not in included:
+        result["project_config"] = project_config
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Freeze and hash a successful scaled TextVQA policy"
@@ -253,6 +281,9 @@ def main() -> None:
         "rollout_job": repo_dir / "scripts/slurm_textvqa_train_scale_rollout.sh",
         "feature_job": repo_dir / "scripts/slurm_textvqa_train_scale_features.sh",
     }
+    implementation_paths = _complete_implementation_paths(
+        repo_dir, implementation_paths
+    )
     missing = [path for path in (*artifact_paths.values(), *implementation_paths.values()) if not path.is_file()]
     if missing:
         raise FileNotFoundError(f"freeze input does not exist: {missing[0]}")

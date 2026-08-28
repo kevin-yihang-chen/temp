@@ -1,8 +1,10 @@
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
 from scripts.freeze_scaled_textvqa_policy import (
+    _complete_implementation_paths,
     _validate_calibrated_model_derivation,
     _validate_policy,
 )
@@ -129,3 +131,20 @@ def test_failed_selected_risk_cannot_open_formal_gate():
     calibration["selected"]["risks"]["induced_harm"]["passed"] = False
     with pytest.raises(ValueError, match="did not pass"):
         _validate_policy(model, calibration, ranker_model_sha256="a" * 64)
+
+
+def test_freeze_covers_all_repository_python_and_shell_implementations():
+    repo_dir = Path(__file__).resolve().parents[1]
+    paths = _complete_implementation_paths(repo_dir, {})
+    frozen = {path.resolve() for path in paths.values()}
+    expected = {
+        path.resolve()
+        for directory, patterns in (
+            (repo_dir / "src/beyond_entropy", ("*.py",)),
+            (repo_dir / "scripts", ("*.py", "*.sh")),
+        )
+        for pattern in patterns
+        for path in directory.glob(pattern)
+    }
+    expected.add((repo_dir / "pyproject.toml").resolve())
+    assert expected <= frozen
