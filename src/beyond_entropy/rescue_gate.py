@@ -191,15 +191,30 @@ def compact_rescue_features(
         dim=0,
     )
     regions = functional.normalize(decision["region_embeddings"].float(), dim=1)
-    features = torch.cat(
-        (
-            decision["state_signals"].float(),
-            torch.dot(question, global_visual).reshape(1),
-            regions @ question,
-            regions @ global_visual,
-            decision["bboxes"].float().reshape(-1),
+    components = [
+        decision["state_signals"].float(),
+        torch.dot(question, global_visual).reshape(1),
+        regions @ question,
+        regions @ global_visual,
+        decision["bboxes"].float().reshape(-1),
+    ]
+    raw_attention = decision.get("question_region_attention")
+    if raw_attention is not None:
+        attention = raw_attention.float()
+        if attention.shape != (regions.shape[0],):
+            raise ValueError("question-region attention must cover every action")
+        normalized = attention / attention.sum().clamp_min(1e-12)
+        entropy = -(normalized * normalized.clamp_min(1e-12).log()).sum()
+        entropy = entropy / math.log(max(2, int(normalized.shape[0])))
+        components.extend(
+            (
+                normalized,
+                normalized.max().reshape(1),
+                normalized.std(unbiased=False).reshape(1),
+                entropy.reshape(1),
+            )
         )
-    )
+    features = torch.cat(tuple(components))
     result = [float(value) for value in features.tolist()]
     if baseline is not None:
         result.extend(pre_action_context_features(baseline))
@@ -239,17 +254,32 @@ def compact_action_features(
             (bbox[1] + bbox[3]) / 2.0,
         )
     )
-    features = torch.cat(
-        (
-            decision["state_signals"].float(),
-            torch.dot(question, global_visual).reshape(1),
-            question_region[action_index].reshape(1),
-            global_region[action_index].reshape(1),
-            (question_region[action_index] - question_region.mean()).reshape(1),
-            (global_region[action_index] - global_region.mean()).reshape(1),
-            geometry,
+    components = [
+        decision["state_signals"].float(),
+        torch.dot(question, global_visual).reshape(1),
+        question_region[action_index].reshape(1),
+        global_region[action_index].reshape(1),
+        (question_region[action_index] - question_region.mean()).reshape(1),
+        (global_region[action_index] - global_region.mean()).reshape(1),
+        geometry,
+    ]
+    raw_attention = decision.get("question_region_attention")
+    if raw_attention is not None:
+        attention = raw_attention.float()
+        if attention.shape != (regions.shape[0],):
+            raise ValueError("question-region attention must cover every action")
+        normalized = attention / attention.sum().clamp_min(1e-12)
+        selected = normalized[action_index]
+        components.extend(
+            (
+                selected.reshape(1),
+                (selected - normalized.mean()).reshape(1),
+                (selected / normalized.max().clamp_min(1e-12)).reshape(1),
+                (normalized > selected).sum().to(torch.float32).reshape(1)
+                / max(1, int(normalized.shape[0]) - 1),
+            )
         )
-    )
+    features = torch.cat(tuple(components))
     return [float(value) for value in features.tolist()]
 
 

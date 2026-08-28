@@ -61,7 +61,11 @@ def last_subsequence_span(
     raise ValueError("subsequence pattern is absent")
 
 
-def _question_token_ids(processor: Any, prompt: str, question: str) -> list[int]:
+def question_token_ids_from_prompt(
+    processor: Any,
+    prompt: str,
+    question: str,
+) -> list[int]:
     """Tokenize the exact question span as it appears inside a chat prompt."""
 
     character_start = prompt.rfind(question)
@@ -392,7 +396,9 @@ def reembed_multimodal_questions(
             if len(images) != 1:
                 raise ValueError("each decision must contain exactly one original image")
             prompts.append(prompt)
-            question_token_ids.append(_question_token_ids(processor, prompt, question))
+            question_token_ids.append(
+                question_token_ids_from_prompt(processor, prompt, question)
+            )
             image_inputs.extend(images)
         inputs = processor(
             text=prompts,
