@@ -84,3 +84,19 @@ def test_cached_backend_avoids_duplicate_requests():
     second = infer_many(cached, [request])
     assert first == second
     assert len(raw_backend.calls) == 1
+
+
+def test_inference_cache_key_binds_backend_only_model_prompt():
+    observation = VisualObservation("ORIGINAL", "/tmp/image.png", "original", None)
+    plain = AgentState("s1", "i1", "source-1", "/tmp/image.png", "Core question")
+    formatted = AgentState(
+        "s1",
+        "i1",
+        "source-1",
+        "/tmp/image.png",
+        "Core question",
+        model_prompt="Formatted backend prompt",
+    )
+    plain_request = InferenceRequest(plain, (observation,), 0)
+    formatted_request = InferenceRequest(formatted, (observation,), 0)
+    assert plain_request.cache_key() != formatted_request.cache_key()
