@@ -138,3 +138,35 @@ revise the frozen TextVQA policy. See
 `textvqa_action_value_formal_result.md` for integrity hashes, fixed baselines,
 and the explicitly post-hoc stopping/ranking decomposition. The independently
 frozen DocVQA formal evaluation remains unaffected.
+
+## Subsequent DocVQA formal outcomes
+
+The frozen DocVQA context model also failed: utility was `-0.00536` with 95%
+source CI `[-0.01086, +0.00010]`, at 7.59% tool use. The same action bank still
+has oracle utility `+0.03394`, so the negative result diagnoses the policy
+rather than absence of useful crops.
+
+A post-failure attention architecture was then selected only from the original
+DocVQA development bank. Question-to-region attention beat random ranking on
+that bank, and the factorized semantic-context policy had development OOF
+utility `+0.00461` with a narrowly positive 95% lower bound. Its already frozen
+secondary evaluation on the same outcome-unseen formal bank used a corrected
+97.5% interval and strict label-free features. It failed decisively: gain
+`-0.00284`, tool rate `5.78%`, and utility `-0.00573` with 97.5% CI
+`[-0.01085, -0.00122]`. Only 7.53% of its formal calls realized positive
+utility. See `docvqa_attention_action_value_formal_result_2026-08-28.md`.
+
+## Fresh TextVQA prospective confirmation
+
+Before any new target rollout, the existing TextVQA-only attention model was
+bound to 2,000 previously unused validation image sources at hash-rank offsets
+600--2599. The outcome-independent export contains 3,166 questions and has
+zero state, source, and decoded-RGB overlap with both the original development
+bank and prior formal bank. Its 97.5% confirmatory rule, 20,000-resample
+source bootstrap, model hash, feature contract, and manifest hash are frozen in
+`textvqa_attention_action_value_fresh_split_preregistration.md`.
+
+This experiment is a transparent post-failure confirmation on genuinely new
+sources. It cannot erase the earlier negative results. It tests whether the
+question-conditioned value architecture transfers within TextVQA when given a
+sample large enough to resolve the small development effect.

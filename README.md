@@ -151,6 +151,17 @@ The bounded runtime integration is documented in
 `docs/gate3_when_to_call.md`. Its API accepts only pre-action state fields and
 returns `ANSWER` or `CALL_VISUAL_TOOL`; it deliberately cannot choose a crop.
 
+The newer action-specific value branch establishes substantial crop oracle
+headroom on DocVQA and TextVQA, but both frozen DocVQA learned policies failed
+outcome-unseen confirmation. The attention policy's DocVQA utility is
+`-0.00573` with a 97.5% source interval fully below zero, despite oracle utility
+`+0.03394`; post-hoc decomposition identifies poor stopping precision and
+weaker learned ranking as separate transfer failures. These are retained as
+negative results. A pre-registered 2,000-source, source/RGB-disjoint TextVQA
+attention confirmation is the next prospective test. See
+`docs/docvqa_attention_action_value_formal_result_2026-08-28.md` and
+`docs/textvqa_attention_action_value_fresh_split_preregistration.md`.
+
 ## Semantic gain head
 
 Install the optional PyTorch dependency:
