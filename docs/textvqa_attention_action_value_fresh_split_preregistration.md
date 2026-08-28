@@ -60,6 +60,20 @@ bank are excluded without reading targets or model outputs and deterministically
 backfilled by the next hash-ranked source. The final manifest size, exclusions,
 image bundle, and hashes are recorded after this outcome-independent export.
 
+The outcome-independent export completed before any target rollout:
+
+| Frozen target artifact | Value |
+|---|---|
+| Sources / questions | 2,000 / 3,166 |
+| Excluded source groups | none |
+| Manifest SHA-256 | `56973583dcd1aa8367d8a4e72f1c84f130864536dac128741a3914ae69ed901d` |
+| Manifest provenance SHA-256 | `0acb0182e23d71ad07fdb12b761f22bf629b9e673aea16dae78270acbe5ab55a` |
+| RGB image bundle SHA-256 | `28fa855531a9b879944b1f4782fba5d9f01aa9ae28fb42d0bcd13ddc038a2b96` |
+| Development overlap audit SHA-256 | `7302b97e9631b9488e4d4dff777a0de8c8a903d564eb0d51401f29e25953b5ab` |
+| Prior-formal overlap audit SHA-256 | `97882f42b2daf580f5be0c863e3a6834cd0347ba399bc73e771849ee0f4b7696` |
+
+Both audits report zero state, source, and decoded-RGB image overlap.
+
 The 2,000-source size was chosen before export from the development source
 bootstrap variance. A normal approximation gives an expected z-score `2.89`
 and approximately 74% probability of clearing the stricter 97.5% lower bound
@@ -93,4 +107,3 @@ Evaluate the serialized model exactly once with:
 Secondary diagnostics are raw score gain, tool rate, gain per call,
 unnecessary-call rate, correct-stopping rate, learned versus attention-only
 ranking, and oracle headroom. None may change the pass decision.
-
