@@ -259,6 +259,7 @@ def main() -> None:
         target_question_digests: list[str] = []
         target_joint_keys: list[str] = []
         excluded_source_indices: list[int] = []
+        malformed_answer_rows: list[dict[str, Any]] = []
         excluded_by_source: dict[str, list[int]] = {
             str(source["name"]): [] for source in blocked_sources
         }
@@ -291,22 +292,6 @@ def main() -> None:
                     image = loaded.convert("RGB")
                 image_id = image_digest(image)
                 final_question = chartqapro_final_question(questions, question_type)
-                prompt = build_chartqapro_direct_prompt(
-                    questions,
-                    answers,
-                    question_type,
-                    paragraph,
-                )
-                target = chartqapro_target(answers, year_flags, question_type)
-                if len(answers) != len(year_flags):
-                    year_flag_length_anomalies.append(
-                        {
-                            "source_index": source_index,
-                            "question_type": question_type,
-                            "answer_turns": len(answers),
-                            "year_flags": len(year_flags),
-                        }
-                    )
                 question_digest = _question_digest(final_question)
                 joint_key = vtool_identity_join_key(image_id, final_question)
                 target_image_ids.append(image_id)
@@ -322,17 +307,63 @@ def main() -> None:
                     for source in blocked_sources
                     if image_id in source["image_ids"]
                 ]
+                for name in matching_sources:
+                    excluded_by_source[name].append(source_index)
                 if matching_sources:
                     excluded_source_indices.append(source_index)
-                    for name in matching_sources:
-                        excluded_by_source[name].append(source_index)
+                if (
+                    not year_flags
+                    or any(not flag.strip() for flag in year_flags)
+                    or any(flag.upper() not in {"YES", "NO"} for flag in year_flags)
+                ):
+                    raise ValueError(
+                        f"invalid Year flags at source index {source_index}"
+                    )
+                if len(answers) != len(year_flags):
+                    year_flag_length_anomalies.append(
+                        {
+                            "source_index": source_index,
+                            "question_type": question_type,
+                            "answer_turns": len(answers),
+                            "year_flags": len(year_flags),
+                        }
+                    )
+                empty_answer_positions = [
+                    index for index, value in enumerate(answers) if not value.strip()
+                ]
+                if empty_answer_positions:
+                    malformed_answer_rows.append(
+                        {
+                            "source_index": source_index,
+                            "question_type": question_type,
+                            "answer_turns": len(answers),
+                            "empty_answer_positions": empty_answer_positions,
+                            "policy": "excluded because released target is empty",
+                        }
+                    )
+                    image.close()
+                    source_index += 1
+                    continue
+                if matching_sources:
                     image.close()
                     source_index += 1
                     continue
 
+                prompt = build_chartqapro_direct_prompt(
+                    questions,
+                    answers,
+                    question_type,
+                    paragraph,
+                )
+                target = chartqapro_target(answers, year_flags, question_type)
+
                 image_name = f"{image_id}.png"
                 if image_id not in saved_images:
-                    image.save(image_dir / image_name, format="PNG")
+                    image.save(
+                        image_dir / image_name,
+                        format="PNG",
+                        compress_level=1,
+                    )
                     saved_images.add(image_id)
                 image.close()
                 payloads.append(
@@ -384,6 +415,18 @@ def main() -> None:
         if pilot_images | formal_images != set(eligible_image_ids):
             raise AssertionError("pilot/formal split lost image groups")
 
+        image_bundle_digest = hashlib.sha256()
+        image_file_count = 0
+        for image_path in sorted(image_dir.glob("*.png")):
+            image_file_count += 1
+            image_bundle_digest.update(image_path.name.encode())
+            image_bundle_digest.update(b"\0")
+            image_bundle_digest.update(_sha256(image_path).encode())
+            image_bundle_digest.update(b"\n")
+        if image_file_count != len(set(eligible_image_ids)):
+            raise AssertionError("saved image count does not match eligible image groups")
+        image_bundle_sha256 = image_bundle_digest.hexdigest()
+
         split_results: dict[str, Any] = {}
         for split_name, split_payloads in (
             ("pilot", pilot_payloads),
@@ -423,6 +466,8 @@ def main() -> None:
                 "stratum_counts": dict(sorted(strata.items())),
                 "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
                 "prompt_adapter": CHARTQAPRO_PROMPT_ADAPTER,
+                "image_encoding": "RGB PNG compress_level=1",
+                "image_bundle_sha256": image_bundle_sha256,
                 "primary_scorer": "chartqapro released-code parity",
                 "sensitivity_scorer": (
                     "chartqapro-spec paper-specified exact category matching"
@@ -480,9 +525,21 @@ def main() -> None:
                 "for Conversational rows"
             ),
             "excluded_source_indices": excluded_source_indices,
-            "excluded_rows": len(excluded_source_indices),
+            "identity_excluded_rows": len(excluded_source_indices),
+            "malformed_answer_rows": malformed_answer_rows,
+            "malformed_answer_policy": (
+                "exclude rows containing an empty answer string before split; "
+                "do not impute or score an undefined target"
+            ),
+            "excluded_rows": len(
+                set(excluded_source_indices)
+                | {int(row["source_index"]) for row in malformed_answer_rows}
+            ),
             "eligible_rows": len(payloads),
             "eligible_unique_images": len(set(eligible_image_ids)),
+            "image_encoding": "RGB PNG compress_level=1",
+            "image_file_count": image_file_count,
+            "image_bundle_sha256": image_bundle_sha256,
             "blocked_sources": blocked_audit,
             "vtool_prior_audit": {
                 "path": str(args.vtool_audit.resolve()),
@@ -499,6 +556,7 @@ def main() -> None:
             "dataset_revision": DATASET_REVISION,
             "source_parquet_sha256": source_hash,
             "identity_audit_sha256": _sha256(audit_path),
+            "image_bundle_sha256": image_bundle_sha256,
             "pilot_manifest_sha256": split_results["pilot"]["manifest_sha256"],
             "formal_manifest_sha256": split_results["formal"]["manifest_sha256"],
             "prompt_adapter": CHARTQAPRO_PROMPT_ADAPTER,

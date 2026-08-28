@@ -41,6 +41,13 @@ records the anomaly. Both frozen scorers follow released behavior and use only
 the final flag for a Conversational row; no target answer is modified or
 discarded by this compatibility rule.
 
+The same pre-outcome structural audit finds empty final answer strings at
+source indices 1358 and 1359. These two rows have no defined target under the
+released scorer (only an empty model response could match), so they are
+excluded before the image-group split. They are not rewritten as
+`unanswerable`, and the audit records their indices and empty positions. No
+other empty question, answer, or year field is permitted.
+
 ChartQAPro is preferred over the public VTool `Refocus_Chart` test because the
 latter has exact decoded-RGB-plus-question overlap with the project's ChartQA
 development data. It is preferred as the primary over ChartMuseum because its

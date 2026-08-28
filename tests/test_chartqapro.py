@@ -49,6 +49,8 @@ def test_chartqapro_prompt_validates_turn_structure():
             "Conversational",
             None,
         )
+    with pytest.raises(ValueError, match="non-empty"):
+        chartqapro_target([""], ["NO"], "Factoid")
     with pytest.raises(ValueError, match="exactly one"):
         build_chartqapro_direct_prompt(
             ["one", "two"],
