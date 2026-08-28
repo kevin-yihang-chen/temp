@@ -301,6 +301,49 @@ def _validation_objective(
     }
 
 
+def _calibrate_domain_robust_threshold(
+    top_actions: Mapping[DecisionKey, str],
+    best_values: Mapping[DecisionKey, float],
+    keys: Sequence[DecisionKey],
+    zooms: Mapping[DecisionKey, Sequence[ActionRecord]],
+    domain_by_key: Mapping[DecisionKey, str],
+    *,
+    lambda_cost: float,
+) -> tuple[float, dict[DecisionKey, str | None], dict[str, Any]]:
+    """Choose a validation margin with no-call included as a safe candidate."""
+
+    ordered = sorted(set(best_values[key] for key in keys), reverse=True)
+    if not ordered:
+        raise ValueError("threshold calibration requires validation decisions")
+    thresholds = [ordered[0] + 1e-9]
+    thresholds.extend((left + right) / 2.0 for left, right in zip(ordered, ordered[1:]))
+    thresholds.append(ordered[-1] - 1e-9)
+    candidates = []
+    for threshold in thresholds:
+        selected = {
+            key: top_actions[key] if best_values[key] >= threshold else None
+            for key in keys
+        }
+        metrics = _validation_objective(
+            selected,
+            keys,
+            zooms,
+            domain_by_key,
+            lambda_cost=lambda_cost,
+        )
+        candidates.append((threshold, selected, metrics))
+    return max(
+        candidates,
+        key=lambda candidate: (
+            candidate[2]["worst_domain_utility"],
+            candidate[2]["domain_balanced_mean_utility"],
+            candidate[2]["pooled_mean_utility"],
+            -candidate[2]["pooled_tool_rate"],
+            candidate[0],
+        ),
+    )
+
+
 def fit_multidomain_action_value_model(
     records_by_domain: Mapping[str, Sequence[ActionRecord]],
     *,
@@ -342,7 +385,7 @@ def fit_multidomain_action_value_model(
             np.asarray(train_gains, dtype=np.float64),
             sample_weight=train_weights,
         )
-        selected, best_values, top_actions = _score_candidates(
+        _, best_values, top_actions = _score_candidates(
             model=model,
             scaler=scaler,
             keys=validation_keys,
@@ -350,8 +393,9 @@ def fit_multidomain_action_value_model(
             zooms=zooms,
             lambda_cost=lambda_cost,
         )
-        metrics = _validation_objective(
-            selected,
+        threshold, selected, metrics = _calibrate_domain_robust_threshold(
+            top_actions,
+            best_values,
             validation_keys,
             zooms,
             domain_by_key,
@@ -360,6 +404,7 @@ def fit_multidomain_action_value_model(
         candidates.append(
             {
                 "alpha": float(alpha),
+                "threshold": threshold,
                 "model": model,
                 "selected": selected,
                 "best_values": best_values,
@@ -370,8 +415,8 @@ def fit_multidomain_action_value_model(
     winner = max(
         candidates,
         key=lambda candidate: (
-            candidate["metrics"]["domain_balanced_mean_utility"],
             candidate["metrics"]["worst_domain_utility"],
+            candidate["metrics"]["domain_balanced_mean_utility"],
             candidate["metrics"]["pooled_mean_utility"],
             -candidate["metrics"]["pooled_tool_rate"],
             -candidate["alpha"],
@@ -399,7 +444,10 @@ def fit_multidomain_action_value_model(
         ),
         "model_type": "multidomain_direct_action_value",
         "feature_mode": "normalized-context-by-bbox-geometry",
-        "decision_rule": "argmax predicted_gain - lambda * tool_cost; call iff > 0",
+        "decision_rule": (
+            "argmax predicted_gain - lambda * tool_cost; call iff above frozen "
+            "source-held-out domain-robust margin"
+        ),
         "target": "counterfactual task-score gain",
         "seed": seed,
         "lambda_cost": lambda_cost,
@@ -411,12 +459,17 @@ def fit_multidomain_action_value_model(
         "train_action_rows": len(train_features),
         "feature_count": len(train_features[0]),
         "selected_alpha": winner["alpha"],
+        "selected_threshold": winner["threshold"],
         "selection_objective": (
-            "domain-balanced mean utility, then worst-domain utility, pooled utility, "
-            "lower tool rate, lower alpha"
+            "worst-domain utility, then domain-balanced mean utility, pooled utility, "
+            "lower tool rate, lower alpha; no-call is an explicit candidate"
         ),
         "candidate_validation_metrics": [
-            {"alpha": candidate["alpha"], **candidate["metrics"]}
+            {
+                "alpha": candidate["alpha"],
+                "threshold": candidate["threshold"],
+                **candidate["metrics"],
+            }
             for candidate in candidates
         ],
         "validation_metrics": winner["metrics"],
@@ -425,10 +478,11 @@ def fit_multidomain_action_value_model(
     model_payload = {
         "model_type": "multidomain_direct_action_value",
         "feature_mode": "normalized-context-by-bbox-geometry",
-        "decision_rule": "positive_predicted_net_value",
+        "decision_rule": "predicted_net_value_above_frozen_margin",
         "seed": seed,
         "lambda_cost": lambda_cost,
         "selected_alpha": winner["alpha"],
+        "threshold": winner["threshold"],
         "domains": sorted(set(domain_by_key.values())),
         "feature_count": len(train_features[0]),
         "scaler_mean": [float(value) for value in scaler.mean_.tolist()],
@@ -477,7 +531,9 @@ def select_frozen_action_value_actions(
             scored_actions.append((net_value, action.action_id))
         best_value, best_action_id = max(scored_actions)
         scores[key] = best_value
-        selected[key] = best_action_id if best_value > 0.0 else None
+        selected[key] = (
+            best_action_id if best_value >= float(model["threshold"]) else None
+        )
     return selected, scores
 
 
@@ -512,7 +568,10 @@ def evaluate_frozen_action_value_model(
         "minimum": min(scores.values()),
         "mean": mean(scores.values()),
         "maximum": max(scores.values()),
-        "positive": sum(value > 0.0 for value in scores.values()),
+        "threshold": float(model["threshold"]),
+        "above_threshold": sum(
+            value >= float(model["threshold"]) for value in scores.values()
+        ),
         "decisions": len(scores),
     }
     return result

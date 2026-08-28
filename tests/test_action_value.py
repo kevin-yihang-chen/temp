@@ -78,6 +78,7 @@ def test_multidomain_action_value_model_is_serializable_and_selects_concrete_cro
     assert report["domains"] == ["chart", "document"]
     assert report["train_decisions"] + report["validation_decisions"] == 220
     assert model["model_type"] == "multidomain_direct_action_value"
+    assert isinstance(model["threshold"], float)
     assert len(model["coefficient"]) == model["feature_count"]
     selected, scores = select_frozen_action_value_actions(model, document)
     assert len(selected) == len(scores) == 100
