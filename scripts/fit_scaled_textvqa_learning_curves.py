@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -79,6 +80,16 @@ def main() -> None:
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     args = parser.parse_args()
 
+    repo_dir = Path(__file__).resolve().parents[1]
+    code_revision = os.environ.get("BE_CODE_REVISION")
+    if not code_revision:
+        code_revision = subprocess.run(
+            ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
     actual_hashes = {
         "allocation": _sha256(args.allocation),
         "rollouts": _sha256(args.rollouts),
@@ -132,13 +143,6 @@ def main() -> None:
                 "threshold_count": len(report["threshold_grid"]),
             }
         )
-    repo_dir = Path(__file__).resolve().parents[1]
-    code_revision = subprocess.run(
-        ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
     result = {
         "scientific_status": (
             "secondary preregistered source-prefix learning curves; cannot select "

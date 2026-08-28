@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, Mapping
@@ -77,6 +78,15 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
+    code_revision = os.environ.get("BE_CODE_REVISION")
+    if not code_revision:
+        code_revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
     paths_and_hashes = (
         (args.ranker_model, args.expected_ranker_model_sha256, "ranker model"),
         (args.rollouts, args.expected_rollouts_sha256, "rollouts"),
@@ -120,12 +130,6 @@ def main() -> None:
         min_source_utility=0.001,
         selection_objective="source_call_rate",
     )
-    code_revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
     run = {
         "code_revision": code_revision,
         "ranker_model": str(args.ranker_model.resolve()),

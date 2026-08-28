@@ -22,6 +22,13 @@ export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 
 cd "${repo_dir}"
+tracked_status=$(git -C "${repo_dir}" status --porcelain --untracked-files=no)
+if [[ -n "${tracked_status}" ]]; then
+  echo "Tracked worktree must be clean before scaled learning curves" >&2
+  exit 2
+fi
+export BE_CODE_REVISION
+BE_CODE_REVISION=$(git -C "${repo_dir}" rev-parse HEAD)
 if [[ -e "${output}" ]]; then
   echo "Learning-curve output already exists" >&2
   exit 2

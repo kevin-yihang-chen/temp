@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -39,6 +40,15 @@ def main() -> None:
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     args = parser.parse_args()
 
+    code_revision = os.environ.get("BE_CODE_REVISION")
+    if not code_revision:
+        code_revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
     rollout_sha256 = _sha256(args.rollouts)
     feature_sha256 = _sha256(args.features)
     for name, actual, expected in (
@@ -68,12 +78,6 @@ def main() -> None:
         bootstrap_resamples=args.bootstrap_resamples,
         seed=20260828,
     )
-    code_revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
     run = {
         "code_revision": code_revision,
         "rollouts": str(args.rollouts.resolve()),
