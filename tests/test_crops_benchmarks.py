@@ -93,6 +93,29 @@ def test_manifest_and_reference_scorers(tmp_path):
     assert chartqa_relaxed_match("0", GroundTruth("0")) == 1.0
 
 
+def test_manifest_separates_gate_question_from_backend_prompt(tmp_path):
+    image_path = tmp_path / "image.png"
+    Image.new("RGB", (16, 16), "white").save(image_path)
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        json.dumps(
+            {
+                "state_id": "s1",
+                "image_path": "image.png",
+                "question": "Gate-visible core question",
+                "model_prompt": "Backend-only formatted prompt",
+                "target": "answer",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    state = load_manifest(manifest)[0].state
+    assert state.question == "Gate-visible core question"
+    assert state.model_prompt == "Backend-only formatted prompt"
+    assert state.backend_prompt == "Backend-only formatted prompt"
+
+
 def test_manifest_rejects_missing_images(tmp_path):
     manifest = tmp_path / "bad.jsonl"
     manifest.write_text(
@@ -133,3 +156,28 @@ def test_qwen_messages_keep_original_and_resize_zoom(tmp_path):
     assert content[1]["image"].size == (20, 20)
     assert content[1]["image"].getpixel((5, 5)) == (0, 0, 255)
     assert content[2] == {"type": "text", "text": "What color?"}
+
+
+def test_qwen_messages_use_backend_only_model_prompt(tmp_path):
+    image_path = tmp_path / "image.png"
+    Image.new("RGB", (10, 10), "white").save(image_path)
+    state = AgentState(
+        "s",
+        "i",
+        "src",
+        str(image_path),
+        "Gate-visible core question",
+        model_prompt="Backend-only formatted prompt",
+    )
+    backend = Qwen25VLBackend.__new__(Qwen25VLBackend)
+    backend.min_pixels = 1
+    backend.max_pixels = 10_000
+    backend.system_prompt = "System"
+    messages = backend._messages(
+        state,
+        (VisualObservation("ORIGINAL", str(image_path), "original", None),),
+    )
+    assert messages[1]["content"][-1] == {
+        "type": "text",
+        "text": "Backend-only formatted prompt",
+    }

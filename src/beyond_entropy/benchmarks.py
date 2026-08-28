@@ -39,8 +39,14 @@ def load_manifest(path: str | Path, *, limit: int | None = None) -> list[TaskExa
                 image_id = str(value.get("image_id", image_path))
                 source_id = str(value.get("source_id", image_id))
                 question = str(value["question"])
+                raw_model_prompt = value.get("model_prompt")
+                model_prompt = (
+                    None if raw_model_prompt is None else str(raw_model_prompt)
+                )
                 if not state_id or not image_id or not source_id or not question:
                     raise ValueError("state and prompt identifiers must be non-empty")
+                if model_prompt is not None and not model_prompt.strip():
+                    raise ValueError("model_prompt must be non-empty when provided")
                 examples.append(
                     TaskExample(
                         state=AgentState(
@@ -49,6 +55,7 @@ def load_manifest(path: str | Path, *, limit: int | None = None) -> list[TaskExa
                             source_id=source_id,
                             image_path=str(image_path),
                             question=question,
+                            model_prompt=model_prompt,
                         ),
                         ground_truth=GroundTruth(value["target"]),
                     )

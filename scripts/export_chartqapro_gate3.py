@@ -14,6 +14,7 @@ from typing import Any, Iterable, Mapping
 from beyond_entropy.chartqapro import (
     CHARTQAPRO_PILOT_NAMESPACE,
     CHARTQAPRO_PROMPT_ADAPTER,
+    build_chartqapro_gate_context,
     build_chartqapro_direct_prompt,
     chartqapro_final_question,
     chartqapro_match,
@@ -359,6 +360,12 @@ def main() -> None:
                     question_type,
                     paragraph,
                 )
+                gate_context = build_chartqapro_gate_context(
+                    questions,
+                    answers,
+                    question_type,
+                    paragraph,
+                )
                 target = chartqapro_target(answers, year_flags, question_type)
                 ground_truth = GroundTruth(target)
                 final_answer = answers[-1]
@@ -405,7 +412,8 @@ def main() -> None:
                         "image_id": image_id,
                         "source_id": image_id,
                         "image_path": f"../images/{image_name}",
-                        "question": prompt,
+                        "question": gate_context,
+                        "model_prompt": prompt,
                         "target": target,
                         "benchmark": "chartqapro",
                         "stratum": question_type,

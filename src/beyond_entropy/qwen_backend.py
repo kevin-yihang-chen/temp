@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import hashlib
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -117,7 +118,7 @@ class Qwen25VLBackend:
                         "max_pixels": self.max_pixels,
                     }
                 )
-            content.append({"type": "text", "text": state.question})
+            content.append({"type": "text", "text": state.backend_prompt})
             return [
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": content},
@@ -210,5 +211,9 @@ class Qwen25VLBackend:
                 "num_observations": len(observations),
                 "generated_tokens": len(token_entropies),
                 "normalized_token_entropies": token_entropies,
+                "input_text_sha256": hashlib.sha256(
+                    state.backend_prompt.encode()
+                ).hexdigest(),
+                "distinct_model_prompt": state.model_prompt is not None,
             },
         )

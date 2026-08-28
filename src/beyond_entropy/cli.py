@@ -339,6 +339,7 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             f"expected {args.expected_manifest_sha256}, got {manifest_sha256}"
         )
     examples = load_manifest(args.manifest, limit=args.limit)
+    examples_by_state = {example.state.state_id: example for example in examples}
     proposer: ChartLayoutProposer | UGGridProposer
     if args.proposer == "chart-layout":
         if args.candidate_count != 4:
@@ -364,6 +365,13 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             records = read_jsonl(args.output)
             default_system_prompt = "You are a helpful assistant."
             for record in records:
+                expected_example = examples_by_state.get(record.state_id)
+                if expected_example is None:
+                    raise ValueError(
+                        f"checkpoint state is absent from manifest: {record.state_id}"
+                    )
+                if record.question != expected_example.state.question:
+                    raise ValueError("checkpoint gate-visible question mismatch")
                 backend_names = ["baseline_backend"]
                 if record.action_type == "ZOOM":
                     backend_names.append("action_backend")
@@ -393,6 +401,18 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
                         raise ValueError(
                             f"checkpoint {backend_name} system_prompt mismatch"
                         )
+                    if expected_example.state.model_prompt is not None:
+                        expected_input_hash = hashlib.sha256(
+                            expected_example.state.backend_prompt.encode()
+                        ).hexdigest()
+                        if (
+                            backend_metadata.get("input_text_sha256")
+                            != expected_input_hash
+                            or backend_metadata.get("distinct_model_prompt") is not True
+                        ):
+                            raise ValueError(
+                                f"checkpoint {backend_name} model_prompt mismatch"
+                            )
     initial_record_count = len(records)
     expected_per_state = (args.candidate_count + 1) * len(args.generation_seeds)
     checkpoint_counts: dict[str, int] = {}

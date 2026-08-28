@@ -30,6 +30,7 @@ Each input row has the following shape:
   "source_id": "vstar-0001",
   "image_path": "images/0001.jpg",
   "question": "... Answer with the option letter only.",
+  "model_prompt": "Optional backend-only formatted prompt.",
   "target": "B"
 }
 ```
@@ -38,6 +39,12 @@ Each input row has the following shape:
 paths resolve against the manifest directory. `image_id` defaults to the
 resolved image path and `source_id` defaults to `image_id`. Ground truth enters
 `GroundTruth` and is passed only to the selected scorer.
+
+`question` is the semantic task context visible to proposals and pre-action
+gates. An optional non-empty `model_prompt` may contain benchmark formatting,
+answer instructions, or the same context in a backend-specific layout. Only the
+VLM backend reads `model_prompt`; it is excluded from gate features. When absent,
+the backend reads `question`, preserving all earlier manifests exactly.
 
 ## Flat JSONL representation
 
@@ -49,6 +56,7 @@ resolved image path and `source_id` defaults to `image_id`. Ground truth enters
 | `replicate_id` | Paired stochastic replicate | grouping only |
 | `generation_seed` | Seed shared by baseline/action siblings | no |
 | `question` | User/task query | semantic adapter |
+| `model_prompt` | Optional VLM-only formatted text | **no** |
 | `original_image` | Image path or stable URI | semantic adapter |
 | `action_id` | Unique action within a decision | no |
 | `action_type` | `ANSWER` or `ZOOM` | policy |

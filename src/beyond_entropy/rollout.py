@@ -18,6 +18,13 @@ class AgentState:
     image_path: str
     question: str
     trajectory: tuple[str, ...] = ()
+    model_prompt: str | None = None
+
+    @property
+    def backend_prompt(self) -> str:
+        """Text shown to the VLM, distinct from gate-visible question context."""
+
+        return self.model_prompt if self.model_prompt is not None else self.question
 
 
 @dataclass(frozen=True)
@@ -97,6 +104,7 @@ class InferenceRequest:
                 "image_path": self.state.image_path,
                 "question": self.state.question,
                 "trajectory": list(self.state.trajectory),
+                "model_prompt": self.state.model_prompt,
             },
             "observations": [
                 {

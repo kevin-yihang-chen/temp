@@ -5,6 +5,7 @@ import pytest
 from beyond_entropy.benchmarks import load_manifest, scorer_by_name
 from beyond_entropy.chartqapro import (
     build_chartqapro_direct_prompt,
+    build_chartqapro_gate_context,
     chartqapro_match,
     chartqapro_spec_match,
     chartqapro_target,
@@ -39,6 +40,19 @@ def test_conversational_prompt_keeps_history_but_excludes_final_answer():
     assert "second answer" in prompt
     assert "Final question?" in prompt
     assert "FINAL-ANSWER-SENTINEL" not in prompt
+
+    gate_context = build_chartqapro_gate_context(
+        ["First question?", "Follow-up question?", "Final question?"],
+        ["first answer", "second answer", "FINAL-ANSWER-SENTINEL"],
+        "Conversational",
+        "Relevant paragraph.",
+    )
+    assert "Relevant paragraph." in gate_context
+    assert "First question?" in gate_context
+    assert "first answer" in gate_context
+    assert "Final question?" in gate_context
+    assert "FINAL-ANSWER-SENTINEL" not in gate_context
+    assert "generate the final answer" not in gate_context
 
 
 def test_chartqapro_prompt_validates_turn_structure():

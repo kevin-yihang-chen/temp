@@ -140,6 +140,32 @@ def build_chartqapro_direct_prompt(
     return f"{paragraph_text}\n\n{context}" if paragraph_text else context
 
 
+def build_chartqapro_gate_context(
+    questions: Sequence[str],
+    answers: Sequence[str],
+    question_type: str,
+    paragraph: str | None,
+) -> str:
+    """Expose task context to the gate without prompt-template boilerplate."""
+
+    question_values = _string_sequence(questions, name="questions")
+    answer_values = _string_sequence(answers, name="answers")
+    final_question = chartqapro_final_question(question_values, question_type)
+    if len(question_values) != len(answer_values):
+        raise ValueError("questions and answers must contain the same number of turns")
+    parts: list[str] = []
+    paragraph_text = "" if paragraph is None else str(paragraph).strip()
+    if paragraph_text:
+        parts.append(f"Context:\n{paragraph_text}")
+    if question_type == "Conversational":
+        history: list[str] = []
+        for question, answer in zip(question_values[:-1], answer_values[:-1]):
+            history.extend((f"Question: {question}", f"Answer: {answer}"))
+        parts.append("Conversation history:\n" + "\n".join(history))
+    parts.append(f"Question: {final_question}")
+    return "\n\n".join(parts)
+
+
 def chartqapro_target(
     answers: Sequence[str],
     year_flags: Sequence[str],
