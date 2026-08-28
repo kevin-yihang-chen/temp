@@ -176,6 +176,17 @@ and formal rollouts remain unopened until the complete policy is frozen; this
 is a data-preparation milestone, not a positive result. See
 `docs/scaled_textvqa_train_contingency.md`.
 
+The preregistered scaled pairwise primary subsequently failed independent risk
+calibration: no non-degenerate threshold met every frozen condition, so the
+formal bank remains sealed. A post-failure factorized OOF diagnostic corrected
+an inconsistency between decision-weighted training and source-balanced risk
+evaluation. Its context-state/semantic-action branch reaches source-balanced
+utility `0.001175` at a 1.03% development-only tail while passing both risk
+diagnostics. This is the first non-degenerate development tail above the frozen
+`0.001` floor, but it was selected after the original calibration bank was
+opened and is not confirmation. See
+`docs/textvqa_factorized_source_balanced_oof_result_2026-08-29.md`.
+
 ## Semantic gain head
 
 Install the optional PyTorch dependency:
