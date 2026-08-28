@@ -30,7 +30,6 @@ EXPECTED_MANIFEST_SHA256 = (
 )
 EXPECTED_ROLLOUT_CODE_REVISION = "a5778dbf64583ac8177edb36b67cb61b8f901b4d"
 EXPECTED_STATES = 309
-EXPECTED_RECORDS = EXPECTED_STATES * 5
 
 
 def _sha256(path: Path) -> str:
@@ -68,15 +67,18 @@ def _validate_inputs(
     provenance: Mapping[str, Any],
     *,
     rollouts: Path,
+    expected_manifest_sha256: str,
+    expected_rollout_code_revision: str,
+    expected_states: int,
 ) -> dict[str, Any]:
     expected_provenance = {
-        "code_revision": EXPECTED_ROLLOUT_CODE_REVISION,
-        "manifest_sha256": EXPECTED_MANIFEST_SHA256,
+        "code_revision": expected_rollout_code_revision,
+        "manifest_sha256": expected_manifest_sha256,
         "model": "Qwen/Qwen2.5-VL-3B-Instruct",
         "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
         "scorer": "chartqapro",
-        "examples": EXPECTED_STATES,
-        "completed_examples": EXPECTED_STATES,
+        "examples": expected_states,
+        "completed_examples": expected_states,
         "candidate_count": 4,
         "generation_seeds": [0],
         "max_new_tokens": 16,
@@ -99,13 +101,14 @@ def _validate_inputs(
         }
     if mismatches:
         raise ValueError(f"pilot provenance mismatch: {mismatches}")
-    if len(manifest) != EXPECTED_STATES or len(records) != EXPECTED_RECORDS:
+    expected_records = expected_states * 5
+    if len(manifest) != expected_states or len(records) != expected_records:
         raise ValueError(
             f"incomplete pilot: {len(manifest)} states and {len(records)} records"
         )
     grouped = group_by_decision(records)
-    if len(grouped) != EXPECTED_STATES:
-        raise ValueError(f"expected {EXPECTED_STATES} decisions, found {len(grouped)}")
+    if len(grouped) != expected_states:
+        raise ValueError(f"expected {expected_states} decisions, found {len(grouped)}")
     if {state_id for state_id, _ in grouped} != set(manifest):
         raise ValueError("rollout and manifest state IDs differ")
     expected_actions = {"answer-now", *(f"ug-grid-{index:02d}" for index in range(4))}
@@ -164,6 +167,8 @@ def _rescore_spec(
 def _output_compatibility(
     records: Sequence[ActionRecord],
     manifest: Mapping[str, Mapping[str, Any]],
+    *,
+    expected_states: int,
 ) -> dict[str, Any]:
     capped = 0
     baseline_capped = 0
@@ -203,7 +208,7 @@ def _output_compatibility(
             or normalized.startswith("the answer is")
             or normalized.startswith("answer:")
         )
-    baseline_count = EXPECTED_STATES
+    baseline_count = expected_states
     return {
         "outputs": len(records),
         "empty_outputs": empty,
@@ -339,6 +344,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=0)
+    parser.add_argument(
+        "--expected-manifest-sha256",
+        default=EXPECTED_MANIFEST_SHA256,
+    )
+    parser.add_argument(
+        "--expected-rollout-code-revision",
+        default=EXPECTED_ROLLOUT_CODE_REVISION,
+    )
+    parser.add_argument("--expected-states", type=int, default=EXPECTED_STATES)
     return parser.parse_args()
 
 
@@ -350,7 +364,7 @@ def main() -> None:
         "source_report": _sha256(args.source_report),
     }
     expected_hashes = {
-        "manifest": EXPECTED_MANIFEST_SHA256,
+        "manifest": args.expected_manifest_sha256,
         "frozen_model": EXPECTED_MODEL_SHA256,
         "source_report": EXPECTED_SOURCE_REPORT_SHA256,
     }
@@ -364,6 +378,9 @@ def main() -> None:
         manifest,
         provenance,
         rollouts=args.rollouts,
+        expected_manifest_sha256=args.expected_manifest_sha256,
+        expected_rollout_code_revision=args.expected_rollout_code_revision,
+        expected_states=args.expected_states,
     )
     model = _read_object(args.frozen_model)
     source_report = _read_object(args.source_report)
@@ -372,7 +389,11 @@ def main() -> None:
         raise ValueError("source report has no evaluation object")
     source_entropy_threshold = float(source_evaluation["source_entropy_threshold"])
     strata = {state_id: str(row["stratum"]) for state_id, row in manifest.items()}
-    compatibility = _output_compatibility(records, manifest)
+    compatibility = _output_compatibility(
+        records,
+        manifest,
+        expected_states=args.expected_states,
+    )
     spec_records = _rescore_spec(records, manifest)
     released = _evaluate(
         records,
@@ -391,7 +412,7 @@ def main() -> None:
         bootstrap_seed=args.bootstrap_seed,
     )
     acceptance = {
-        "complete": input_validation["validated_states"] == EXPECTED_STATES,
+        "complete": input_validation["validated_states"] == args.expected_states,
         "no_empty_outputs": compatibility["empty_outputs"] == 0,
         "baseline_cap_rate_at_most_0_05": (
             compatibility["baseline_max_token_capped_rate"] <= 0.05

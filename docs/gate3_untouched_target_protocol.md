@@ -177,14 +177,20 @@ overlap with the ChartQA development, validation-confirmation, train-replication
 or VTool test sources. Fourteen malformed targets are removed by the rules
 above, leaving 1,934 scorer-self-consistent questions over 1,250 images.
 
-The deterministic split contains:
+The deterministic split contains the same state and image identities in both
+freeze versions. Version 2 changes only the data contract: `question` is the
+core gate-visible task context, while `model_prompt` contains the full official
+benchmark prompt shown only to the VLM. This prevents benchmark instructions
+and long paragraph wrappers from becoming stopping-model features.
+
+The current version-2 freeze contains:
 
 - compatibility pilot: 309 questions over exactly 200 images, manifest
-  SHA-256 `e02f62ae794125c5e4565493e54b72855b1db96542257c57a15049de65f6a722`;
+  SHA-256 `b5a61ebc91e8ac94686af13af47ca8714df9b290bae239d820d699c510f7fe4d`;
 - untouched formal target: 1,625 questions over 1,050 images, manifest SHA-256
-  `d48cb0f217a874974d7e4a8287b3ab3af42c13277edbddc1ec5aac3927fcfabc`;
+  `5a3ddca2e6476196aac8ad4fa7bc00033f2ac9c39d2011fe21fa070e965b97d4`;
 - identity audit SHA-256
-  `ca725d6c509c2bf433057efe56873574c5eb3d6dc80fd42d4bf72dc703b56c9f`;
+  `7737888c136ebc71cc2edce6f632c43c3d726a0fa5163d420047cce170a5f13e`;
   and
 - normalized image bundle SHA-256
   `c4946970db3576cab6f136a72465cf4bf1c63cad5d0734d57af92d2870d35fd1`.
@@ -192,5 +198,18 @@ The deterministic split contains:
 An independent post-export pass re-decodes all 1,250 PNGs, verifies every RGB
 digest against its filename, confirms zero pilot/formal image overlap, and
 confirms that both frozen scorers assign all 1,934 retained gold answers a
-self-score of exactly 1.0. The export is bound to code revision
-`c1963b5ab9dbf38c9f938bdc9210a24403233475`.
+self-score of exactly 1.0. It also verifies that all version-2 VLM prompts are
+byte-identical to the version-1 gate-visible strings and that every version-2
+core question differs from its backend prompt. The export is bound to code
+revision `3cd17c3ee345bd0348038ac866717a64d7eb65e7`.
+
+The first compatibility rollout used the version-1 conflated state and is kept
+only as a VLM/scorer diagnostic. It completed all 1,545 sibling records with no
+empty output and max-token cap rates below 1%, but raw constrained-format
+compliance was 87.9% rather than the registered 95%. The 46 deviations were
+short, structurally recognizable outputs such as an option letter followed by
+the option text or bracketed booleans; no explanatory answer was observed. The
+version-1 gate result is invalid because the full benchmark prompt entered its
+semantic features. No formal-target outcome has been read, and formal execution
+remains blocked until prompt isolation and the constrained-answer handling are
+frozen from a version-2 compatibility run.
