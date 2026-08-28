@@ -1,13 +1,47 @@
+import numpy as np
+import pytest
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.preprocessing import StandardScaler
+
 from beyond_entropy.risk_control import (
     RiskConstraint,
     calibrate_source_risk_threshold,
 )
 from beyond_entropy.scaled_action_value import (
+    _serialize_linear,
+    _serialized_linear_predict,
     acquisition_calibration_rows,
     fit_scaled_pairwise_action_value_model,
     predict_scaled_action_value,
 )
 from beyond_entropy.simulate import simulate_counterfactual_dataset
+
+
+@pytest.mark.parametrize("model", [Ridge(alpha=1.0), LogisticRegression(C=0.5)])
+def test_serialized_linear_predictions_match_sklearn(model):
+    features = np.asarray(
+        [
+            [-2.0, 0.0, 1.0],
+            [-1.0, 1.0, 0.5],
+            [0.5, -1.0, -0.5],
+            [1.5, 0.5, -1.0],
+            [2.0, 1.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+    targets = np.asarray([0, 0, 1, 1, 1], dtype=np.float64)
+    scaler = StandardScaler().fit(features)
+    model.fit(scaler.transform(features), targets)
+    payload = _serialize_linear(scaler, model)
+    expected = (
+        model.decision_function(scaler.transform(features))
+        if isinstance(model, LogisticRegression)
+        else model.predict(scaler.transform(features))
+    )
+    actual = np.asarray(
+        [_serialized_linear_predict(payload, row) for row in features]
+    )
+    assert actual == pytest.approx(expected, abs=1e-12)
 
 
 def test_scaled_pairwise_action_value_crossfits_and_round_trips():
