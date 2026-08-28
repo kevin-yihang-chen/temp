@@ -74,3 +74,20 @@ units should be equivalent; both are retained as an implementation check.
 The same pre-registered fixed-quadrant, source-only action-ranker, and text-only
 gate variants are reported as secondary analyses. They cannot alter the primary
 criterion. Human and augmented strata are also secondary.
+
+## Completed outcome
+
+The rollout completed all 4,500 states and 22,500 action records under the
+frozen protocol. Its SHA-256 is
+`f32d8ab8d5ad46ba264de97667540d41022b52aaae8ef3f0ce3a2df939cc36f9`.
+The primary policy has utility `0.003633`, state-bootstrap interval
+`[0.000700, 0.006689]`, image-bootstrap interval
+`[0.000700, 0.006711]`, accuracy gain `0.006833`, and 6.4% tool use. Therefore
+every registered primary condition is true and the replication **passes**.
+
+The 2,250 human-question states have utility `0.006844` with interval
+`[0.001111, 0.012756]`; the 2,250 augmented-question states have utility
+`0.000422` with interval `[-0.000911, 0.001933]`. These secondary strata do not
+change the aggregate primary decision, but they localize the confirmed effect
+mainly to human questions. The report SHA-256 is
+`ba4b3fa6e45da23fa217470a0ca2be5867634208f16665e7abc83a55b8976c30`.

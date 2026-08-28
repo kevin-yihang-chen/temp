@@ -318,7 +318,7 @@ not a reason to replace the registered cost. The corrected frontier report
 SHA-256 is
 `4ea18854e5a7ef23564b490b25ba05b82195b7893398fe0ba5291ac3baddc48d`.
 
-## High-power independent replication in progress
+## High-power independent replication
 
 The validation interval motivated a new replication rather than extending or
 retuning the failed primary. Before target rollout, 4,500 official ChartQA train
@@ -329,6 +329,25 @@ and validation. Its manifest SHA-256 is
 The model, threshold, four-crop UG proposal, cost, prompt, and pass criteria are
 unchanged. This is explicitly a post-near-miss replication; its protocol is in
 `docs/replication_protocol_chartqa_train.md`.
+
+The frozen primary **passes** on all registered criteria. Across 4,500 states,
+the factorized context policy has utility `0.003633`, accuracy gain `0.006833`,
+and 6.4% tool use. Its 95% state-bootstrap utility interval is
+`[0.000700, 0.006689]`; the image-bootstrap interval is
+`[0.000700, 0.006711]`. Both lower endpoints are above zero, gain is positive,
+and tool use is below unconditional one-crop and exhaustive policies. The
+rollout SHA-256 is
+`f32d8ab8d5ad46ba264de97667540d41022b52aaae8ef3f0ce3a2df939cc36f9`;
+the frozen analysis report SHA-256 is
+`ba4b3fa6e45da23fa217470a0ca2be5867634208f16665e7abc83a55b8976c30`.
+
+The registered strata show important heterogeneity. On 2,250 human questions,
+utility is `0.006844` with state interval `[0.001111, 0.012756]`, accuracy gain
+`0.012444`, and 11.2% tool use. On 2,250 augmented questions, utility is only
+`0.000422` with interval `[-0.000911, 0.001933]`, accuracy gain `0.001222`, and
+1.6% tool use. Thus the aggregate independent confirmation is valid, but the
+effect is primarily supported by the human stratum and should not be described
+as uniformly confirmed across question sources.
 
 ## Image-disjoint chart-layout confirmation
 
@@ -378,17 +397,21 @@ turning generic uncertainty into a reliable rescuability score.
 
 ## Current decision
 
-Do not enter VTool-R1/GRPO yet. Gate 1 establishes sparse counterfactual
-headroom and the cost failure of exhaustive entropy search. The factorized gate
-is the first method with positive nested OOF state- and image-bootstrap intervals,
-and its independent validation point estimate transfers, but the registered
-validation interval narrowly crosses zero. A fixed-crop secondary passes on
-validation, while paired contrasts provide no evidence that fixed or learned
-action selection beats random. The independently tested chart-layout proposer
-also fails its state/image confirmation. Gate 2 is therefore partially supported
-for stopping and still open for both independent replication and spatial action
-selection. The frozen 4,500-image replication must finish before the stopping
-claim is upgraded; no chart-layout follow-up is launched.
+Gate 1 establishes sparse counterfactual headroom and the cost failure of
+exhaustive entropy search. The factorized gate is the first method with positive
+nested OOF state- and image-bootstrap intervals. Its first independent
+validation was a failed near miss, but the unchanged, separately registered
+4,500-image replication passes both intervals. The stopping component of Gate 2
+is therefore independently confirmed at the registered cost, with the explicit
+caveat that the augmented-only interval crosses zero.
+
+Spatial action selection remains unresolved: validation paired contrasts do not
+show fixed or learned selection beating random, and the independently tested
+chart-layout proposer fails its state/image confirmation. Do not launch the
+stopped chart-layout follow-up. Gate 3 may now open only as a bounded
+when-to-call integration and credit-assignment ablation using the confirmed
+stopping gate. Claims or training objectives about where to crop require a new
+hypothesis and untouched action-selection target.
 
 ## Artifacts
 
@@ -405,6 +428,8 @@ claim is upgraded; no chart-layout follow-up is launched.
 - `artifacts/confirmation-chartqa-val-1918/posthoc-action-contrasts-v1/report.json`
 - `artifacts/confirmation-chartqa-val-1918/posthoc-cost-frontier-v1/report.json`
 - `artifacts/confirmation-chart-layout-2137/matched-comparison-v1/report.json`
+- `artifacts/replication-chartqa-train-4500/frozen-factorized-context-v1/report.json`
+- `artifacts/replication-chartqa-train-4500/frozen-factorized-context-v1/report.md`
 - `docs/replication_protocol_chartqa_train.md`
 - `artifacts/gate1-chartqa-200/qwen3b-c9-concise-seed0/pilot_report.json`
 - `artifacts/gate1-chartqa-200/c4-vs-c9-concise-seed0/candidate_ablation.json`

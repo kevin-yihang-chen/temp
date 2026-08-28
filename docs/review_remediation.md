@@ -57,9 +57,14 @@ state and image intervals miss the zero boundary by approximately `2.6e-5` and
 The same gate with fixed crop 0 has positive state and image intervals as a
 pre-registered secondary, although direct paired contrasts do not show that the
 fixed action is better than uniform random. A 4,500-state, 4,500-image balanced
-replication is frozen with unchanged model and criterion. Until it completes,
-the correct status is: stopping promising but not independently confirmed;
-action selection unresolved; VTool-R1 integration gated.
+replication is frozen with unchanged model and criterion. It is now complete and
+passes: utility is 0.00363, with state interval `[0.00070, 0.00669]`, image
+interval `[0.00070, 0.00671]`, positive accuracy gain 0.00683, and 6.4% tool
+use. The result independently confirms stopping at the registered cost. The
+human stratum is positive, while the augmented interval crosses zero, so source
+heterogeneity remains a stated limitation. Action selection is still unresolved;
+VTool-R1 integration is authorized only for a bounded when-to-call scaffold and
+ablation, not a spatial-selection claim.
 
 The chart-layout proposal follow-up is now closed by its pre-registered no-go:
 the image-disjoint treatment-minus-UG point estimate is +0.00175, but both state

@@ -135,12 +135,17 @@ its image-disjoint treatment-minus-UG estimate is +0.00175, with both state and
 image intervals crossing zero. Its pre-registered follow-up is therefore not
 launched.
 
-The unchanged gate is undergoing a separately registered 4,500-image
-high-power replication. Gate 3 remains closed until that result is complete;
-spatial action selection is tracked as a distinct unresolved problem. See
+The unchanged gate subsequently passes its separately registered 4,500-image
+high-power replication. At `lambda=0.05`, frozen-policy utility is 0.00363 with
+state interval `[0.00070, 0.00669]` and image interval
+`[0.00070, 0.00671]`; accuracy gain is 0.00683 at 6.4% tool use. The effect is
+stronger on human questions and not individually confirmed on the augmented
+stratum. This independently confirms the stopping component of Gate 2, but not
+spatial action selection. Gate 3 may therefore open only for a bounded
+when-to-call integration/ablation; where-to-look learning remains gated. See
 `docs/pilot_results_2026-08-28.md` and
-`docs/replication_protocol_chartqa_train.md` for the evidence hierarchy and
-frozen protocol.
+`docs/replication_protocol_chartqa_train.md` for the evidence hierarchy,
+frozen protocol, and completed result.
 
 ## Semantic gain head
 

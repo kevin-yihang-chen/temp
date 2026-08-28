@@ -89,12 +89,14 @@ zero, so the primary confirmation fails. A pre-registered same-gate fixed-crop
 secondary is positive under both intervals, but post-hoc paired comparisons do
 not establish that fixed or learned action selection beats a random crop.
 
-Gate 2 is now split into two explicit questions. Stopping has a transferable
-positive point estimate and strong development evidence, but is awaiting the
-frozen 4,500-image high-power replication. Spatial action selection remains
-unconfirmed. Gate 3 remains closed until the replication passes; even then,
-action-localized RL must be framed as a separate ablation rather than as a
-solved crop-ranking result.
+Gate 2 is now split into two explicit questions. The frozen 4,500-image
+high-power replication confirms stopping: utility is 0.00363 with state
+interval `[0.00070, 0.00669]`, image interval `[0.00070, 0.00671]`, accuracy
+gain 0.00683, and 6.4% tool use. The human stratum is positive while the
+augmented stratum interval crosses zero. Spatial action selection remains
+unconfirmed. Gate 3 may open only for bounded when-to-call integration and
+credit-assignment ablations; action-localized RL remains a separate gated
+hypothesis rather than a solved crop-ranking result.
 
 A separately frozen chart-layout proposer also fails image-disjoint
 confirmation. Its 200-state development advantage over matched UG crops is
@@ -106,7 +108,10 @@ action proposal: no current spatial selector has confirmed improvement.
 
 ## Gate 3 — VTool-R1 post-training
 
-- Integrate only after Gate 2 succeeds.
+- Integrate the independently confirmed stopping signal only in a bounded
+  when-to-call scaffold first.
 - Compare outcome-only reward against visual-action-localized counterfactual
   advantage under matched rollout and GPU budgets.
 - Keep token-type credit assignment as an ablation, not an assumed improvement.
+- Do not claim or optimize a where-to-look advantage until a spatial selector
+  beats matched random/fixed baselines on a new untouched target.
