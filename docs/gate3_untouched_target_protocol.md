@@ -225,3 +225,23 @@ at least 95% conservative parse coverage and zero obvious explanatory outputs.
 The released-code scorer on raw outputs remains the primary benchmark result;
 raw paper-spec exact match and canonicalized paper-spec exact match are both
 reported as sensitivities.
+
+The version-2 compatibility replay completed all 1,545 records. A paired replay
+audit found zero differences in answers, correctness, generated-token counts,
+per-token entropy sequences, or aggregate entropy relative to version 1, while
+also verifying the isolated gate context and backend-prompt hash on every
+record. The replay-audit SHA-256 is
+`173ff249f1fb8c25b73abdc28f32d705bd3d25737dea6d3bd58b8ce042106480`.
+The version-2 compatibility report passes every registered execution check and
+has SHA-256
+`93e6f04989fa00c247406baaad2815a486b8d145bf8fa932b83648cf5995fe99`.
+
+For transparency, the compatibility-only gate diagnostic calls on 26 of 309
+questions and has released-score gain `0.0010402` but cost-adjusted utility
+`-0.0031669`, with both question- and image-bootstrap upper endpoints below
+zero. This diagnostic cannot tune or replace the frozen gate, and it is not
+pooled with the formal result. The positive oracle utility (`0.0600349`) shows
+that useful visual acquisitions exist in this pilot; the negative frozen-gate
+utility instead diagnoses cross-domain decision error. With execution
+compatibility now passed, the untouched formal target proceeds without any
+model, threshold, cost, prompt, action, or primary-criterion change.
