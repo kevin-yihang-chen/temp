@@ -709,6 +709,15 @@ def acquisition_calibration_rows(
         if len(matches) != 1:
             raise ValueError(f"calibration action is absent for decision {key!r}")
         action = matches[0]
+        if prediction.source_id != action.source_id:
+            raise ValueError(f"calibration source differs for decision {key!r}")
+        if not math.isclose(
+            prediction.tool_cost,
+            action.tool_cost,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ):
+            raise ValueError(f"calibration tool cost differs for decision {key!r}")
         rows.append(
             AcquisitionCalibrationRow(
                 source_id=prediction.source_id,

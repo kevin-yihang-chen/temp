@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression, Ridge
@@ -98,3 +100,14 @@ def test_scaled_predictions_join_to_independent_risk_calibration_rows():
     )
     assert result["n_sources"] == 30
     assert result["n_decisions"] == 60
+
+    wrong_source = [replace(predictions[0], source_id="wrong-source"), *predictions[1:]]
+    with pytest.raises(ValueError, match="source differs"):
+        acquisition_calibration_rows(wrong_source, records)
+
+    wrong_cost = [
+        replace(predictions[0], tool_cost=predictions[0].tool_cost + 1.0),
+        *predictions[1:],
+    ]
+    with pytest.raises(ValueError, match="tool cost differs"):
+        acquisition_calibration_rows(wrong_cost, records)
