@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -86,6 +87,15 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=20260828)
     args = parser.parse_args()
 
+    code_revision = os.environ.get("BE_CODE_REVISION")
+    if not code_revision:
+        code_revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
     domain_paths = dict(args.domain)
     if len(domain_paths) != len(args.domain):
         raise SystemExit("development domain names must be unique")
@@ -134,12 +144,6 @@ def main() -> None:
             validation_fraction=args.validation_fraction,
             **common,
         )
-    code_revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
     report["run"] = {
         "code_revision": code_revision,
         "development_inputs": {
