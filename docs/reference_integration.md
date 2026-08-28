@@ -67,6 +67,8 @@ added. The pinned upstream loop masks the entire first assistant tool segment
 and trains only the final assistant answer, so visual-action credit requires an
 explicit new mask/advantage branch rather than a reward-manager-only patch. See
 `docs/vtool_training_v2_adapter_plan.md` for the staged, matched-compute design.
+The public VTool test split is not an independent target for this project: all
+826 rows exactly match identities in the ChartQA development manifest.
 
 ## Reproducibility rule
 

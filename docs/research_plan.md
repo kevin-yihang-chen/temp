@@ -115,3 +115,7 @@ action proposal: no current spatial selector has confirmed improvement.
 - Keep token-type credit assignment as an ablation, not an assumed improvement.
 - Do not claim or optimize a where-to-look advantage until a spatial selector
   beats matched random/fixed baselines on a new untouched target.
+- Treat the public VTool Refocus_Chart test only as an engineering check: an
+  exact RGB-plus-question audit shows all 826 rows overlap the ChartQA
+  development set. Formal Gate 3 evaluation requires a newly registered target
+  with zero identity overlap.

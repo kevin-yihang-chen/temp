@@ -53,6 +53,14 @@ rows; index-based, fuzzy-text, or filename-only joins are forbidden. If coverage
 is incomplete, run the frozen base-model gate directly on the unmatched VTool
 rows instead of guessing a mapping.
 
+The pinned public VTool test parquet was audited with
+`scripts/audit_vtool_identity_join.py`. All 826 rows have unique valid identity
+keys, and all 826 match the 2,500-state ChartQA development manifest; none match
+the validation or train-replication manifests. The audit report SHA-256 is
+`015a2bc18a9175bc121370fdfa082de314c2dcd339aca84624ce6cb97b5e803a`.
+Consequently, VTool test may be used only for adapter parity/debugging: it is
+not an untouched Gate 3 evaluation set and cannot support a paper claim.
+
 Route each sample as follows:
 
 - `ANSWER`: run one no-tool final-answer turn;
@@ -91,3 +99,8 @@ Do not train or claim localized visual-action advantages until a spatial
 selector beats matched random/fixed candidates on a new untouched target. The
 existing validation action contrasts and chart-layout confirmation do not meet
 that condition.
+
+Do not report VTool Refocus_Chart test as independent generalization because it
+is a strict subset of the ChartQA development identities already used to build
+the stopping gate. Pre-register a new benchmark/dataset split with zero RGB and
+question identity overlap before any Gate 3 outcome is inspected.
