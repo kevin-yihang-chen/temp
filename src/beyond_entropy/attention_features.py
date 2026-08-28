@@ -73,6 +73,7 @@ def augment_question_region_attention(
     top_layers: int = 4,
     checkpoint_interval: int = 32,
     local_files_only: bool = True,
+    replace_question_embedding: bool = False,
     resume: bool = False,
 ) -> dict[str, Any]:
     """Add zero-shot question-to-region attention without executing crops."""
@@ -111,6 +112,10 @@ def augment_question_region_attention(
             raise ValueError("resume output was initialized from different features")
         if int(augmentation.get("top_layers", 0)) != top_layers:
             raise ValueError("resume output uses different attention layers")
+        if bool(augmentation.get("replace_question_embedding", False)) != (
+            replace_question_embedding
+        ):
+            raise ValueError("resume output uses a different question-embedding mode")
         completed = int(augmentation.get("completed_decisions", 0))
         if len(result["decisions"]) != total or not 0 <= completed <= total:
             raise ValueError("resume output has inconsistent decision counts")
@@ -138,6 +143,7 @@ def augment_question_region_attention(
             "question_token_pooling": "mean",
             "candidate_pooling": "ROI mean then normalize across candidates",
             "candidate_actions_executed": False,
+            "replace_question_embedding": replace_question_embedding,
             "code_revision": os.environ.get("BE_CODE_REVISION"),
             "completed_decisions": 0,
             "total_decisions": total,
@@ -146,6 +152,14 @@ def augment_question_region_attention(
                 "transformers": _package_version("transformers"),
             },
         }
+        if replace_question_embedding:
+            metadata["question_feature_mode"] = (
+                "multimodal_original_question_mean_from_attention_pass"
+            )
+            metadata["question_feature"] = (
+                "mean frozen Qwen final hidden state over exact user question "
+                "tokens from the same eager original-image attention pass"
+            )
         result = {
             "format_version": source["format_version"],
             "metadata": metadata,
@@ -227,6 +241,14 @@ def augment_question_region_attention(
             [int(value) for value in inputs.input_ids[0].detach().cpu().tolist()],
             exact_question_ids,
         )
+        if replace_question_embedding:
+            decision["question_embedding"] = (
+                outputs.last_hidden_state[0, token_start:token_stop]
+                .mean(dim=0)
+                .detach()
+                .to(torch.float32)
+                .cpu()
+            )
         selected_layers = attentions[-top_layers:]
         if any(layer is None for layer in selected_layers):
             raise RuntimeError("Qwen returned an empty attention layer")

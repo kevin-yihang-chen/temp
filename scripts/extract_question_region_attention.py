@@ -22,6 +22,11 @@ def main() -> None:
     parser.add_argument("--dtype", default="bfloat16")
     parser.add_argument("--top-layers", type=int, default=4)
     parser.add_argument("--checkpoint-interval", type=int, default=32)
+    parser.add_argument(
+        "--replace-question-embedding",
+        action="store_true",
+        help="reuse the attention forward pass for the multimodal question state",
+    )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     result = augment_question_region_attention(
@@ -34,6 +39,7 @@ def main() -> None:
         dtype=args.dtype,
         top_layers=args.top_layers,
         checkpoint_interval=args.checkpoint_interval,
+        replace_question_embedding=args.replace_question_embedding,
         resume=args.resume,
     )
     print(
