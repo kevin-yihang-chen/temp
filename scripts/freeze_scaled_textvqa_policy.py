@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import subprocess
 from pathlib import Path
 from typing import Any, Mapping
@@ -49,11 +50,19 @@ def _validate_policy(
     if float(model["selected_call_alpha"]) not in {1.0, 10.0, 100.0}:
         raise ValueError("selected call alpha is outside the preregistered family")
     thresholds = [float(value) for value in model.get("threshold_grid", [])]
-    if not thresholds or len(thresholds) > 32 or len(set(thresholds)) != len(thresholds):
+    if (
+        not thresholds
+        or len(thresholds) > 32
+        or len(set(thresholds)) != len(thresholds)
+        or any(not math.isfinite(value) for value in thresholds)
+    ):
         raise ValueError("model threshold family is not the frozen unique <=32 grid")
     threshold = model.get("calibrated_threshold")
     if threshold is None:
         raise ValueError("answer-now calibration failure cannot open the formal role")
+    threshold = float(threshold)
+    if not math.isfinite(threshold) or threshold not in thresholds:
+        raise ValueError("calibrated threshold is outside the frozen threshold grid")
 
     _require_equal(
         calibration.get("selection_status"),
@@ -66,6 +75,13 @@ def _validate_policy(
     _require_equal(float(calibration["max_tool_cost"]), 1.0, "maximum tool cost")
     _require_equal(float(calibration["family_error"]), 0.05, "family error")
     _require_equal(int(calibration["hypothesis_count"]), len(thresholds) * 2, "hypothesis count")
+    _require_equal(
+        float(calibration["adjusted_p_cutoff"]),
+        0.05 / (len(thresholds) * 2),
+        "adjusted p-value cutoff",
+    )
+    _require_equal(int(calibration["n_sources"]), 3000, "calibration sources")
+    _require_equal(int(calibration["n_decisions"]), 4712, "calibration decisions")
     _require_equal(
         calibration.get("constraints"),
         [
@@ -80,8 +96,33 @@ def _validate_policy(
     selected = calibration.get("selected")
     if not isinstance(selected, Mapping) or not bool(selected.get("risk_accepted")):
         raise ValueError("selected calibration threshold is not risk accepted")
-    if float(selected["source_call_rate"]) < 0.01 or float(selected["source_utility"]) < 0.001:
+    _require_equal(float(selected["threshold"]), threshold, "selected summary threshold")
+    _require_equal(int(selected["n_sources"]), 3000, "selected summary sources")
+    _require_equal(int(selected["n_decisions"]), 4712, "selected summary decisions")
+    source_call_rate = float(selected["source_call_rate"])
+    source_utility = float(selected["source_utility"])
+    if (
+        not math.isfinite(source_call_rate)
+        or not math.isfinite(source_utility)
+        or source_call_rate < 0.01
+        or source_utility < 0.001
+    ):
         raise ValueError("selected calibration threshold is degenerate")
+    selected_risks = selected.get("risks")
+    if not isinstance(selected_risks, Mapping):
+        raise ValueError("selected calibration threshold has no risk summaries")
+    for constraint in calibration["constraints"]:
+        risk = selected_risks.get(constraint["kind"])
+        if not isinstance(risk, Mapping):
+            raise ValueError("selected calibration threshold is missing a risk")
+        _require_equal(float(risk["limit"]), float(constraint["limit"]), "risk limit")
+        p_value = float(risk["p_value"])
+        if (
+            risk.get("passed") is not True
+            or not math.isfinite(p_value)
+            or not 0.0 <= p_value <= float(calibration["adjusted_p_cutoff"])
+        ):
+            raise ValueError("selected calibration risk did not pass its frozen test")
 
     embedded_calibration = model.get("risk_calibration")
     if not isinstance(embedded_calibration, Mapping):
@@ -103,6 +144,41 @@ def _validate_policy(
         raise ValueError("calibration report has no provenance")
     _require_equal(run.get("ranker_model_sha256"), ranker_model_sha256, "ranker model hash")
     _require_equal(run.get("formal_outcomes_used"), False, "formal outcome exclusion")
+
+
+def _validate_calibrated_model_derivation(
+    ranker_model: Mapping[str, Any],
+    calibrated_model: Mapping[str, Any],
+    calibration: Mapping[str, Any],
+) -> None:
+    if ranker_model.get("calibrated_threshold") is not None:
+        raise ValueError("pre-calibration ranker model already has a threshold")
+    expected_keys = set(ranker_model) | {"risk_calibration"}
+    if set(calibrated_model) != expected_keys:
+        raise ValueError("calibrated model fields differ from the ranker model contract")
+    for key, value in ranker_model.items():
+        expected = calibration["selected_threshold"] if key == "calibrated_threshold" else value
+        _require_equal(calibrated_model.get(key), expected, f"derived model {key}")
+    expected_risk_calibration = {
+        key: calibration[key]
+        for key in (
+            "selection_status",
+            "selected_threshold",
+            "method",
+            "constraints",
+            "family_error",
+            "hypothesis_count",
+            "min_source_call_rate",
+            "min_source_utility",
+            "selection_objective",
+        )
+    }
+    expected_risk_calibration["provenance"] = calibration["run"]
+    _require_equal(
+        calibrated_model.get("risk_calibration"),
+        expected_risk_calibration,
+        "derived risk calibration",
+    )
 
 
 def main() -> None:
@@ -184,6 +260,7 @@ def main() -> None:
     implementation_hashes = {
         name: _sha256(path) for name, path in implementation_paths.items()
     }
+    ranker_model = _load_mapping(args.ranker_model, "ranker model")
     model = _load_mapping(args.calibrated_model, "calibrated model")
     calibration = _load_mapping(args.calibration_report, "calibration report")
     _validate_policy(
@@ -191,6 +268,7 @@ def main() -> None:
         calibration,
         ranker_model_sha256=artifact_hashes["ranker_model"],
     )
+    _validate_calibrated_model_derivation(ranker_model, model, calibration)
     training = model.get("training_provenance")
     calibration_run = calibration["run"]
     if not isinstance(training, Mapping) or not isinstance(calibration_run, Mapping):
