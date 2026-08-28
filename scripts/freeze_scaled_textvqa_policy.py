@@ -150,6 +150,7 @@ def main() -> None:
     }
     implementation_paths = {
         "freeze_script": Path(__file__).resolve(),
+        "freeze_entrypoint": repo_dir / "scripts/freeze_scaled_textvqa_policy.sh",
         "action_value_module": repo_dir / "src/beyond_entropy/scaled_action_value.py",
         "risk_control_module": repo_dir / "src/beyond_entropy/risk_control.py",
         "evaluator_module": repo_dir / "src/beyond_entropy/scaled_evaluation.py",
