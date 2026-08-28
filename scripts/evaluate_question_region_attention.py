@@ -37,6 +37,18 @@ def main() -> None:
     parser.add_argument("--lambda-cost", type=float, default=0.05)
     parser.add_argument("--bootstrap-resamples", type=int, default=5000)
     parser.add_argument("--bootstrap-seed", type=int, default=20260828)
+    parser.add_argument(
+        "--scientific-status",
+        default=(
+            "development-only zero-shot ranking diagnostic; always-call policies "
+            "are not deployable stopping rules"
+        ),
+    )
+    parser.add_argument(
+        "--formal-outcomes-used",
+        action="store_true",
+        help="mark post-hoc diagnostics that score an already opened formal bank",
+    )
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError(f"output already exists: {args.output}")
@@ -64,10 +76,7 @@ def main() -> None:
     )
     random_policy = ExpectedRandomZoomPolicy()
     result = {
-        "scientific_status": (
-            "development-only zero-shot ranking diagnostic; always-call policies "
-            "are not deployable stopping rules"
-        ),
+        "scientific_status": args.scientific_status,
         "domain": args.domain,
         "lambda_cost": args.lambda_cost,
         "ranking": _ranking_diagnostics(
@@ -116,7 +125,7 @@ def main() -> None:
                 capture_output=True,
                 text=True,
             ).stdout.strip(),
-            "formal_outcomes_used": False,
+            "formal_outcomes_used": args.formal_outcomes_used,
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=False)

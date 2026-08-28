@@ -1,5 +1,8 @@
 # DocVQA attention action-value secondary preregistration
 
+Outcome: failed on 2026-08-28. See
+`docs/docvqa_attention_action_value_formal_result_2026-08-28.md`.
+
 Frozen: 2026-08-28 13:30 Asia/Hong_Kong, before job `190296` completed and
 before any DocVQA formal-v2 outcome was evaluated or inspected. Rollout
 generation had already started; only checkpoint counts and Slurm state were

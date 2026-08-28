@@ -13,6 +13,10 @@ from beyond_entropy.action_value import (
     select_frozen_factorized_action_value_actions,
 )
 from beyond_entropy.dataset import group_by_decision, read_jsonl
+from beyond_entropy.qwen_semantic import (
+    load_semantic_feature_dataset,
+    validate_semantic_feature_dataset,
+)
 
 
 def _sha256(path: Path) -> str:
@@ -31,6 +35,12 @@ def main() -> None:
     parser.add_argument("--rollouts", type=Path, required=True)
     parser.add_argument("--expected-model-sha256", required=True)
     parser.add_argument("--expected-rollouts-sha256", required=True)
+    parser.add_argument("--features", type=Path)
+    parser.add_argument("--expected-features-sha256")
+    parser.add_argument(
+        "--require-label-free-features",
+        action="store_true",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -45,15 +55,40 @@ def main() -> None:
     if hashes["rollouts"] != args.expected_rollouts_sha256:
         raise ValueError("rollout SHA-256 mismatch")
     model: dict[str, Any] = json.loads(model_path.read_text(encoding="utf-8"))
-    if model.get("feature_mode") == "semantic-context":
-        raise ValueError("this decomposition currently supports context-only models")
     records = read_jsonl(rollout_path)
+    semantic_decisions = None
+    feature_mode = str(model.get("feature_mode"))
+    if feature_mode in {"semantic-context", "hybrid-context-semantic"}:
+        if args.features is None or not args.expected_features_sha256:
+            raise ValueError("semantic decomposition requires a frozen feature hash")
+        feature_path = args.features.resolve()
+        hashes["features"] = _sha256(feature_path)
+        if hashes["features"] != args.expected_features_sha256:
+            raise ValueError("features SHA-256 mismatch")
+        payload = load_semantic_feature_dataset(feature_path)
+        validate_semantic_feature_dataset(
+            payload,
+            records,
+            require_outcomes=False if args.require_label_free_features else None,
+        )
+        semantic_decisions = {
+            (str(decision["state_id"]), str(decision["replicate_id"])): decision
+            for decision in payload["decisions"]
+        }
+    elif args.features is not None:
+        raise ValueError("context-only decomposition must not receive features")
     grouped = group_by_decision(records)
-    selected, scores = select_frozen_factorized_action_value_actions(model, records)
+    selected, scores = select_frozen_factorized_action_value_actions(
+        model,
+        records,
+        semantic_decisions=semantic_decisions,
+    )
     always_call_model = dict(model)
     always_call_model["threshold"] = float("-inf")
     top_actions, _ = select_frozen_factorized_action_value_actions(
-        always_call_model, records
+        always_call_model,
+        records,
+        semantic_decisions=semantic_decisions,
     )
     lambda_cost = float(model["lambda_cost"])
     rows = []
@@ -156,8 +191,18 @@ def main() -> None:
                 capture_output=True,
                 text=True,
             ).stdout.strip(),
-            "paths": {"model": str(model_path), "rollouts": str(rollout_path)},
+            "paths": {
+                "model": str(model_path),
+                "rollouts": str(rollout_path),
+                **(
+                    {"features": str(args.features.resolve())}
+                    if args.features is not None
+                    else {}
+                ),
+            },
             "sha256": hashes,
+            "required_label_free_features": args.require_label_free_features,
+            "formal_outcomes_used": True,
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
