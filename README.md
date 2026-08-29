@@ -187,6 +187,17 @@ diagnostics. This is the first non-degenerate development tail above the frozen
 opened and is not confirmation. See
 `docs/textvqa_factorized_source_balanced_oof_result_2026-08-29.md`.
 
+The prospectively isolated factorized-v2 candidate subsequently **failed** its
+fresh 3,000-source fixed-sequence calibration. The closest safe threshold
+called on 1.25% of sources but reached source-balanced utility `0.0009917`,
+only `0.0000083` below the frozen `0.001` floor; the next safe threshold fell
+to `0.0009000`, and the following threshold failed the registered negative-call
+risk test. No threshold was selected, the answer-now model was retained, and
+the 5,953-source formal manifest and outcomes remain unmaterialized. This is a
+strict negative calibration result, not permission to relax the floor or reuse
+the sealed bank. See
+`docs/textvqa_factorized_v2_independent_calibration_result_2026-08-29.md`.
+
 ## Semantic gain head
 
 Install the optional PyTorch dependency:
