@@ -6,8 +6,12 @@ or features completed. It does not modify the preregistered statistical rule.
 ## Immutable inputs and jobs
 
 - live experiment revision: `d85c8d57db2b0c663f760e1fc43a0a9920297422`;
-- pre-result formal implementation content commit:
-  `38d709849a480a6a0bd6fadb4fd5b08bf308e163`;
+- pre-result formal implementation commit:
+  `353a850164e5f948ec2bb5f9a4830cb1ca8d5b0c`;
+- scientific/statistical implementation content commit:
+  `38d709849a480a6a0bd6fadb4fd5b08bf308e163` (the later implementation
+  commit only adds the cluster-required GPU resource declarations and their
+  static contract test);
 - calibration rollout: Slurm `191716`;
 - label-free feature extraction: Slurm `191717`, `afterok:191716`;
 - fixed-sequence calibration: Slurm `191792`, `afterok:191717`;
@@ -22,8 +26,8 @@ The main worktree must remain clean at `d85c8d5` until job `191792` reaches a
 terminal state. The formal branch must remain clean and must not be merged
 before calibration output exists. Documentation- or reporting-only descendants
 may record this runbook and render either calibration outcome with the same
-template, but no collector, feature, export, policy, statistical, or formal
-evaluation implementation may change after `38d7098`.
+template, but no collector, feature, export, policy, statistical, formal
+evaluation, or Slurm implementation may change after `353a850`.
 
 The outcome-blind calibration renderer is
 `scripts/render_factorized_v2_calibration_result.py`. It validates the frozen
@@ -77,7 +81,7 @@ This branch requires the exact status
 at least 1% source call rate, at least `0.001` source utility, and both fixed
 risk tests accepted before the first stopping failure.
 
-1. Fast-forward main to the clean pre-result formal branch tip; verify `38d7098`
+1. Fast-forward main to the clean pre-result formal branch tip; verify `353a850`
    is its ancestor and no formal implementation file changed after that commit.
    Do not cherry-pick with edits or squash, so pre-calibration history remains.
 2. Verify the merged tree is clean and rerun all tests and targeted type checks.
