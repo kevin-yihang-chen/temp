@@ -20,8 +20,16 @@ or features completed. It does not modify the preregistered statistical rule.
 
 The main worktree must remain clean at `d85c8d5` until job `191792` reaches a
 terminal state. The formal branch must remain clean and must not be merged
-before calibration output exists. Documentation-only descendants may record
-this runbook, but no formal implementation file may change after `38d7098`.
+before calibration output exists. Documentation- or reporting-only descendants
+may record this runbook and render either calibration outcome with the same
+template, but no collector, feature, export, policy, statistical, or formal
+evaluation implementation may change after `38d7098`.
+
+The outcome-blind calibration renderer is
+`scripts/render_factorized_v2_calibration_result.py`. It validates the frozen
+fixed-sequence contract and exact model/report agreement, refuses overwrite,
+and renders success or failure without affecting selection. Its content must be
+committed before reading calibration output.
 
 ## Calibration completion audit
 
