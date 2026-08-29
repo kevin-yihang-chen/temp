@@ -7,6 +7,10 @@ import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
+from beyond_entropy.factorized_calibration_contract import (
+    SUCCESS,
+    validate_factorized_v2_calibration_result,
+)
 from beyond_entropy.factorized_formal import (
     ALLOCATION_AUDIT_SHA256,
     ALLOCATION_SHA256,
@@ -28,6 +32,9 @@ CALIBRATION_MANIFEST_PROVENANCE_SHA256 = (
 
 IMPLEMENTATION_PATHS = {
     "action_value": "src/beyond_entropy/action_value.py",
+    "factorized_calibration_contract": (
+        "src/beyond_entropy/factorized_calibration_contract.py"
+    ),
     "factorized_evaluation": "src/beyond_entropy/factorized_evaluation.py",
     "factorized_formal_contract": "src/beyond_entropy/factorized_formal.py",
     "risk_control": "src/beyond_entropy/risk_control.py",
@@ -75,9 +82,10 @@ def _validate_successful_calibration(
     calibration: Mapping[str, Any],
     model: Mapping[str, Any],
 ) -> float:
+    status = validate_factorized_v2_calibration_result(calibration, model)
     _require(
-        calibration.get("selection_status"),
-        "selected_non_degenerate_safe_threshold",
+        status,
+        SUCCESS,
         "calibration selection",
     )
     _require(calibration.get("n_sources"), CALIBRATION_SOURCES, "sources")

@@ -4,11 +4,14 @@ from copy import deepcopy
 
 import pytest
 
-from scripts.render_factorized_v2_calibration_result import (
+from beyond_entropy.factorized_calibration_contract import (
     FAILURE,
     SUCCESS,
-    render_calibration_markdown,
-    validate_calibration_result,
+    validate_factorized_v2_calibration_result,
+)
+from scripts.render_factorized_v2_calibration_result import render_calibration_markdown
+from scripts.freeze_factorized_v2_formal_policy import (
+    _validate_successful_calibration,
 )
 
 
@@ -143,7 +146,7 @@ def test_renderer_uses_same_frozen_template_for_success():
         calibration_sha256="a" * 64,
         model_sha256="b" * 64,
     )
-    assert validate_calibration_result(calibration, model) == SUCCESS
+    assert validate_factorized_v2_calibration_result(calibration, model) == SUCCESS
     assert "Calibration decision: **PASS**" in rendered
     assert "not a formal scientific success" in rendered
     assert "| 2 | 1.000000" in rendered
@@ -157,7 +160,7 @@ def test_renderer_closes_failed_branch_without_opening_formal():
         calibration_sha256="a" * 64,
         model_sha256="b" * 64,
     )
-    assert validate_calibration_result(calibration, model) == FAILURE
+    assert validate_factorized_v2_calibration_result(calibration, model) == FAILURE
     assert "Calibration decision: **FAIL**" in rendered
     assert "formal split must not be materialized" in rendered
     assert "Fixed-sequence stopping threshold: `0.900000`" in rendered
@@ -167,7 +170,7 @@ def test_renderer_rejects_model_threshold_mismatch():
     calibration, model = _payload(success=True)
     model["threshold"] = 0.9
     with pytest.raises(ValueError, match="model threshold"):
-        validate_calibration_result(calibration, model)
+        validate_factorized_v2_calibration_result(calibration, model)
 
 
 def test_renderer_rejects_relabelled_risk_decision():
@@ -175,4 +178,27 @@ def test_renderer_rejects_relabelled_risk_decision():
     corrupted = deepcopy(calibration)
     corrupted["candidates"][-1]["risks"]["induced_harm"]["passed"] = True
     with pytest.raises(ValueError, match="induced_harm pass decision"):
-        validate_calibration_result(corrupted, model)
+        validate_factorized_v2_calibration_result(corrupted, model)
+
+
+def test_policy_freeze_recomputes_calibration_instead_of_trusting_status():
+    calibration, model = _payload(success=True)
+    candidate = {
+        "threshold": None,
+        "threshold_grid": model["threshold_grid"],
+    }
+    assert (
+        _validate_successful_calibration(
+            candidate=candidate,
+            calibration=calibration,
+            model=model,
+        )
+        == 1.0
+    )
+    calibration["candidates"][1]["risks"]["induced_harm"]["p_value"] = 0.5
+    with pytest.raises(ValueError, match="induced_harm pass decision"):
+        _validate_successful_calibration(
+            candidate=candidate,
+            calibration=calibration,
+            model=model,
+        )
