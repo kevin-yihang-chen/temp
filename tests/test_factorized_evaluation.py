@@ -54,7 +54,17 @@ def test_factorized_formal_evaluation_reports_frozen_primary_and_baselines():
         "source_call_rate_at_least_0_01",
     }
     assert report["source_balanced"]["oracle_utility"] >= 0.0
-    assert report["baselines"]["post_action_entropy_is_diagnostic_not_deployable"]
+    assert report["baselines"]["post_action_entropy_is_pre_action"] is False
+    assert report["baselines"]["post_action_entropy_single_execution_is_idealized"]
+    assert report["baselines"]["ug_style_exhaustive_candidate_count"] == 4
+    assert report["baselines"][
+        "ug_style_exhaustive_search_charged_all_candidate_costs"
+    ]
+    assert "ug_style_exhaustive_entropy_source_utility" in report["baselines"]
+    assert (
+        report["baselines"]["ug_style_exhaustive_entropy_source_utility"]
+        < report["source_balanced"]["post_action_entropy_always_call_utility"]
+    )
     assert report["baselines"]["matched_budget_gate_uses_outcomes"] is False
     assert report["baselines"]["matched_budget_call_count"] == report["selection"][
         "calls"

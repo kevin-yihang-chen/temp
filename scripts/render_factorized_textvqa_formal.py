@@ -107,10 +107,15 @@ def render_report(report: Mapping[str, Any]) -> str:
                 "- Random gate + random crop expected source utility: "
                 f"{_number(baselines['matched_budget_random_gate_source_utility_random_crop_expected'])}"
             ),
+            (
+                "- UG-style exhaustive entropy search source utility (all four "
+                "candidate costs charged): "
+                f"{_number(baselines['ug_style_exhaustive_entropy_source_utility'])}"
+            ),
             "",
             "Random, fixed-crop, same-gate, post-action entropy, and oracle utilities "
-            "are retained in the JSON report. The post-action entropy comparator is "
-            "diagnostic rather than deployable.",
+            "are retained in the JSON report. Post-action entropy requires executing "
+            "candidate crops; the UG-style comparator therefore charges all four calls.",
             "",
         ]
     )

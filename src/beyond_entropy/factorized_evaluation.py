@@ -88,6 +88,9 @@ def evaluate_factorized_risk_controlled_policy(
         "random_same_gate_utility",
         "post_action_entropy_always_call_utility",
         "post_action_entropy_same_gate_utility",
+        "ug_style_exhaustive_entropy_gain",
+        "ug_style_exhaustive_entropy_utility",
+        "ug_style_exhaustive_entropy_same_gate_utility",
         "matched_budget_entropy_gate_learned_crop_utility",
         "matched_budget_entropy_gate_random_crop_utility",
         "matched_budget_random_gate_random_crop_expected_utility",
@@ -152,6 +155,17 @@ def evaluate_factorized_risk_controlled_policy(
         values["post_action_entropy_always_call_utility"][key] = entropy_utility
         values["post_action_entropy_same_gate_utility"][key] = (
             entropy_utility if called else 0.0
+        )
+        exhaustive_entropy_gain = entropy_action.delta_success
+        exhaustive_entropy_utility = exhaustive_entropy_gain - lambda_cost * sum(
+            zoom.tool_cost for zoom in zooms
+        )
+        values["ug_style_exhaustive_entropy_gain"][key] = exhaustive_entropy_gain
+        values["ug_style_exhaustive_entropy_utility"][key] = (
+            exhaustive_entropy_utility
+        )
+        values["ug_style_exhaustive_entropy_same_gate_utility"][key] = (
+            exhaustive_entropy_utility if called else 0.0
         )
         for zoom in zooms:
             action_utility = zoom.voi(lambda_cost)
@@ -295,7 +309,25 @@ def evaluate_factorized_risk_controlled_policy(
             ),
         },
         "baselines": {
-            "post_action_entropy_is_diagnostic_not_deployable": True,
+            "post_action_entropy_is_pre_action": False,
+            "post_action_entropy_single_execution_is_idealized": True,
+            "ug_style_exhaustive_candidate_count": 4,
+            "ug_style_exhaustive_search_charged_all_candidate_costs": True,
+            "ug_style_exhaustive_entropy_source_gain": source_point[
+                "ug_style_exhaustive_entropy_gain"
+            ],
+            "ug_style_exhaustive_entropy_source_utility": source_point[
+                "ug_style_exhaustive_entropy_utility"
+            ],
+            "ug_style_exhaustive_entropy_same_gate_source_utility": source_point[
+                "ug_style_exhaustive_entropy_same_gate_utility"
+            ],
+            "ug_style_exhaustive_entropy_question_gain": question_point[
+                "ug_style_exhaustive_entropy_gain"
+            ],
+            "ug_style_exhaustive_entropy_question_utility": question_point[
+                "ug_style_exhaustive_entropy_utility"
+            ],
             "matched_budget_gate_uses_outcomes": False,
             "matched_budget_call_count": calls,
             "matched_budget_entropy_tie_break": (
