@@ -88,12 +88,17 @@ def evaluate_factorized_risk_controlled_policy(
         "random_same_gate_utility",
         "post_action_entropy_always_call_utility",
         "post_action_entropy_same_gate_utility",
+        "matched_budget_entropy_gate_learned_crop_utility",
+        "matched_budget_entropy_gate_random_crop_utility",
+        "matched_budget_random_gate_random_crop_expected_utility",
     )
     values: dict[str, dict[DecisionKey, float]] = {
         name: {} for name in metric_names
     }
     fixed_always_call: dict[str, dict[DecisionKey, float]] = {}
     fixed_same_gate: dict[str, dict[DecisionKey, float]] = {}
+    fixed_entropy_gate: dict[str, dict[DecisionKey, float]] = {}
+    decision_diagnostics: dict[DecisionKey, dict[str, Any]] = {}
     source_by_key: dict[DecisionKey, str] = {}
     helpful_states = 0
     selected_rescues = 0.0
@@ -154,6 +159,14 @@ def evaluate_factorized_risk_controlled_policy(
             fixed_same_gate.setdefault(zoom.action_id, {})[key] = (
                 action_utility if called else 0.0
             )
+        decision_diagnostics[key] = {
+            "entropy_before": baseline.entropy_before,
+            "learned_crop_utility": selected.voi(lambda_cost),
+            "random_crop_utility": random_utility,
+            "fixed_crop_utilities": {
+                zoom.action_id: zoom.voi(lambda_cost) for zoom in zooms
+            },
+        }
 
         helpful = any(zoom.delta_success > 0.0 for zoom in zooms)
         if helpful:
@@ -170,6 +183,37 @@ def evaluate_factorized_risk_controlled_policy(
             calls += 1
             positive_utility_calls += int(utility > 0.0)
             unnecessary_calls += int(utility <= 0.0)
+
+    entropy_order = sorted(
+        decision_diagnostics,
+        key=lambda key: (
+            float(decision_diagnostics[key]["entropy_before"]),
+            key,
+        ),
+        reverse=True,
+    )
+    entropy_gate_keys = set(entropy_order[:calls])
+    random_gate_probability = calls / len(grouped) if grouped else 0.0
+    for key, diagnostic in decision_diagnostics.items():
+        entropy_called = key in entropy_gate_keys
+        learned_crop_utility = float(diagnostic["learned_crop_utility"])
+        random_crop_utility = float(diagnostic["random_crop_utility"])
+        values["matched_budget_entropy_gate_learned_crop_utility"][key] = (
+            learned_crop_utility if entropy_called else 0.0
+        )
+        values["matched_budget_entropy_gate_random_crop_utility"][key] = (
+            random_crop_utility if entropy_called else 0.0
+        )
+        values["matched_budget_random_gate_random_crop_expected_utility"][key] = (
+            random_gate_probability * random_crop_utility
+        )
+        raw_fixed = diagnostic["fixed_crop_utilities"]
+        if not isinstance(raw_fixed, Mapping):
+            raise RuntimeError("fixed-crop diagnostic is invalid")
+        for action_id, action_utility in raw_fixed.items():
+            fixed_entropy_gate.setdefault(str(action_id), {})[key] = (
+                float(action_utility) if entropy_called else 0.0
+            )
 
     source_metric_values = {
         name: _source_means(metric_values, source_by_key)
@@ -201,6 +245,14 @@ def evaluate_factorized_risk_controlled_policy(
     fixed_source_same_gate = {
         action_id: mean(_source_means(metric, source_by_key).values())
         for action_id, metric in sorted(fixed_same_gate.items())
+    }
+    fixed_source_entropy_gate = {
+        action_id: mean(_source_means(metric, source_by_key).values())
+        for action_id, metric in sorted(fixed_entropy_gate.items())
+    }
+    fixed_question_entropy_gate = {
+        action_id: mean(metric.values())
+        for action_id, metric in sorted(fixed_entropy_gate.items())
     }
     primary_interval = bootstrap["metrics"]["utility"]
     pass_rule = {
@@ -244,6 +296,50 @@ def evaluate_factorized_risk_controlled_policy(
         },
         "baselines": {
             "post_action_entropy_is_diagnostic_not_deployable": True,
+            "matched_budget_gate_uses_outcomes": False,
+            "matched_budget_call_count": calls,
+            "matched_budget_entropy_tie_break": (
+                "descending entropy_before then descending state_id replicate_id"
+            ),
+            "matched_budget_question_call_rate": (
+                calls / len(grouped) if grouped else 0.0
+            ),
+            "matched_budget_entropy_threshold": (
+                float(
+                    decision_diagnostics[entropy_order[calls - 1]][
+                        "entropy_before"
+                    ]
+                )
+                if calls
+                else None
+            ),
+            "matched_budget_entropy_gate_source_utility_learned_crop": (
+                source_point[
+                    "matched_budget_entropy_gate_learned_crop_utility"
+                ]
+            ),
+            "matched_budget_entropy_gate_source_utility_random_crop": (
+                source_point[
+                    "matched_budget_entropy_gate_random_crop_utility"
+                ]
+            ),
+            "matched_budget_random_gate_source_utility_random_crop_expected": (
+                source_point[
+                    "matched_budget_random_gate_random_crop_expected_utility"
+                ]
+            ),
+            "matched_budget_entropy_gate_question_utility_learned_crop": (
+                question_point[
+                    "matched_budget_entropy_gate_learned_crop_utility"
+                ]
+            ),
+            "matched_budget_entropy_gate_question_utility_random_crop": (
+                question_point[
+                    "matched_budget_entropy_gate_random_crop_utility"
+                ]
+            ),
+            "fixed_crop_source_utility_entropy_gate": fixed_source_entropy_gate,
+            "fixed_crop_question_utility_entropy_gate": fixed_question_entropy_gate,
             "fixed_crop_source_utility_always_call": fixed_source_always,
             "fixed_crop_source_utility_same_gate": fixed_source_same_gate,
         },

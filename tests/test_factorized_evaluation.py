@@ -55,7 +55,23 @@ def test_factorized_formal_evaluation_reports_frozen_primary_and_baselines():
     }
     assert report["source_balanced"]["oracle_utility"] >= 0.0
     assert report["baselines"]["post_action_entropy_is_diagnostic_not_deployable"]
+    assert report["baselines"]["matched_budget_gate_uses_outcomes"] is False
+    assert report["baselines"]["matched_budget_call_count"] == report["selection"][
+        "calls"
+    ]
+    assert report["baselines"]["matched_budget_question_call_rate"] == pytest.approx(
+        report["question_weighted"]["call"]
+    )
+    assert "matched_budget_entropy_gate_source_utility_learned_crop" in report[
+        "baselines"
+    ]
     assert set(report["baselines"]["fixed_crop_source_utility_always_call"]) == {
+        "zoom-0",
+        "zoom-1",
+        "zoom-2",
+        "zoom-3",
+    }
+    assert set(report["baselines"]["fixed_crop_source_utility_entropy_gate"]) == {
         "zoom-0",
         "zoom-1",
         "zoom-2",

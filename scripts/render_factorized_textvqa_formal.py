@@ -18,6 +18,7 @@ def render_report(report: Mapping[str, Any]) -> str:
     selection = report["selection"]
     ranking = report["ranking"]
     risk = report["risk_diagnostics"]
+    baselines = report["baselines"]
     pass_rule = report["pass_rule"]
     status = "PASS" if report["passed"] else "FAIL"
     disposition = (
@@ -86,6 +87,25 @@ def render_report(report: Mapping[str, Any]) -> str:
             (
                 "- Random rescue rate within helpful states: "
                 f"{_number(ranking['random_rescue_rate_within_helpful_states'])}"
+            ),
+            "",
+            "## Matched-budget Beyond Entropy baseline",
+            "",
+            (
+                "- Learned gate + learned crop source utility: "
+                f"{_number(source['utility'])}"
+            ),
+            (
+                "- Entropy gate + learned crop source utility: "
+                f"{_number(baselines['matched_budget_entropy_gate_source_utility_learned_crop'])}"
+            ),
+            (
+                "- Entropy gate + random crop source utility: "
+                f"{_number(baselines['matched_budget_entropy_gate_source_utility_random_crop'])}"
+            ),
+            (
+                "- Random gate + random crop expected source utility: "
+                f"{_number(baselines['matched_budget_random_gate_source_utility_random_crop_expected'])}"
             ),
             "",
             "Random, fixed-crop, same-gate, post-action entropy, and oracle utilities "
