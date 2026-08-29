@@ -468,7 +468,7 @@ def fit_scaled_pairwise_action_value_model(
     selected_c = float(selected_ranker["c_value"])
 
     nested_rankings: dict[DecisionKey, _RankedAction] = {}
-    call_predictions_by_alpha = {
+    call_predictions_by_alpha: dict[float, dict[DecisionKey, float]] = {
         float(alpha): {} for alpha in call_alpha_values
     }
     for outer_fold in range(n_folds):
@@ -555,7 +555,9 @@ def fit_scaled_pairwise_action_value_model(
         oof_actions,
         name="nested_oof_pairwise_ranker_call_value_at_zero",
     )
-    oof_policy_result = dict(evaluate_policy(records, oof_policy, lambda_cost=lambda_cost))
+    oof_policy_result: dict[str, Any] = dict(
+        evaluate_policy(records, oof_policy, lambda_cost=lambda_cost)
+    )
     oof_policy_result["source_bootstrap"] = bootstrap_policy_evaluation(
         records,
         oof_policy,

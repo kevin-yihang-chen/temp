@@ -11,6 +11,7 @@ from beyond_entropy.risk_control import (
     bounded_mean_lower_tail_pvalue,
     calibrate_source_risk_threshold,
     calibrate_source_risk_threshold_fixed_sequence,
+    threshold_grid_from_source_balanced_call_rates,
     threshold_grid_from_target_call_rates,
     threshold_grid_from_training_scores,
 )
@@ -44,6 +45,29 @@ def test_target_call_rate_grid_is_strict_to_permissive_and_dedupes_ties():
     assert all(left > right for left, right in zip(thresholds, thresholds[1:]))
     with pytest.raises(ValueError, match="sorted, unique"):
         threshold_grid_from_target_call_rates([1.0, 0.0], [0.5, 0.1])
+
+
+def test_source_balanced_call_rate_grid_weights_documents_not_questions():
+    thresholds = threshold_grid_from_source_balanced_call_rates(
+        [0.9, 0.8, 0.7, 0.6],
+        ["three-questions", "three-questions", "three-questions", "one-question"],
+        [0.2, 0.5, 0.75],
+    )
+    assert thresholds[0] > 0.9
+    assert thresholds[1:] == [0.8, 0.7, 0.6]
+    assert all(left > right for left, right in zip(thresholds, thresholds[1:]))
+
+
+def test_source_balanced_call_rate_grid_dedupes_tied_crossings():
+    thresholds = threshold_grid_from_source_balanced_call_rates(
+        [1.0, 1.0, 0.0, 0.0],
+        ["source-a", "source-b", "source-a", "source-b"],
+        [0.1, 0.25, 0.5, 1.0],
+    )
+    assert thresholds[0] > 1.0
+    assert thresholds[1:] == [1.0, 0.0]
+    with pytest.raises(ValueError, match="aligned"):
+        threshold_grid_from_source_balanced_call_rates([1.0], [], [0.5])
 
 
 def test_bounded_mean_kl_pvalue_has_expected_endpoints():

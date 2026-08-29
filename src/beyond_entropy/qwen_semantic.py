@@ -342,11 +342,15 @@ def validate_semantic_feature_dataset(
             stored_costs, expected_costs
         ):
             raise ValueError(f"semantic tool costs differ for decision {key!r}")
-        if any(record.candidate_bbox is None for record in zooms):
-            raise ValueError(f"semantic candidate bbox is missing for decision {key!r}")
+        bbox_values: list[list[float]] = []
+        for record in zooms:
+            if record.candidate_bbox is None:
+                raise ValueError(
+                    f"semantic candidate bbox is missing for decision {key!r}"
+                )
+            bbox_values.append(record.candidate_bbox.to_list())
         expected_bboxes = torch.tensor(
-            # The missing-bbox case is rejected immediately above.
-            [record.candidate_bbox.to_list() for record in zooms],
+            bbox_values,
             dtype=torch.float32,
         )
         stored_bboxes = decision.get("bboxes")

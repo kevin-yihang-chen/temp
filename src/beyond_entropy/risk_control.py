@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from statistics import mean
-from typing import Literal, Sequence
+from typing import Literal, Sequence, cast
 
 
 RiskKind = Literal[
@@ -12,6 +12,12 @@ RiskKind = Literal[
     "negative_net_value",
 ]
 SelectionObjective = Literal["source_utility", "source_call_rate"]
+
+
+def _result_float(value: object) -> float:
+    """Narrow a numeric value stored in a heterogeneous result dictionary."""
+
+    return float(cast(float, value))
 
 
 @dataclass(frozen=True)
@@ -107,6 +113,62 @@ def threshold_grid_from_target_call_rates(
         threshold = ordered[index]
         if threshold < thresholds[-1]:
             thresholds.append(threshold)
+    return thresholds
+
+
+def threshold_grid_from_source_balanced_call_rates(
+    scores: Sequence[float],
+    source_ids: Sequence[str],
+    target_call_rates: Sequence[float],
+) -> list[float]:
+    """Freeze thresholds at source-balanced training call-rate crossings.
+
+    Every decision from one source receives weight ``1 / questions_in_source``
+    before weights are normalized across sources. Tied scores enter together,
+    so the returned family is deterministic and exactly matches ``score >=
+    threshold`` deployment semantics without reading an outcome.
+    """
+
+    values = [float(value) for value in scores]
+    sources = [str(value).strip() for value in source_ids]
+    if (
+        not values
+        or len(values) != len(sources)
+        or any(not math.isfinite(value) for value in values)
+        or any(not source for source in sources)
+    ):
+        raise ValueError("scores and source IDs must be non-empty, finite, and aligned")
+    rates = [float(value) for value in target_call_rates]
+    if (
+        not rates
+        or any(not math.isfinite(value) or not 0.0 < value <= 1.0 for value in rates)
+        or rates != sorted(set(rates))
+    ):
+        raise ValueError("target call rates must be sorted, unique, and in (0,1]")
+
+    decisions_per_source: dict[str, int] = {}
+    for source in sources:
+        decisions_per_source[source] = decisions_per_source.get(source, 0) + 1
+    source_count = len(decisions_per_source)
+    score_mass: dict[float, float] = {}
+    for score, source in zip(values, sources):
+        weight = 1.0 / (source_count * decisions_per_source[source])
+        score_mass[score] = score_mass.get(score, 0.0) + weight
+
+    ordered_scores = sorted(score_mass, reverse=True)
+    thresholds = [math.nextafter(ordered_scores[0], math.inf)]
+    cumulative_rate = 0.0
+    rate_index = 0
+    for score in ordered_scores:
+        cumulative_rate += score_mass[score]
+        while rate_index < len(rates) and cumulative_rate + 1e-15 >= rates[rate_index]:
+            if score < thresholds[-1]:
+                thresholds.append(score)
+            rate_index += 1
+        if rate_index == len(rates):
+            break
+    if rate_index != len(rates):  # pragma: no cover - weights sum to one
+        raise RuntimeError("source-balanced call-rate grid did not reach every target")
     return thresholds
 
 
@@ -212,7 +274,9 @@ def _threshold_summary(
     for source_rows in by_source.values():
         calls: list[float] = []
         utilities: list[float] = []
-        losses = {constraint.kind: [] for constraint in constraints}
+        losses: dict[RiskKind, list[float]] = {
+            constraint.kind: [] for constraint in constraints
+        }
         for row in source_rows:
             called = threshold is not None and row.score >= threshold
             call = float(called)
@@ -368,8 +432,8 @@ def calibrate_source_risk_threshold(
         candidate
         for candidate in candidates
         if bool(candidate["risk_accepted"])
-        and float(candidate["source_call_rate"]) >= min_source_call_rate
-        and float(candidate["source_utility"]) >= min_source_utility
+        and _result_float(candidate["source_call_rate"]) >= min_source_call_rate
+        and _result_float(candidate["source_utility"]) >= min_source_utility
     ]
     selected = None
     if eligible:
@@ -381,10 +445,10 @@ def calibrate_source_risk_threshold(
         selected = max(
             eligible,
             key=lambda candidate: (
-                float(candidate[primary]),
-                float(candidate["source_utility"]),
-                float(candidate["source_call_rate"]),
-                float(candidate["threshold"]),
+                _result_float(candidate[primary]),
+                _result_float(candidate["source_utility"]),
+                _result_float(candidate["source_call_rate"]),
+                _result_float(candidate["threshold"]),
             ),
         )
     return {
@@ -408,7 +472,7 @@ def calibrate_source_risk_threshold(
         "min_source_utility": min_source_utility,
         "selection_objective": selection_objective,
         "selected_threshold": (
-            float(selected["threshold"]) if selected is not None else None
+            _result_float(selected["threshold"]) if selected is not None else None
         ),
         "selection_status": (
             "selected_non_degenerate_safe_threshold"
@@ -508,8 +572,8 @@ def calibrate_source_risk_threshold_fixed_sequence(
         candidate
         for candidate in tested
         if bool(candidate["risk_accepted"])
-        and float(candidate["source_call_rate"]) >= min_source_call_rate
-        and float(candidate["source_utility"]) >= min_source_utility
+        and _result_float(candidate["source_call_rate"]) >= min_source_call_rate
+        and _result_float(candidate["source_utility"]) >= min_source_utility
     ]
     selected = eligible[-1] if eligible else None
     answer_now = _threshold_summary(
@@ -545,7 +609,7 @@ def calibrate_source_risk_threshold_fixed_sequence(
             "most_permissive_pre_failure_with_non_degeneracy"
         ),
         "selected_threshold": (
-            float(selected["threshold"]) if selected is not None else None
+            _result_float(selected["threshold"]) if selected is not None else None
         ),
         "selection_status": (
             "selected_non_degenerate_safe_threshold"
