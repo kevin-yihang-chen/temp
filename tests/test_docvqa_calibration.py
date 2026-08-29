@@ -9,9 +9,13 @@ from beyond_entropy.docvqa_calibration import (
     calibrate_frozen_candidate_rows,
     validate_calibration_bundle,
     validate_calibration_feature_metadata,
+    validate_docvqa_calibration_artifact_bundle,
 )
 from beyond_entropy.docvqa_candidate_freeze import PROTOCOL_SHA256
 from beyond_entropy.risk_control import AcquisitionCalibrationRow
+from scripts.render_docvqa_train_factorized_v2_calibration import (
+    render_docvqa_calibration_markdown,
+)
 
 
 def _candidate():
@@ -334,4 +338,123 @@ def test_docvqa_calibration_bundle_rejects_cross_artifact_drift(
             manifest_provenance_sha256="e" * 64,
             rollouts_sha256="f" * 64,
             code_revision="b" * 40,
+        )
+
+
+def _render_bundle(*, success: bool):
+    candidate = _candidate()
+    candidate["candidate_freeze"].update(
+        {
+            "protocol_sha256": PROTOCOL_SHA256,
+            "allocation_sha256": "c" * 64,
+            "code_revision": "b" * 40,
+        }
+    )
+    rows = _positive_rows()
+    if not success:
+        rows = [
+            AcquisitionCalibrationRow(
+                source_id=f"document-{index:04d}",
+                score=1.0,
+                gain=-0.5,
+            )
+            for index in range(2500)
+        ]
+    hashes = {
+        "candidate": "a" * 64,
+        "candidate_audit": "1" * 64,
+        "allocation": "c" * 64,
+        "allocation_audit": "2" * 64,
+        "manifest": "d" * 64,
+        "manifest_provenance": "e" * 64,
+        "rollouts": "f" * 64,
+        "rollout_audit": "3" * 64,
+        "features": "4" * 64,
+        "protocol": PROTOCOL_SHA256,
+    }
+    run = {
+        "code_revision": "b" * 40,
+        **{
+            key: value
+            for name, digest in hashes.items()
+            for key, value in (
+                (name, f"/{name}"),
+                (f"{name}_sha256", digest),
+            )
+        },
+    }
+    calibration, model = calibrate_frozen_candidate_rows(
+        candidate,
+        rows,
+        run_provenance=run,
+    )
+    audit = {
+        "passed": True,
+        "scientific_status": (
+            "DocVQA-train fixed sequence executed once; formal role remains sealed"
+        ),
+        "selection_status": calibration["selection_status"],
+        "selected_threshold": calibration["selected_threshold"],
+        "tested_threshold_count": calibration["tested_threshold_count"],
+        "stopping_threshold": calibration["stopping_threshold"],
+        "n_sources": calibration["n_sources"],
+        "n_decisions": calibration["n_decisions"],
+        "inputs": {f"{name}_sha256": digest for name, digest in hashes.items()},
+        "code_revision": "b" * 40,
+        "ranker_training_outcomes_used": True,
+        "calibration_outcomes_used": True,
+        "formal_outcomes_used": False,
+        "calibration_sha256": "5" * 64,
+        "model_sha256": "6" * 64,
+    }
+    return calibration, model, audit
+
+
+@pytest.mark.parametrize("success", [True, False])
+def test_docvqa_calibration_renderer_recomputes_both_branches(success: bool):
+    calibration, model, audit = _render_bundle(success=success)
+    status = validate_docvqa_calibration_artifact_bundle(
+        calibration,
+        model,
+        audit,
+        calibration_sha256="5" * 64,
+        model_sha256="6" * 64,
+    )
+    rendered = render_docvqa_calibration_markdown(
+        calibration,
+        model,
+        audit,
+        calibration_sha256="5" * 64,
+        model_sha256="6" * 64,
+        audit_sha256="7" * 64,
+    )
+    assert (status == "selected_non_degenerate_safe_threshold") is success
+    assert f"Calibration decision: **{'PASS' if success else 'FAIL'}**" in rendered
+    assert "Formal outcomes used: `false`" in rendered
+    if success:
+        assert "not a formal scientific success" in rendered
+    else:
+        assert "formal identities and outcomes must remain unmaterialized" in rendered
+
+
+def test_docvqa_calibration_renderer_rejects_audit_or_risk_relabelling():
+    calibration, model, audit = _render_bundle(success=True)
+    audit["model_sha256"] = "changed"
+    with pytest.raises(ValueError, match="model_sha256"):
+        validate_docvqa_calibration_artifact_bundle(
+            calibration,
+            model,
+            audit,
+            calibration_sha256="5" * 64,
+            model_sha256="6" * 64,
+        )
+    calibration, model, audit = _render_bundle(success=True)
+    calibration["candidates"][1]["risks"]["induced_harm"]["passed"] = False
+    with pytest.raises(ValueError, match="induced_harm pass decision"):
+        validate_docvqa_calibration_artifact_bundle(
+            calibration,
+            model,
+            audit,
+            calibration_sha256="5" * 64,
+            model_sha256="6" * 64,
         )

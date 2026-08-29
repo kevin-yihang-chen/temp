@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Mapping, Sequence
 
 from .docvqa_candidate_freeze import (
@@ -23,11 +24,50 @@ EXPECTED_SCIENTIFIC_STATUS = (
     "fresh DocVQA-train factorized-v2 calibration sibling bank; outcomes may "
     "calibrate the sole frozen candidate only"
 )
+SUCCESS = "selected_non_degenerate_safe_threshold"
+FAILURE = "no_non_degenerate_safe_threshold"
+_HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
+_RISK_KEYS = (
+    "selection_status",
+    "selected_threshold",
+    "method",
+    "threshold_order",
+    "constraints",
+    "family_error",
+    "per_step_hypothesis_count",
+    "adjusted_p_cutoff",
+    "min_source_call_rate",
+    "min_source_utility",
+    "selection_objective",
+    "tested_threshold_count",
+    "stopping_threshold",
+    "untested_thresholds",
+)
 
 
 def _require(actual: Any, expected: Any, name: str) -> None:
     if actual != expected:
         raise ValueError(f"DocVQA calibration contract mismatch for {name}")
+
+
+def _mapping(value: Any, name: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"DocVQA calibration result has invalid {name}")
+    return value
+
+
+def _finite(value: Any, name: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"DocVQA calibration result has non-finite {name}")
+    return number
+
+
+def _sha256(value: Any, name: str) -> str:
+    digest = str(value)
+    if _HEX_DIGEST.fullmatch(digest) is None:
+        raise ValueError(f"DocVQA calibration result has invalid {name}")
+    return digest
 
 
 def validate_frozen_candidate(candidate: Mapping[str, Any]) -> list[float]:
@@ -425,3 +465,220 @@ def calibrate_frozen_candidate_rows(
     }
     calibrated_model["risk_calibration"]["provenance"] = provenance
     return calibration, calibrated_model
+
+
+def validate_docvqa_calibration_result(
+    calibration: Mapping[str, Any],
+    model: Mapping[str, Any],
+    *,
+    expected_decisions: int | None = None,
+) -> str:
+    """Recompute the DocVQA fixed-sequence decision and model embedding."""
+
+    uncalibrated = dict(model)
+    uncalibrated["threshold"] = None
+    thresholds = validate_frozen_candidate(uncalibrated)
+    expected_scalars = {
+        "scientific_status": (
+            "source-level fixed-sequence risk calibration; nested thresholds "
+            "are frozen before calibration outcomes"
+        ),
+        "method": "fixed_sequence_bounded_mean_kl_ltt_v1",
+        "threshold_order": "strict_to_permissive_descending",
+        "lambda_cost": 0.05,
+        "max_tool_cost": 1.0,
+        "family_error": 0.05,
+        "per_step_hypothesis_count": 2,
+        "adjusted_p_cutoff": 0.025,
+        "n_sources": 2500,
+        "constraints": EXPECTED_CONSTRAINTS,
+        "min_source_call_rate": 0.01,
+        "min_source_utility": 0.001,
+        "selection_objective": "most_permissive_pre_failure_with_non_degeneracy",
+    }
+    for name, expected in expected_scalars.items():
+        _require(calibration.get(name), expected, f"result {name}")
+    n_decisions = calibration.get("n_decisions")
+    if not isinstance(n_decisions, int) or n_decisions < 2500:
+        raise ValueError("DocVQA calibration result has invalid decision count")
+    if expected_decisions is not None:
+        _require(n_decisions, expected_decisions, "result decision count")
+
+    run = _mapping(calibration.get("run"), "run provenance")
+    _require(run.get("protocol_sha256"), PROTOCOL_SHA256, "run protocol")
+    for name in (
+        "candidate_sha256",
+        "candidate_audit_sha256",
+        "allocation_sha256",
+        "allocation_audit_sha256",
+        "manifest_sha256",
+        "manifest_provenance_sha256",
+        "rollouts_sha256",
+        "rollout_audit_sha256",
+        "features_sha256",
+        "protocol_sha256",
+    ):
+        _sha256(run.get(name), f"run {name}")
+    _require(
+        uncalibrated["candidate_freeze"].get("allocation_sha256"),
+        run.get("allocation_sha256"),
+        "candidate/run allocation binding",
+    )
+    _require(run.get("ranker_training_outcomes_used"), True, "ranker outcomes")
+    _require(run.get("calibration_outcomes_used"), True, "calibration outcomes")
+    _require(run.get("formal_outcomes_used"), False, "formal outcome exclusion")
+
+    raw_candidates = calibration.get("candidates")
+    if not isinstance(raw_candidates, list) or not raw_candidates:
+        raise ValueError("DocVQA calibration result has no tested candidates")
+    candidates = [_mapping(value, "candidate") for value in raw_candidates]
+    _require(
+        calibration.get("tested_threshold_count"),
+        len(candidates),
+        "tested threshold count",
+    )
+    raw_untested = calibration.get("untested_thresholds")
+    if not isinstance(raw_untested, list):
+        raise ValueError("DocVQA calibration result has invalid untested thresholds")
+    tested_thresholds = [
+        _finite(candidate.get("threshold"), "candidate threshold")
+        for candidate in candidates
+    ]
+    untested = [_finite(value, "untested threshold") for value in raw_untested]
+    _require(tested_thresholds + untested, thresholds, "frozen threshold sequence")
+
+    decisions: list[tuple[bool, bool]] = []
+    for candidate in candidates:
+        call_rate = _finite(candidate.get("source_call_rate"), "source call rate")
+        utility = _finite(candidate.get("source_utility"), "source utility")
+        if not 0.0 <= call_rate <= 1.0:
+            raise ValueError("DocVQA calibration result has invalid call rate")
+        risks = _mapping(candidate.get("risks"), "candidate risks")
+        _require(set(risks), {item["kind"] for item in EXPECTED_CONSTRAINTS}, "risks")
+        risk_passes = []
+        for constraint in EXPECTED_CONSTRAINTS:
+            name = str(constraint["kind"])
+            risk = _mapping(risks[name], f"{name} risk")
+            _require(risk.get("limit"), constraint["limit"], f"{name} limit")
+            upper_bound = _finite(risk.get("upper_bound"), f"{name} upper bound")
+            risk_mean = _finite(
+                risk.get("source_balanced_mean"),
+                f"{name} source-balanced mean",
+            )
+            p_value = _finite(risk.get("p_value"), f"{name} p-value")
+            if upper_bound <= 0.0 or not 0.0 <= risk_mean <= upper_bound:
+                raise ValueError(f"DocVQA calibration result has invalid {name} mean")
+            if not 0.0 <= p_value <= 1.0:
+                raise ValueError(f"DocVQA calibration result has invalid {name} p-value")
+            passed = p_value <= 0.025
+            _require(risk.get("passed"), passed, f"{name} pass decision")
+            risk_passes.append(passed)
+        accepted = all(risk_passes)
+        _require(candidate.get("risk_accepted"), accepted, "joint risk decision")
+        decisions.append((accepted, accepted and call_rate >= 0.01 and utility >= 0.001))
+
+    first_failure = next(
+        (index for index, (accepted, _) in enumerate(decisions) if not accepted),
+        None,
+    )
+    if first_failure is None:
+        _require(calibration.get("stopping_threshold"), None, "stopping threshold")
+        _require(untested, [], "untested thresholds")
+    else:
+        _require(first_failure, len(candidates) - 1, "fixed-sequence stopping index")
+        _require(
+            calibration.get("stopping_threshold"),
+            tested_thresholds[-1],
+            "stopping threshold",
+        )
+        _require(untested, thresholds[len(candidates) :], "untested thresholds")
+
+    eligible = [
+        candidate
+        for candidate, (_, nondegenerate) in zip(candidates, decisions)
+        if nondegenerate
+    ]
+    selected = eligible[-1] if eligible else None
+    status = SUCCESS if selected is not None else FAILURE
+    selected_threshold = (
+        float(selected["threshold"]) if selected is not None else None
+    )
+    _require(calibration.get("selection_status"), status, "selection status")
+    _require(calibration.get("selected"), selected, "selected candidate")
+    _require(
+        calibration.get("selected_threshold"),
+        selected_threshold,
+        "selected threshold",
+    )
+    answer_now = _mapping(calibration.get("answer_now"), "answer-now baseline")
+    expected_answer_now = {
+        "threshold": None,
+        "answer_now_only": True,
+        "source_call_rate": 0.0,
+        "source_utility": 0.0,
+    }
+    for name, expected in expected_answer_now.items():
+        _require(answer_now.get(name), expected, f"answer-now {name}")
+    _require(model.get("threshold"), selected_threshold, "model threshold")
+    risk_calibration = _mapping(model.get("risk_calibration"), "model risk calibration")
+    expected_risk = {name: calibration[name] for name in _RISK_KEYS}
+    expected_risk["provenance"] = calibration["run"]
+    _require(dict(risk_calibration), expected_risk, "embedded model calibration")
+    return status
+
+
+def validate_docvqa_calibration_artifact_bundle(
+    calibration: Mapping[str, Any],
+    model: Mapping[str, Any],
+    audit: Mapping[str, Any],
+    *,
+    calibration_sha256: str,
+    model_sha256: str,
+) -> str:
+    """Validate calibration/model/audit correspondence for rendering."""
+
+    status = validate_docvqa_calibration_result(
+        calibration,
+        model,
+        expected_decisions=int(audit.get("n_decisions", -1)),
+    )
+    run = _mapping(calibration.get("run"), "run provenance")
+    expected_audit = {
+        "passed": True,
+        "scientific_status": (
+            "DocVQA-train fixed sequence executed once; formal role remains sealed"
+        ),
+        "selection_status": status,
+        "selected_threshold": calibration.get("selected_threshold"),
+        "tested_threshold_count": calibration.get("tested_threshold_count"),
+        "stopping_threshold": calibration.get("stopping_threshold"),
+        "n_sources": 2500,
+        "n_decisions": calibration.get("n_decisions"),
+        "calibration_sha256": calibration_sha256,
+        "model_sha256": model_sha256,
+        "code_revision": run.get("code_revision"),
+        "ranker_training_outcomes_used": True,
+        "calibration_outcomes_used": True,
+        "formal_outcomes_used": False,
+    }
+    for name, expected in expected_audit.items():
+        _require(audit.get(name), expected, f"artifact audit {name}")
+    inputs = _mapping(audit.get("inputs"), "artifact audit inputs")
+    for name in (
+        "candidate",
+        "candidate_audit",
+        "allocation",
+        "allocation_audit",
+        "manifest",
+        "manifest_provenance",
+        "rollouts",
+        "rollout_audit",
+        "features",
+        "protocol",
+    ):
+        _require(
+            inputs.get(f"{name}_sha256"),
+            run.get(f"{name}_sha256"),
+            f"artifact audit {name} hash",
+        )
+    return status
