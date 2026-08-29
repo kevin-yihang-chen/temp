@@ -29,6 +29,7 @@ choices:
 | `53f3ad6` | Cross-artifact rollout audit and exclusive one-shot calibration execution |
 | `31a247b` | Role-ordered development manifest export with full RGB re-audit |
 | `63e34b9` | Preflight-verified rollout, feature, and sole-candidate Slurm contracts |
+| `b350a39` | Branch-neutral calibration recomputation and frozen Markdown rendering |
 
 The implementation tip is not a formal-policy freeze. Later implementation
 commits may add missing execution plumbing, tests, and independent verifiers,
@@ -65,7 +66,10 @@ The branch currently supports, on synthetic fixtures only:
 10. running role-locked GPU wrappers that reverify every manifest gate before
     execution, resume only hash-identical checkpoints, extract the exact three
     label-free stages, fit only the five-fold alpha-1 candidate, and email all
-    Slurm state changes.
+    Slurm state changes; and
+11. recomputing every fixed-sequence risk decision and model/audit relation in
+    one pre-frozen renderer that reports either success eligibility or branch
+    closure without materializing formal or choosing a scientific branch.
 
 The 2,500-source calibration size is operationally meaningful: a small
 400-source unit fixture cannot certify even an observed zero harm rate against
@@ -77,8 +81,6 @@ This observation does not change the preselected role size or statistical rule.
 Do not execute real DocVQA-train allocation or download additional train shards
 until every item below is implemented, tested, and committed:
 
-- a calibration renderer that validates the report/model relation for both
-  success and failure without selecting a branch;
 - a formal-policy freeze, formal identity materializer, one-shot Slurm chain,
   matched-budget baselines, exhaustive entropy accounting, source bootstrap,
   and final result renderer; and
