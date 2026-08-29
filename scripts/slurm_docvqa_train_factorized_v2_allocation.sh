@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
 #SBATCH --gres=gpu:rtx_4090:1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=06:00:00
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-docvqa-train-factorized-v2-allocation-%j.out
