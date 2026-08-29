@@ -16,6 +16,9 @@ from beyond_entropy.risk_control import AcquisitionCalibrationRow
 from scripts.render_docvqa_train_factorized_v2_calibration import (
     render_docvqa_calibration_markdown,
 )
+from scripts.freeze_docvqa_train_factorized_v2_formal_policy import (
+    _validate_successful_calibration,
+)
 
 
 def _candidate():
@@ -445,6 +448,49 @@ def test_docvqa_calibration_renderer_rejects_audit_or_risk_relabelling():
             calibration,
             model,
             audit,
+            calibration_sha256="5" * 64,
+            model_sha256="6" * 64,
+        )
+
+
+def test_docvqa_policy_freeze_recomputes_success_and_candidate_embedding():
+    calibration, model, audit = _render_bundle(success=True)
+    candidate = {
+        name: value for name, value in model.items() if name != "risk_calibration"
+    }
+    candidate["threshold"] = None
+    assert _validate_successful_calibration(
+        candidate=candidate,
+        calibration=calibration,
+        model=model,
+        audit=audit,
+        calibration_sha256="5" * 64,
+        model_sha256="6" * 64,
+    ) == 1.0
+    candidate["selected_alpha"] = 10.0
+    with pytest.raises(ValueError, match="calibrated model selected_alpha"):
+        _validate_successful_calibration(
+            candidate=candidate,
+            calibration=calibration,
+            model=model,
+            audit=audit,
+            calibration_sha256="5" * 64,
+            model_sha256="6" * 64,
+        )
+
+
+def test_docvqa_policy_freeze_rejects_failed_calibration():
+    calibration, model, audit = _render_bundle(success=False)
+    candidate = {
+        name: value for name, value in model.items() if name != "risk_calibration"
+    }
+    candidate["threshold"] = None
+    with pytest.raises(ValueError, match="calibration selection"):
+        _validate_successful_calibration(
+            candidate=candidate,
+            calibration=calibration,
+            model=model,
+            audit=audit,
             calibration_sha256="5" * 64,
             model_sha256="6" * 64,
         )

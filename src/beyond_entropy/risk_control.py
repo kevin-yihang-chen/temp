@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from statistics import mean
-from typing import Literal, Sequence
+from typing import Literal, Sequence, cast
 
 
 RiskKind = Literal[
@@ -12,6 +12,12 @@ RiskKind = Literal[
     "negative_net_value",
 ]
 SelectionObjective = Literal["source_utility", "source_call_rate"]
+
+
+def _result_float(value: object) -> float:
+    """Narrow a numeric value stored in a heterogeneous result dictionary."""
+
+    return float(cast(float, value))
 
 
 @dataclass(frozen=True)
@@ -268,7 +274,9 @@ def _threshold_summary(
     for source_rows in by_source.values():
         calls: list[float] = []
         utilities: list[float] = []
-        losses = {constraint.kind: [] for constraint in constraints}
+        losses: dict[RiskKind, list[float]] = {
+            constraint.kind: [] for constraint in constraints
+        }
         for row in source_rows:
             called = threshold is not None and row.score >= threshold
             call = float(called)
@@ -424,8 +432,8 @@ def calibrate_source_risk_threshold(
         candidate
         for candidate in candidates
         if bool(candidate["risk_accepted"])
-        and float(candidate["source_call_rate"]) >= min_source_call_rate
-        and float(candidate["source_utility"]) >= min_source_utility
+        and _result_float(candidate["source_call_rate"]) >= min_source_call_rate
+        and _result_float(candidate["source_utility"]) >= min_source_utility
     ]
     selected = None
     if eligible:
@@ -437,10 +445,10 @@ def calibrate_source_risk_threshold(
         selected = max(
             eligible,
             key=lambda candidate: (
-                float(candidate[primary]),
-                float(candidate["source_utility"]),
-                float(candidate["source_call_rate"]),
-                float(candidate["threshold"]),
+                _result_float(candidate[primary]),
+                _result_float(candidate["source_utility"]),
+                _result_float(candidate["source_call_rate"]),
+                _result_float(candidate["threshold"]),
             ),
         )
     return {
@@ -464,7 +472,7 @@ def calibrate_source_risk_threshold(
         "min_source_utility": min_source_utility,
         "selection_objective": selection_objective,
         "selected_threshold": (
-            float(selected["threshold"]) if selected is not None else None
+            _result_float(selected["threshold"]) if selected is not None else None
         ),
         "selection_status": (
             "selected_non_degenerate_safe_threshold"
@@ -564,8 +572,8 @@ def calibrate_source_risk_threshold_fixed_sequence(
         candidate
         for candidate in tested
         if bool(candidate["risk_accepted"])
-        and float(candidate["source_call_rate"]) >= min_source_call_rate
-        and float(candidate["source_utility"]) >= min_source_utility
+        and _result_float(candidate["source_call_rate"]) >= min_source_call_rate
+        and _result_float(candidate["source_utility"]) >= min_source_utility
     ]
     selected = eligible[-1] if eligible else None
     answer_now = _threshold_summary(
@@ -601,7 +609,7 @@ def calibrate_source_risk_threshold_fixed_sequence(
             "most_permissive_pre_failure_with_non_degeneracy"
         ),
         "selected_threshold": (
-            float(selected["threshold"]) if selected is not None else None
+            _result_float(selected["threshold"]) if selected is not None else None
         ),
         "selection_status": (
             "selected_non_degenerate_safe_threshold"

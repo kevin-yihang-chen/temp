@@ -13,6 +13,10 @@ from beyond_entropy.docvqa_formal import (
     validate_policy_freeze,
 )
 from beyond_entropy.docvqa_train_allocation import PROTOCOL_SHA256, sha256_file
+from scripts.freeze_docvqa_train_factorized_v2_formal_policy import (
+    ARTIFACT_SOURCES,
+    IMPLEMENTATION_PATHS,
+)
 
 
 def _write_json(path, payload):
@@ -152,3 +156,24 @@ def test_docvqa_policy_freeze_requires_complete_artifact_inventory(tmp_path):
     del freeze["implementation"]["formal_evaluator_script"]
     with pytest.raises(ValueError, match="formal_evaluator_script"):
         validate_policy_freeze(freeze)
+
+
+def test_docvqa_policy_freeze_inventory_matches_executable_sources():
+    assert set(ARTIFACT_SOURCES) == set(REQUIRED_ARTIFACTS)
+    assert set(IMPLEMENTATION_PATHS) == set(REQUIRED_IMPLEMENTATION)
+
+
+def test_docvqa_policy_freeze_rejects_extra_or_invalid_inventory(tmp_path):
+    component = tmp_path / "component.json"
+    _write_json(component, {"threshold": 0.1})
+    freeze = _freeze(component)
+    freeze["implementation"]["unfrozen_entrypoint"] = freeze["implementation"][
+        "formal_submission"
+    ]
+    with pytest.raises(ValueError, match="unexpected unfrozen_entrypoint"):
+        validate_policy_freeze(freeze)
+    freeze = _freeze(component)
+    freeze["artifacts"]["candidate"] = dict(freeze["artifacts"]["candidate"])
+    freeze["artifacts"]["candidate"]["sha256"] = "not-a-sha256"
+    with pytest.raises(ValueError, match="artifacts.candidate invalid"):
+        validate_policy_freeze(freeze, verify_components=False)

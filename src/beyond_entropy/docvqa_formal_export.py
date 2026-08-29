@@ -77,7 +77,7 @@ def validate_sealed_formal_allocation(
     dataset = allocation_document.get("dataset")
     if not isinstance(dataset, Mapping):
         raise ValueError("DocVQA formal allocation lacks dataset provenance")
-    expected_dataset = {
+    expected_dataset: dict[str, object] = {
         "dataset_id": DATASET_ID,
         "dataset_name": DATASET_NAME,
         "dataset_revision": DATASET_REVISION,
@@ -94,7 +94,7 @@ def validate_sealed_formal_allocation(
     contract = allocation_document.get("selection_contract")
     if not isinstance(contract, Mapping):
         raise ValueError("DocVQA formal allocation lacks selection contract")
-    expected_contract = {
+    expected_contract: dict[str, object] = {
         "selection_target_fields_accessed": False,
         "selection_allowed_fields": ["docId", "image"],
         "formal_manifest_exported": False,
@@ -103,7 +103,7 @@ def validate_sealed_formal_allocation(
     for name, expected in expected_contract.items():
         _require(contract.get(name), expected, f"selection contract {name}")
 
-    expected_audit = {
+    expected_audit: dict[str, object] = {
         "passed": True,
         "allocation_sha256": allocation_sha256,
         "protocol_sha256": PROTOCOL_SHA256,

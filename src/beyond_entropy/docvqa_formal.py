@@ -29,6 +29,7 @@ REQUIRED_ARTIFACTS = frozenset(
         "allocation",
         "allocation_audit",
         "calibrated_model",
+        "calibration_audit",
         "calibration_features",
         "calibration_label_free_audit",
         "calibration_manifest",
@@ -81,6 +82,7 @@ REQUIRED_IMPLEMENTATION = frozenset(
         "formal_gate_verifier",
         "formal_renderer",
         "formal_rollout_job",
+        "formal_export_submission",
         "formal_submission",
         "label_free_audit",
         "manifest_audit",
@@ -180,19 +182,26 @@ def validate_policy_freeze(
         section = freeze.get(section_name)
         if not isinstance(section, Mapping) or not section:
             raise ValueError(f"DocVQA policy freeze lacks {section_name}")
-        missing = required_names.difference(section)
-        if missing:
+        actual_names = set(section)
+        missing = required_names.difference(actual_names)
+        extra = actual_names.difference(required_names)
+        if missing or extra:
+            details = []
+            if missing:
+                details.append("missing " + ", ".join(sorted(missing)))
+            if extra:
+                details.append("unexpected " + ", ".join(sorted(extra)))
             raise ValueError(
-                f"DocVQA policy freeze lacks {section_name}: "
-                + ", ".join(sorted(missing))
+                f"DocVQA policy freeze has an invalid {section_name} inventory: "
+                + "; ".join(details)
             )
         for name, raw_component in section.items():
             if not isinstance(raw_component, Mapping):
                 raise ValueError(f"DocVQA frozen component {section_name}.{name} invalid")
             path = Path(str(raw_component.get("path", ""))).resolve()
             digest = str(raw_component.get("sha256", ""))
-            if not digest:
-                raise ValueError(f"DocVQA frozen hash {section_name}.{name} missing")
+            if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise ValueError(f"DocVQA frozen hash {section_name}.{name} invalid")
             if verify_components:
                 check_hash(path, digest, f"{section_name}.{name}")
 

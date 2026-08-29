@@ -30,6 +30,13 @@ choices:
 | `31a247b` | Role-ordered development manifest export with full RGB re-audit |
 | `63e34b9` | Preflight-verified rollout, feature, and sole-candidate Slurm contracts |
 | `b350a39` | Branch-neutral calibration recomputation and frozen Markdown rendering |
+| `477cef5` | Exact formal artifact/implementation identity contracts |
+| `ee95188` | Atomic formal identity materializer with full RGB re-audit |
+| `cf2032f` | Independent materialized formal-gate verifier |
+| `76c466e` | Frozen formal population, baselines, bootstrap, and pass rule |
+| `1bce26f` | Branch-neutral formal result renderer |
+| `3924afa` | One-shot formal rollout audit and resume contract |
+| `b7fbd0b` | Hash-locked formal Slurm dependency chain and notifications |
 
 The implementation tip is not a formal-policy freeze. Later implementation
 commits may add missing execution plumbing, tests, and independent verifiers,
@@ -69,22 +76,33 @@ The branch currently supports, on synthetic fixtures only:
     Slurm state changes; and
 11. recomputing every fixed-sequence risk decision and model/audit relation in
     one pre-frozen renderer that reports either success eligibility or branch
-    closure without materializing formal or choosing a scientific branch.
+    closure without materializing formal or choosing a scientific branch; and
+12. validating an exact 3,500-source formal identity population against the
+    pinned Parquet, allocation, prior banks, decoded RGB values, and policy
+    freeze before atomic materialization; and
+13. auditing the complete five-sibling formal bank, evaluating the registered
+    matched-budget baselines and entropy accounting with a 20,000-resample
+    source bootstrap, and rendering the exact preregistered decision; and
+14. executing formal export separately, followed by rollout, label-free feature
+    extraction, and evaluation through hash-locked `afterok` Slurm jobs with
+    state-change email notification; and
+15. freezing a successful calibration only after independently recomputing both
+    development manifest/rollout banks and locking the exact artifact and
+    implementation inventories, including every formal submission entrypoint.
 
 The 2,500-source calibration size is operationally meaningful: a small
 400-source unit fixture cannot certify even an observed zero harm rate against
 the 0.5% bound at per-risk cutoff 0.025, whereas the registered sample size can.
 This observation does not change the preselected role size or statistical rule.
 
-## Missing before any real DocVQA execution
+## Remaining gate before any real DocVQA execution
 
 Do not execute real DocVQA-train allocation or download additional train shards
-until every item below is implemented, tested, and committed:
-
-- a formal-policy freeze, formal identity materializer, one-shot Slurm chain,
-  matched-budget baselines, exhaustive entropy accounting, source bootstrap,
-  and final result renderer; and
-- full tests plus targeted type checks for all of the above.
+until the complete implementation above is committed on one clean revision and
+the full test suite plus targeted type checks pass on that exact revision. The
+policy-freeze JSON itself is generated only after a successful independent
+calibration; its executable and all formal consumers must already belong to the
+pre-calibration revision.
 
 ## Permitted execution order
 
