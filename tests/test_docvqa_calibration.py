@@ -76,6 +76,8 @@ def test_docvqa_fixed_sequence_selects_safe_nondegenerate_threshold():
     assert calibration["selected_threshold"] == 1.0
     assert calibration["tested_threshold_count"] == 3
     assert calibration["stopping_threshold"] == 0.0
+    assert calibration["run"]["ranker_training_outcomes_used"] is True
+    assert calibration["run"]["calibration_outcomes_used"] is True
     assert calibration["run"]["formal_outcomes_used"] is False
     assert model["threshold"] == 1.0
     assert model["risk_calibration"]["selected_threshold"] == 1.0

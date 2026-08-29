@@ -135,6 +135,8 @@ def calibrate_frozen_candidate_rows(
         min_source_utility=0.001,
     )
     provenance = {} if run_provenance is None else dict(run_provenance)
+    provenance["ranker_training_outcomes_used"] = True
+    provenance["calibration_outcomes_used"] = True
     provenance["formal_outcomes_used"] = False
     calibration["run"] = provenance
 
