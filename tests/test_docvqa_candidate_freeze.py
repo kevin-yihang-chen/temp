@@ -8,6 +8,7 @@ from beyond_entropy.docvqa_candidate_freeze import (
     PROTOCOL_SHA256,
     build_frozen_candidate,
     serialized_sha256,
+    validate_candidate_freeze_gate,
 )
 
 
@@ -142,4 +143,63 @@ def test_docvqa_candidate_freeze_rejects_nonfinite_artifact_value():
             provenance=provenance,
             code_revision="7" * 40,
             expected_sources=1,
+        )
+
+
+def _sealed_allocation_gate():
+    allocation = {
+        "protocol_sha256": PROTOCOL_SHA256,
+        "selection_contract": {
+            "selection_target_fields_accessed": False,
+            "selection_allowed_fields": ["docId", "image"],
+            "ranker_manifest_exported": False,
+            "calibration_manifest_exported": False,
+            "formal_manifest_exported": False,
+            "ranker_outcomes_collected": False,
+            "calibration_outcomes_collected": False,
+            "formal_outcomes_collected": False,
+        },
+        "allocation": {
+            "roles": {
+                "ranker_training": {"count": 3500},
+                "risk_calibration": {"count": 2500},
+                "formal_test": {"count": 3500},
+            }
+        },
+    }
+    audit = {
+        "passed": True,
+        "allocation_sha256": "8" * 64,
+        "protocol_sha256": PROTOCOL_SHA256,
+        "ranker_outcomes_collected": False,
+        "calibration_outcomes_collected": False,
+        "formal_outcomes_collected": False,
+    }
+    return allocation, audit
+
+
+def test_candidate_freeze_gate_requires_all_outcome_roles_sealed():
+    allocation, audit = _sealed_allocation_gate()
+    validate_candidate_freeze_gate(
+        allocation,
+        audit,
+        allocation_sha256="8" * 64,
+    )
+    audit["calibration_outcomes_collected"] = True
+    with pytest.raises(ValueError, match="calibration_outcomes_collected"):
+        validate_candidate_freeze_gate(
+            allocation,
+            audit,
+            allocation_sha256="8" * 64,
+        )
+
+
+def test_candidate_freeze_gate_rejects_role_size_change():
+    allocation, audit = _sealed_allocation_gate()
+    allocation["allocation"]["roles"]["formal_test"]["count"] = 3499
+    with pytest.raises(ValueError, match="formal_test count"):
+        validate_candidate_freeze_gate(
+            allocation,
+            audit,
+            allocation_sha256="8" * 64,
         )

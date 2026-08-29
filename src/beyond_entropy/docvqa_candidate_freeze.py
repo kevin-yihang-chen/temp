@@ -36,6 +36,11 @@ _PROVENANCE_PATH_KEYS = (
     "allocation_audit",
     "protocol",
 )
+_ROLE_COUNTS = {
+    "ranker_training": 3500,
+    "risk_calibration": 2500,
+    "formal_test": 3500,
+}
 
 
 def _require(actual: Any, expected: Any, name: str) -> None:
@@ -95,6 +100,58 @@ def validate_raw_candidate_inputs(
         "docvqa"
     }:
         raise ValueError("DocVQA candidate requires exactly one semantic feature bank")
+
+
+def validate_candidate_freeze_gate(
+    allocation: Mapping[str, Any],
+    allocation_audit: Mapping[str, Any],
+    *,
+    allocation_sha256: str,
+) -> None:
+    """Require the registered identity allocation before calibration materialization."""
+
+    _require(allocation.get("protocol_sha256"), PROTOCOL_SHA256, "allocation protocol")
+    contract = allocation.get("selection_contract")
+    expected_contract = {
+        "selection_target_fields_accessed": False,
+        "selection_allowed_fields": ["docId", "image"],
+        "ranker_manifest_exported": False,
+        "calibration_manifest_exported": False,
+        "formal_manifest_exported": False,
+        "ranker_outcomes_collected": False,
+        "calibration_outcomes_collected": False,
+        "formal_outcomes_collected": False,
+    }
+    _require(contract, expected_contract, "allocation outcome-sealing contract")
+    _require(allocation_audit.get("passed"), True, "allocation audit status")
+    _require(
+        allocation_audit.get("allocation_sha256"),
+        allocation_sha256,
+        "allocation audit SHA-256 binding",
+    )
+    _require(
+        allocation_audit.get("protocol_sha256"),
+        PROTOCOL_SHA256,
+        "allocation audit protocol",
+    )
+    for name in (
+        "ranker_outcomes_collected",
+        "calibration_outcomes_collected",
+        "formal_outcomes_collected",
+    ):
+        _require(allocation_audit.get(name), False, f"allocation audit {name}")
+
+    body = allocation.get("allocation")
+    if not isinstance(body, Mapping):
+        raise ValueError("DocVQA allocation body is missing")
+    roles = body.get("roles")
+    if not isinstance(roles, Mapping) or set(roles) != set(_ROLE_COUNTS):
+        raise ValueError("DocVQA allocation role set changed")
+    for name, expected_count in _ROLE_COUNTS.items():
+        role = roles[name]
+        if not isinstance(role, Mapping):
+            raise ValueError(f"DocVQA allocation role {name!r} is invalid")
+        _require(role.get("count"), expected_count, f"allocation {name} count")
 
 
 def _validate_provenance(provenance: Mapping[str, Any]) -> None:
