@@ -36,7 +36,8 @@ def test_docvqa_allocation_job_is_revision_locked_complete_and_emailed():
     assert "status --porcelain --untracked-files=no" in content
     assert "BE_DOCVQA_EXPECTED_CODE_REVISION" in content
     assert "for shard_index in {00..11}" in content
-    assert content.count("--prior-manifest-root") == 2
+    assert content.count("--prior-manifest-root") == 1
+    assert '"${repo_dir}/artifacts"' not in content
     assert "verify_docvqa_train_factorized_v2_allocation.py" in content
     assert "--resume" in content
 

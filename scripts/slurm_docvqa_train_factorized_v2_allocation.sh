@@ -33,7 +33,7 @@ if [[ ! -f "${BE_DOCVQA_PROTOCOL}" ]]; then
   echo "DocVQA preregistration is missing" >&2
   exit 2
 fi
-for prior_root in "${repo_dir}/data" "${repo_dir}/artifacts"; do
+for prior_root in "${repo_dir}/data"; do
   if [[ ! -d "${prior_root}" ]]; then
     echo "DocVQA prior-manifest root is missing: ${prior_root}" >&2
     exit 2
@@ -62,7 +62,6 @@ cd "${repo_dir}"
 "${python_bin}" scripts/allocate_docvqa_train_factorized_v2.py \
   "${parquet_args[@]}" \
   --prior-manifest-root "${repo_dir}/data" \
-  --prior-manifest-root "${repo_dir}/artifacts" \
   --protocol "${BE_DOCVQA_PROTOCOL}" \
   --allocation-output "${BE_DOCVQA_ALLOCATION}" \
   --audit-output "${BE_DOCVQA_ALLOCATION_AUDIT}" \
