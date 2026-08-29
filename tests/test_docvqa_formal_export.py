@@ -164,3 +164,25 @@ def test_docvqa_formal_exporter_recomputes_identity_and_filters_target_rows():
     assert "validate_formal_rows(" in source
     assert "validate_formal_manifest_audit(" in source
     assert "os.replace(staging_dir, output_dir)" in source
+
+
+def test_docvqa_materialized_gate_has_independent_cli_verifier():
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "verify_docvqa_train_factorized_v2_formal_gate.py"
+    ).read_text(encoding="utf-8")
+    assert "validate_materialized_formal_gate(" in source
+    for flag in (
+        "--policy-freeze",
+        "--expected-policy-freeze-sha256",
+        "--model",
+        "--expected-model-sha256",
+        "--manifest",
+        "--expected-manifest-sha256",
+        "--manifest-provenance",
+        "--expected-manifest-provenance-sha256",
+        "--audit",
+        "--expected-audit-sha256",
+    ):
+        assert flag in source
