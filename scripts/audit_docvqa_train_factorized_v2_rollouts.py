@@ -57,11 +57,21 @@ def _clean_manifest_audit(report: Mapping[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in report.items() if not key.startswith("_")}
 
 
-def _write_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
+def _write_frozen(
+    path: Path,
+    payload: Mapping[str, Any],
+    *,
+    resume: bool,
+) -> None:
+    serialized = json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n"
+    if path.exists():
+        if not resume:
+            raise FileExistsError(f"refusing to overwrite DocVQA rollout audit: {path}")
+        if path.read_text(encoding="utf-8") != serialized:
+            raise ValueError("existing DocVQA rollout audit differs from recomputation")
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("x", encoding="utf-8") as handle:
-        json.dump(payload, handle, allow_nan=False, indent=2, sort_keys=True)
-        handle.write("\n")
+    path.write_text(serialized, encoding="utf-8")
 
 
 def main() -> None:
@@ -83,6 +93,7 @@ def main() -> None:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--expected-code-revision", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
     candidate_path = args.candidate.resolve()
@@ -95,7 +106,7 @@ def main() -> None:
     rollouts_path = args.rollouts.resolve()
     protocol_path = args.protocol.resolve()
     output_path = args.output.resolve()
-    if output_path.exists():
+    if output_path.exists() and not args.resume:
         raise FileExistsError(f"refusing to overwrite DocVQA rollout audit: {output_path}")
 
     hashes = {
@@ -181,7 +192,7 @@ def main() -> None:
             "formal_outcomes_used": False,
         }
     )
-    _write_exclusive(output_path, report)
+    _write_frozen(output_path, report, resume=args.resume)
     print(json.dumps(report, indent=2, sort_keys=True))
 
 

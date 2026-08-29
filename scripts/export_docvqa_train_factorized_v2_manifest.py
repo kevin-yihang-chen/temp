@@ -315,6 +315,7 @@ def main() -> None:
         "allocation": str(allocation_path),
         "allocation_audit": str(allocation_audit_path),
         "candidate_audit_sha256": candidate_audit_sha256,
+        "manifest_provenance_sha256": sha256_file(provenance_path),
         "ranker_manifest_sha256": ranker_manifest_sha256,
         "source_parquet_sha256": parquet_sha256,
         "row_identity_audit": row_identity_audit,
