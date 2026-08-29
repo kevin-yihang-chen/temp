@@ -12,11 +12,10 @@ from beyond_entropy.docvqa_train_allocation import (
     build_allocation_audit,
     build_allocation_document,
     discover_prior_manifests,
+    load_docvqa_source_images,
     load_prior_identities,
-    record_source_image_identity,
     sha256_file,
 )
-from beyond_entropy.manifest_export import image_digest
 
 
 def _write_frozen_json(
@@ -81,35 +80,7 @@ def main() -> None:
         parquet_sha256.append(sha256_file(path))
         print(f"hashed source Parquet shards: {index}/{len(parquet_paths)}", flush=True)
 
-    try:
-        from datasets import Dataset  # type: ignore[import-untyped]
-    except ImportError as exc:
-        raise SystemExit("Install benchmark dependencies before allocation") from exc
-    dataset = Dataset.from_parquet([str(path) for path in parquet_paths])
-    required_columns = {"docId", "image"}
-    if not required_columns.issubset(dataset.column_names):
-        raise ValueError("DocVQA train is missing docId or image")
-    identity_dataset = dataset.select_columns(["docId", "image"])
-    group_ids = [str(group_id).strip() for group_id in identity_dataset["docId"]]
-    source_images: dict[str, str] = {}
-    total_rows = len(identity_dataset)
-    for source_index, group_id in enumerate(group_ids):
-        raw_image = identity_dataset[source_index]["image"]
-        convert = getattr(raw_image, "convert", None)
-        if not callable(convert):
-            raise ValueError(f"DocVQA image for docId {group_id!r} is not decodable")
-        record_source_image_identity(
-            source_images,
-            source_group_id=group_id,
-            image_id=image_digest(convert("RGB")),
-        )
-        position = source_index + 1
-        if position % 1000 == 0 or position == total_rows:
-            print(
-                "validated DocVQA train row identities: "
-                f"{position}/{total_rows}; unique sources={len(source_images)}",
-                flush=True,
-            )
+    source_images, row_count = load_docvqa_source_images(parquet_paths)
 
     repo_dir = Path(__file__).resolve().parents[1]
     allocation_document = build_allocation_document(
@@ -119,7 +90,7 @@ def main() -> None:
         prior_banks=prior_records,
         parquet_files=parquet_paths,
         parquet_sha256=parquet_sha256,
-        row_count=len(dataset),
+        row_count=row_count,
         protocol_path=protocol,
         code_revision=_code_revision(repo_dir),
     )

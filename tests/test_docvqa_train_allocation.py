@@ -13,6 +13,7 @@ from beyond_entropy.docvqa_train_allocation import (
     build_allocation_document,
     load_prior_identities,
     record_source_image_identity,
+    verify_recomputed_allocation_bundle,
 )
 from beyond_entropy.manifest_export import image_digest
 
@@ -195,3 +196,36 @@ def test_prior_identity_loader_rejects_declared_rgb_mismatch(tmp_path):
     )
     with pytest.raises(ValueError, match="decoded-RGB digest mismatch"):
         load_prior_identities([manifest])
+
+
+def test_recomputed_allocation_bundle_rejects_payload_tampering(tmp_path):
+    sources = _source_images()
+    document = _document(tmp_path, sources)
+    audit = _audit(tmp_path, document)
+    common = {
+        "source_images": sources,
+        "excluded_image_ids": set(),
+        "excluded_source_group_ids": set(),
+        "prior_banks": document["prior_banks"],
+        "parquet_files": [tmp_path / "train.parquet"],
+        "parquet_sha256": ["b" * 64],
+        "row_count": 39463,
+        "protocol_path": tmp_path / "protocol.md",
+        "allocation_path": tmp_path / "allocation.json",
+        "allocation_sha256": "d" * 64,
+    }
+    report = verify_recomputed_allocation_bundle(document, audit, **common)
+    assert report["passed"] is True
+    assert report["selected_source_count"] == SELECTED_SOURCE_COUNT
+
+    tampered_document = json.loads(json.dumps(document))
+    tampered_document["allocation"]["roles"]["formal_test"]["assignments"][0][
+        "image_id"
+    ] = "e" * 64
+    with pytest.raises(ValueError, match="deterministic recomputation"):
+        verify_recomputed_allocation_bundle(tampered_document, audit, **common)
+
+    tampered_audit = json.loads(json.dumps(audit))
+    tampered_audit["passed"] = False
+    with pytest.raises(ValueError, match="audit differs"):
+        verify_recomputed_allocation_bundle(document, tampered_audit, **common)

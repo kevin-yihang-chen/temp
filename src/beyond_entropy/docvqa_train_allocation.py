@@ -59,6 +59,46 @@ def record_source_image_identity(
     return False
 
 
+def load_docvqa_source_images(
+    parquet_paths: Sequence[Path],
+) -> tuple[dict[str, str], int]:
+    """Read only DocVQA ``docId`` and image columns and validate every row."""
+
+    if not parquet_paths or any(not path.is_file() for path in parquet_paths):
+        raise FileNotFoundError("one or more DocVQA train Parquet shards do not exist")
+    try:
+        from datasets import Dataset  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise SystemExit("Install benchmark dependencies before allocation") from exc
+    dataset = Dataset.from_parquet([str(path) for path in parquet_paths])
+    required_columns = {"docId", "image"}
+    if not required_columns.issubset(dataset.column_names):
+        raise ValueError("DocVQA train is missing docId or image")
+    identity_dataset = dataset.select_columns(["docId", "image"])
+    group_ids = [str(group_id).strip() for group_id in identity_dataset["docId"]]
+
+    source_images: dict[str, str] = {}
+    total_rows = len(identity_dataset)
+    for source_index, group_id in enumerate(group_ids):
+        raw_image = identity_dataset[source_index]["image"]
+        convert = getattr(raw_image, "convert", None)
+        if not callable(convert):
+            raise ValueError(f"DocVQA image for docId {group_id!r} is not decodable")
+        record_source_image_identity(
+            source_images,
+            source_group_id=group_id,
+            image_id=image_digest(convert("RGB")),
+        )
+        position = source_index + 1
+        if position % 1000 == 0 or position == total_rows:
+            print(
+                "validated DocVQA train row identities: "
+                f"{position}/{total_rows}; unique sources={len(source_images)}",
+                flush=True,
+            )
+    return source_images, total_rows
+
+
 def _is_beneath(path: Path, root: Path) -> bool:
     return path == root or root in path.parents
 
@@ -368,6 +408,59 @@ def build_allocation_audit(
         "unique_image_count": int(allocation["unique_image_count"]),
         "roles": role_reports,
         "overlap": overlaps,
+        "ranker_outcomes_collected": False,
+        "calibration_outcomes_collected": False,
+        "formal_outcomes_collected": False,
+    }
+
+
+def verify_recomputed_allocation_bundle(
+    document: Mapping[str, Any],
+    audit: Mapping[str, Any],
+    *,
+    source_images: Mapping[str, str],
+    excluded_image_ids: Collection[str],
+    excluded_source_group_ids: Collection[str],
+    prior_banks: Sequence[Mapping[str, Any]],
+    parquet_files: Sequence[Path],
+    parquet_sha256: Sequence[str],
+    row_count: int,
+    protocol_path: Path,
+    allocation_path: Path,
+    allocation_sha256: str,
+) -> dict[str, Any]:
+    """Recompute an allocation and audit byte-for-byte from frozen inputs."""
+
+    code_revision = str(document.get("code_revision", "")).strip()
+    rebuilt_document = build_allocation_document(
+        source_images,
+        excluded_image_ids=excluded_image_ids,
+        excluded_source_group_ids=excluded_source_group_ids,
+        prior_banks=prior_banks,
+        parquet_files=parquet_files,
+        parquet_sha256=parquet_sha256,
+        row_count=row_count,
+        protocol_path=protocol_path,
+        code_revision=code_revision,
+    )
+    if dict(document) != rebuilt_document:
+        raise ValueError("DocVQA allocation differs from deterministic recomputation")
+    rebuilt_audit = build_allocation_audit(
+        rebuilt_document,
+        allocation_path=allocation_path,
+        allocation_sha256=allocation_sha256,
+        excluded_image_ids=excluded_image_ids,
+        excluded_source_group_ids=excluded_source_group_ids,
+    )
+    if dict(audit) != rebuilt_audit:
+        raise ValueError("DocVQA allocation audit differs from recomputation")
+    return {
+        "passed": True,
+        "allocation_sha256": allocation_sha256,
+        "protocol_sha256": PROTOCOL_SHA256,
+        "source_group_count": rebuilt_audit["source_group_count"],
+        "selected_source_count": SELECTED_SOURCE_COUNT,
+        "prior_manifest_count": rebuilt_audit["prior_manifest_count"],
         "ranker_outcomes_collected": False,
         "calibration_outcomes_collected": False,
         "formal_outcomes_collected": False,
