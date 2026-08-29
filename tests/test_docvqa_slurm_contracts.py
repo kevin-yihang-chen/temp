@@ -21,6 +21,36 @@ FORMAL_SUBMISSIONS = (
     Path("scripts/submit_docvqa_train_factorized_v2_formal_export.sh"),
     Path("scripts/submit_docvqa_train_factorized_v2_formal.sh"),
 )
+ALLOCATION_JOB = Path("scripts/slurm_docvqa_train_factorized_v2_allocation.sh")
+ALLOCATION_SUBMISSION = Path(
+    "scripts/submit_docvqa_train_factorized_v2_allocation.sh"
+)
+
+
+def test_docvqa_allocation_job_is_revision_locked_complete_and_emailed():
+    subprocess.run(["bash", "-n", str(ALLOCATION_JOB)], check=True)
+    content = ALLOCATION_JOB.read_text(encoding="utf-8")
+    assert "#SBATCH --gres=gpu:rtx_4090:1" in content
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in content
+    assert "#SBATCH --mail-type=ALL" in content
+    assert "status --porcelain --untracked-files=no" in content
+    assert "BE_DOCVQA_EXPECTED_CODE_REVISION" in content
+    assert "for shard_index in {00..11}" in content
+    assert content.count("--prior-manifest-root") == 2
+    assert "verify_docvqa_train_factorized_v2_allocation.py" in content
+    assert "--resume" in content
+
+
+def test_docvqa_allocation_submission_uses_private_email_and_exact_revision():
+    subprocess.run(["bash", "-n", str(ALLOCATION_SUBMISSION)], check=True)
+    content = ALLOCATION_SUBMISSION.read_text(encoding="utf-8")
+    assert ".slurm-notify-email" in content
+    assert "yihangc@connect.hku.hk" in content
+    assert '--mail-user="${notify_email}"' in content
+    assert "--mail-type=ALL" in content
+    assert "status --porcelain --untracked-files=no" in content
+    assert "for shard_index in {00..11}" in content
+    assert "BE_DOCVQA_EXPECTED_CODE_REVISION=${code_revision}" in content
 
 
 @pytest.mark.parametrize("path", SCRIPTS.values())

@@ -54,7 +54,9 @@ REQUIRED_ARTIFACTS = frozenset(
 REQUIRED_IMPLEMENTATION = frozenset(
     {
         "action_value",
+        "allocation_job",
         "allocation_script",
+        "allocation_submission",
         "allocation_verifier",
         "attention_extraction",
         "calibration_renderer",

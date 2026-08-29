@@ -76,7 +76,11 @@ ARTIFACT_SOURCES: dict[str, tuple[str, str | None]] = {
 
 IMPLEMENTATION_PATHS = {
     "action_value": "src/beyond_entropy/action_value.py",
+    "allocation_job": "scripts/slurm_docvqa_train_factorized_v2_allocation.sh",
     "allocation_script": "scripts/allocate_docvqa_train_factorized_v2.py",
+    "allocation_submission": (
+        "scripts/submit_docvqa_train_factorized_v2_allocation.sh"
+    ),
     "allocation_verifier": "scripts/verify_docvqa_train_factorized_v2_allocation.py",
     "attention_extraction": "scripts/extract_question_region_attention.py",
     "calibration_renderer": "scripts/render_docvqa_train_factorized_v2_calibration.py",
