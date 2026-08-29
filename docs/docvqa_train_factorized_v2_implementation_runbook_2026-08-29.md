@@ -27,6 +27,7 @@ choices:
 | `95703a5` | Fixed-sequence KL-LTT calibration core and both decision branches |
 | `0068ec0` | Explicit calibration-outcome-use provenance |
 | `53f3ad6` | Cross-artifact rollout audit and exclusive one-shot calibration execution |
+| `31a247b` | Role-ordered development manifest export with full RGB re-audit |
 
 The implementation tip is not a formal-policy freeze. Later implementation
 commits may add missing execution plumbing, tests, and independent verifiers,
@@ -54,7 +55,11 @@ The branch currently supports, on synthetic fixtures only:
    failure without opening formal; and
 8. independently rebinding candidate, allocation, manifest, five-sibling
    rollout, and all three label-free feature stages before atomically writing
-   a non-overwritable calibration bundle with complete input/output hashes.
+   a non-overwritable calibration bundle with complete input/output hashes;
+   and
+9. exporting ranker first and calibration only after candidate freeze, while
+   recomputing the full allocation, every selected docId/RGB mapping, prior-bank
+   exclusions, and cross-role manifest identities without materializing formal.
 
 The 2,500-source calibration size is operationally meaningful: a small
 400-source unit fixture cannot certify even an observed zero harm rate against
@@ -66,8 +71,6 @@ This observation does not change the preselected role size or statistical rule.
 Do not execute real DocVQA-train allocation or download additional train shards
 until every item below is implemented, tested, and committed:
 
-- a ranker/calibration manifest exporter that consumes the sealed allocation,
-  writes no formal manifest, and independently audits source/RGB identities;
 - state-change-email Slurm wrappers for ranker rollout and all three label-free
   feature stages;
 - a candidate-training wrapper fixed to one DocVQA domain, five source folds,
