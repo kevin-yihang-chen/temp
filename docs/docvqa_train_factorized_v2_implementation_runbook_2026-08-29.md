@@ -26,6 +26,7 @@ choices:
 | `42bcc5e` | Candidate-freeze executable gate and outcome-sealing checks |
 | `95703a5` | Fixed-sequence KL-LTT calibration core and both decision branches |
 | `0068ec0` | Explicit calibration-outcome-use provenance |
+| `53f3ad6` | Cross-artifact rollout audit and exclusive one-shot calibration execution |
 
 The implementation tip is not a formal-policy freeze. Later implementation
 commits may add missing execution plumbing, tests, and independent verifiers,
@@ -50,7 +51,10 @@ The branch currently supports, on synthetic fixtures only:
 6. applying the registered 0.5% harm and 2% negative-call fixed-sequence tests
    on 2,500 source groups; and
 7. retaining either a selected non-degenerate threshold or an answer-now
-   failure without opening formal.
+   failure without opening formal; and
+8. independently rebinding candidate, allocation, manifest, five-sibling
+   rollout, and all three label-free feature stages before atomically writing
+   a non-overwritable calibration bundle with complete input/output hashes.
 
 The 2,500-source calibration size is operationally meaningful: a small
 400-source unit fixture cannot certify even an observed zero harm rate against
@@ -68,11 +72,6 @@ until every item below is implemented, tested, and committed:
   feature stages;
 - a candidate-training wrapper fixed to one DocVQA domain, five source folds,
   seed `20260829`, alpha `1`, hybrid features, and cost `0.05`;
-- a calibration rollout audit bound to model revision, manifest, allocation,
-  candidate, code revision, and the exact five-sibling contract;
-- an executable calibration wrapper around
-  `beyond_entropy.docvqa_calibration.calibrate_frozen_candidate_rows` with
-  exclusive outputs and complete SHA-256 provenance;
 - a calibration renderer that validates the report/model relation for both
   success and failure without selecting a branch;
 - a formal-policy freeze, formal identity materializer, one-shot Slurm chain,
