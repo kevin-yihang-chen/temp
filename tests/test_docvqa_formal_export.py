@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PIL import Image
 import pytest
 
@@ -146,3 +148,19 @@ def test_docvqa_formal_manifest_binds_policy_hash_and_exact_identities():
             allocation_audit_sha256="b" * 64,
             policy_freeze_sha256="c" * 64,
         )
+
+
+def test_docvqa_formal_exporter_recomputes_identity_and_filters_target_rows():
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "export_docvqa_train_factorized_v2_formal.py"
+    ).read_text(encoding="utf-8")
+    assert "validate_policy_freeze(freeze)" in source
+    assert "verify_recomputed_allocation_bundle(" in source
+    assert "validate_sealed_formal_allocation(" in source
+    assert "columns=[\"docId\"]" in source
+    assert 'filters=[("docId", "in", sorted(formal_sources))]' in source
+    assert "validate_formal_rows(" in source
+    assert "validate_formal_manifest_audit(" in source
+    assert "os.replace(staging_dir, output_dir)" in source
