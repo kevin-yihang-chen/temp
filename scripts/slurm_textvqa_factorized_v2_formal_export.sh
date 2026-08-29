@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
+#SBATCH --gres=gpu:rtx_4090:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
