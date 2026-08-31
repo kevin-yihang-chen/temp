@@ -165,7 +165,7 @@ def test_docvqa_replication_decision_runner_is_hash_locked() -> None:
     assert "analysis/audit.complete.json" in runner
     assert "proxy-to-outcome-cross-domain-protocol-v1.md" in runner
     assert "proxy-replication-decision-implementation-v1.md" in runner
-    assert "f800edfdb516caf128e0036d824130dc" in runner
+    assert "3f1fa418f53ee6fecc3e0889bedff164" in runner
     assert "61bbcd5392eceb65837d95ffc25c23f8" in runner
     assert "--expected-report-sha256" in runner
     assert "--expected-protocol-sha256" in runner

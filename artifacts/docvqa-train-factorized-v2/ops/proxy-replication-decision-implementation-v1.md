@@ -3,21 +3,25 @@
 Status: frozen on 2026-08-31 after the DocVQA full answer-likelihood job began,
 but before its first complete report or any full-bank endpoint was available.
 Only the already frozen five-condition rule in
-`proxy-to-outcome-cross-domain-protocol-v1.md` is implemented here.
+`proxy-to-outcome-cross-domain-protocol-v1.md` is implemented here. Before the
+report existed, an outcome-blind review corrected the sparse-grid guard so a
+duplicate fixed-rate row is rejected instead of overwritten in a dictionary.
+The numerical decision rule did not change.
 
 ## Bound code
 
 - Protocol SHA-256:
   `106879da7d15db351a4145e5a06c43fc3f33803182d1ca4e6f08362b076f8cbe`.
 - Code revision:
-  `d1301e02b143d68565789f47c9b7ca4fe4e4fc73`.
+  `9b2116f793e0e68d16b31ee4a5b96db6fff0105c`.
 - Decision module SHA-256:
-  `f800edfdb516caf128e0036d824130dc7849e13a599a484d715513d2aa294613`.
+  `3f1fa418f53ee6fecc3e0889bedff164c09bdb0e716dc17cf38a0f0df1f79727`.
 - CLI SHA-256:
   `61bbcd5392eceb65837d95ffc25c23f8b4e29690eb4683037afe5dc176232204`.
 - Test SHA-256:
-  `1065f0a85b9fcc576c03c9a8b47a14cb940699d7c569c4eb4a1a7267256a97bf`.
-- Targeted tests: `2 passed` before this contract was written.
+  `6f7a362dee203daec0f77723532863d3071fc75e5926133b9e172d77d9367fb4`.
+- Targeted tests: `4 passed` after the duplicate-row guard was added and before
+  this amended contract was written.
 
 ## Input guards
 
