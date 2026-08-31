@@ -36,6 +36,7 @@ FACTORIZED_CONDITIONED_ACTION_FEATURE_COUNT = PROPOSAL_CONDITIONED_FEATURE_COUNT
 FACTORIZED_CONDITIONED_TARGET_CALLS = 225
 FACTORIZED_CONDITIONED_LAMBDA_COST = 0.05
 FACTORIZED_CONDITIONED_BOOTSTRAP_RESAMPLES = 20000
+FACTORIZED_CONDITIONED_WEIGHT_MASS_ABS_TOL = 1e-8
 
 
 _FORBIDDEN_OUTPUT_FIELDS = {
@@ -52,6 +53,15 @@ _FORBIDDEN_OUTPUT_FIELDS = {
     "delta_success",
     "utility",
 }
+
+
+def _weight_mass_matches_rows(mass: float, n_rows: int) -> bool:
+    return math.isclose(
+        float(mass),
+        int(n_rows),
+        rel_tol=0.0,
+        abs_tol=FACTORIZED_CONDITIONED_WEIGHT_MASS_ABS_TOL,
+    )
 
 
 def _fit_binary_head(
@@ -78,7 +88,7 @@ def _fit_binary_head(
     weights = np.asarray(
         _domain_source_balanced_weights(domains, sources), dtype=np.float64
     )
-    if not math.isclose(float(weights.sum()), n_rows, rel_tol=0.0, abs_tol=1e-9):
+    if not _weight_mass_matches_rows(float(weights.sum()), n_rows):
         raise RuntimeError("source-balanced head weights are not row-normalized")
     scaler = StandardScaler().fit(features)
     model = LogisticRegression(
@@ -486,11 +496,8 @@ def evaluate_proposal_conditioned_factorized_gate(
     candidate = source_points["proposal_conditioned_factorized"]
     primary = evaluated["primary_estimand"]
     weight_audit_passed = all(
-        math.isclose(
-            float(fold[head]["weight_mass"]),
-            int(fold[head]["train_rows"]),
-            rel_tol=0.0,
-            abs_tol=1e-9,
+        _weight_mass_matches_rows(
+            float(fold[head]["weight_mass"]), int(fold[head]["train_rows"])
         )
         and fold[head]["class_balancing"] is False
         for fold in fold_training

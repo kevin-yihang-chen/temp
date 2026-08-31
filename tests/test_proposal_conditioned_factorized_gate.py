@@ -11,6 +11,7 @@ from beyond_entropy.proposal_conditioned_factorized_gate import (
     _fit_factorized_conditioned_heads,
     _rename_candidate,
     _score_factorized_conditioned_heads,
+    _weight_mass_matches_rows,
 )
 
 
@@ -27,6 +28,11 @@ def test_binary_head_uses_source_balanced_row_normalized_weights_without_class_b
     assert audit["class_balancing"] is False
     for start in (0, 3, 6, 9):
         assert math.isclose(float(weights[start : start + 3].sum()), 3.0)
+
+
+def test_weight_mass_audit_accepts_only_floating_sum_noise_at_full_scale():
+    assert _weight_mass_matches_rows(13579.999999998905, 13580)
+    assert not _weight_mass_matches_rows(13579.9999, 13580)
 
 
 def test_factorized_heads_are_deterministic_and_follow_registered_score():
