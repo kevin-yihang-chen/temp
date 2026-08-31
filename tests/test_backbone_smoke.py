@@ -200,9 +200,11 @@ def test_backbone_smoke_workers_are_contract_locked() -> None:
     assert "--limit 32" in worker
     assert "--expected-gpu-name" in worker
     assert "task endpoint may select hardware" in worker
+    assert "HF_HUB_CACHE=/userhome/cs3/yihangc/Data/hf_cache" in worker
     assert "q-hgpu-small" in submit
     assert "gpu:h100:1" in submit
     assert "gpu:h800:1" in submit
     assert "gpu:rtx_4090:1" in submit
     assert "show-cpu-gpu-quota" in submit
+    assert "HF_HUB_CACHE=/userhome/cs3/yihangc/Data/hf_cache" in submit
     assert "--mail-type=ALL" in submit

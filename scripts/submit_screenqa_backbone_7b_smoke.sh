@@ -85,6 +85,7 @@ if [[ "${gpu_remaining}" -lt 120 ]]; then
 fi
 
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
+export HF_HUB_CACHE=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 "${python_bin}" - "${model}" "${model_revision}" <<'PY'

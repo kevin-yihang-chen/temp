@@ -100,6 +100,7 @@ mkdir -p "${run_dir}"
 export PYTHONPATH="${repo_dir}/src"
 export BE_CODE_REVISION="${actual_revision}"
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
+export HF_HUB_CACHE=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
