@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_screenqa_ranker_fit_is_frozen_low_capacity_source_oof():
     content = (ROOT / "scripts/slurm_screenqa_ranker_fit.sh").read_text()
     assert "#SBATCH --gres=gpu:rtx_4090:1" in content
+    assert "#SBATCH --time=04:00:00" in content
     assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in content
     assert "#SBATCH --mail-type=ALL" in content
     assert "--model-family factorized-oof" in content

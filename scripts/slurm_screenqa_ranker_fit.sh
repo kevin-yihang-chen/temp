@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:rtx_4090:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
-#SBATCH --time=02:00:00
+#SBATCH --time=04:00:00
 #SBATCH --job-name=be-screenqa-fit
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-ranker-fit-%j.out
 #SBATCH --mail-user=yihangc@connect.hku.hk
