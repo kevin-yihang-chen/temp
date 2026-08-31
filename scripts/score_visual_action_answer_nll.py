@@ -20,6 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expected-manifest-sha256")
     parser.add_argument("--expected-rollouts-sha256")
+    parser.add_argument("--manifest-limit", type=int)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--checkpoint-interval", type=int, default=32)
@@ -64,6 +65,7 @@ def main() -> None:
         score_request=scorer.score,
         expected_manifest_sha256=args.expected_manifest_sha256,
         expected_rollouts_sha256=args.expected_rollouts_sha256,
+        manifest_limit=args.manifest_limit,
         shard_count=args.shard_count,
         shard_index=args.shard_index,
         checkpoint_interval=args.checkpoint_interval,

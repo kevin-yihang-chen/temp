@@ -111,6 +111,8 @@ def _fixture(tmp_path: Path) -> dict[str, Path | str]:
         nll_provenance,
         {
             "manifest_sha256": manifest_sha256,
+            "manifest_limit": 2,
+            "manifest_examples_before_sharding": 2,
             "rollouts_sha256": sha256_file(rollouts),
             "output_sha256": sha256_file(answer_nll),
             "decisions": 2,
@@ -198,6 +200,7 @@ def test_backbone_smoke_workers_are_contract_locked() -> None:
     assert "1cd70d11168e12a2855ec01e8a869d" in worker
     assert "a26b8bc6e8a7c81df3cad59f05ac3c" in worker
     assert "--limit 32" in worker
+    assert "--manifest-limit 32" in worker
     assert "--expected-gpu-name" in worker
     assert "task endpoint may select hardware" in worker
     assert "HF_HUB_CACHE=/userhome/cs3/yihangc/Data/hf_cache" in worker

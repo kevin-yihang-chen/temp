@@ -217,6 +217,7 @@ score_args=(
   --output "${answer_nll}"
   --expected-manifest-sha256 "${manifest_sha256}"
   --expected-rollouts-sha256 "${rollouts_sha256}"
+  --manifest-limit 32
   --shard-count 1
   --shard-index 0
   --checkpoint-interval 8

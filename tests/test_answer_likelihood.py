@@ -203,6 +203,52 @@ def test_answer_likelihood_rejects_hash_and_partial_checkpoint(tmp_path: Path) -
         )
 
 
+def test_answer_likelihood_manifest_limit_matches_rollout_prefix(tmp_path: Path) -> None:
+    manifest, rollouts = _fixture(tmp_path)
+    rows = [json.loads(line) for line in manifest.read_text().splitlines()]
+    rows.append(
+        {
+            **rows[0],
+            "state_id": "state-2",
+            "image_id": "image-2",
+            "source_id": "source-2",
+        }
+    )
+    write_jsonl(manifest, rows)
+    output = tmp_path / "limited-scores.jsonl"
+
+    result = score_rollout_answer_likelihood(
+        manifest=manifest,
+        rollouts=rollouts,
+        output=output,
+        score_request=lambda request: AnswerLikelihoodScore(0.5, 1.0, 2),
+        expected_manifest_sha256=sha256_file(manifest),
+        expected_rollouts_sha256=sha256_file(rollouts),
+        manifest_limit=1,
+        model="test-model",
+        model_revision="revision",
+        measurement_config={"dtype": "test"},
+        code_revision="code",
+        scientific_status="test",
+    )
+    assert result["decisions"] == 1
+    assert result["manifest_limit"] == 1
+    assert result["manifest_examples_before_sharding"] == 1
+
+    with pytest.raises(ValueError, match="coverage differ"):
+        score_rollout_answer_likelihood(
+            manifest=manifest,
+            rollouts=rollouts,
+            output=tmp_path / "unlimited-scores.jsonl",
+            score_request=lambda request: AnswerLikelihoodScore(0.5, 1.0, 2),
+            model="test-model",
+            model_revision="revision",
+            measurement_config={"dtype": "test"},
+            code_revision="code",
+            scientific_status="test",
+        )
+
+
 def test_screenqa_proxy_nll_smoke_slurm_contract() -> None:
     root = Path(__file__).resolve().parents[1]
     worker = (root / "scripts/slurm_screenqa_proxy_nll_smoke.sh").read_text()

@@ -202,6 +202,8 @@ def verify_backbone_engineering_smoke(
         raise ValueError("smoke accelerator name mismatch")
     required_nll_values = {
         "manifest_sha256": expected_manifest_sha256,
+        "manifest_limit": expected_decisions,
+        "manifest_examples_before_sharding": expected_decisions,
         "rollouts_sha256": rollout_sha256,
         "output_sha256": nll_sha256,
         "decisions": expected_decisions,

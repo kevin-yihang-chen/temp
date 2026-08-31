@@ -93,11 +93,16 @@ class ManifestTarget:
 
 
 def load_manifest_targets(
-    path: str | Path, *, expected_sha256: str | None = None
+    path: str | Path,
+    *,
+    expected_sha256: str | None = None,
+    limit: int | None = None,
 ) -> dict[str, ManifestTarget]:
     manifest_path = Path(path)
     if expected_sha256 is not None and sha256_file(manifest_path) != expected_sha256:
         raise ValueError("answer-likelihood manifest SHA-256 mismatch")
+    if limit is not None and limit <= 0:
+        raise ValueError("answer-likelihood manifest limit must be positive")
     targets: dict[str, ManifestTarget] = {}
     with manifest_path.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
@@ -134,6 +139,10 @@ def load_manifest_targets(
             )
     if not targets:
         raise ValueError("answer-likelihood manifest is empty")
+    if limit is not None:
+        if len(targets) < limit:
+            raise ValueError("answer-likelihood manifest is smaller than its limit")
+        targets = dict(list(targets.items())[:limit])
     return targets
 
 
@@ -388,6 +397,7 @@ def score_rollout_answer_likelihood(
     score_request: Callable[[AnswerLikelihoodRequest], AnswerLikelihoodScore],
     expected_manifest_sha256: str | None = None,
     expected_rollouts_sha256: str | None = None,
+    manifest_limit: int | None = None,
     shard_count: int = 1,
     shard_index: int = 0,
     checkpoint_interval: int = 32,
@@ -404,6 +414,8 @@ def score_rollout_answer_likelihood(
         raise ValueError("invalid answer-likelihood shard configuration")
     if checkpoint_interval <= 0:
         raise ValueError("checkpoint_interval must be positive")
+    if manifest_limit is not None and manifest_limit <= 0:
+        raise ValueError("manifest_limit must be positive")
     if not measurement_config:
         raise ValueError("answer-likelihood measurement configuration is empty")
     try:
@@ -425,7 +437,9 @@ def score_rollout_answer_likelihood(
         raise ValueError("answer-likelihood rollout SHA-256 mismatch")
 
     targets = load_manifest_targets(
-        manifest_path, expected_sha256=expected_manifest_sha256
+        manifest_path,
+        expected_sha256=expected_manifest_sha256,
+        limit=manifest_limit,
     )
     records = read_jsonl(rollout_path)
     decisions = _ordered_decisions(records)
@@ -454,6 +468,9 @@ def score_rollout_answer_likelihood(
         "shard_index": shard_index,
         "scientific_status": scientific_status,
     }
+    if manifest_limit is not None:
+        config["manifest_limit"] = manifest_limit
+        config["manifest_examples_before_sharding"] = len(targets)
     config_sha256 = hashlib.sha256(
         json.dumps(config, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()

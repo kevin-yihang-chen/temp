@@ -42,7 +42,7 @@ score_module="${repo_dir}/src/beyond_entropy/answer_likelihood.py"
 scorer="${repo_dir}/scripts/score_visual_action_answer_nll.py"
 verifier_module="${repo_dir}/src/beyond_entropy/backbone_smoke.py"
 verifier="${repo_dir}/scripts/verify_backbone_diagnostic_smoke.py"
-run_root="${repo_dir}/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/smoke-${gpu_type}-v1"
+run_root="${repo_dir}/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/smoke-${gpu_type}-v2"
 model=Qwen/Qwen2.5-VL-7B-Instruct
 model_revision=cc594898137f460bfe9f0759e9844b3ce807cfb5
 
