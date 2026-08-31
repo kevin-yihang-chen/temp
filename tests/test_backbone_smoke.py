@@ -118,6 +118,7 @@ def _fixture(tmp_path: Path) -> dict[str, Path | str]:
             "sources": 2,
             "shard_count": 1,
             "shard_index": 0,
+            "resumed_from_decisions": 2,
             "raw_targets_written": False,
             "model": MODEL,
             "model_revision": REVISION,

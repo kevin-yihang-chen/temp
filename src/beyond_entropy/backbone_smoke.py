@@ -207,6 +207,7 @@ def verify_backbone_engineering_smoke(
         "sources": expected_decisions,
         "shard_count": 1,
         "shard_index": 0,
+        "resumed_from_decisions": expected_decisions,
         "raw_targets_written": False,
         "model": expected_model,
         "model_revision": expected_model_revision,
