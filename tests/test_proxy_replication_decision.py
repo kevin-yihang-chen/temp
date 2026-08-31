@@ -135,3 +135,18 @@ def test_replication_decision_rejects_protected_outcome_use(tmp_path: Path) -> N
         assert "forbidden outcome use" in str(exc)
     else:
         raise AssertionError("protected outcome use was accepted")
+
+
+def test_docvqa_replication_decision_runner_is_hash_locked() -> None:
+    root = Path(__file__).resolve().parents[1]
+    runner = (root / "scripts/run_docvqa_proxy_replication_decision.sh").read_text()
+    assert "analysis/audit.complete.json" in runner
+    assert "proxy-to-outcome-cross-domain-protocol-v1.md" in runner
+    assert "proxy-replication-decision-implementation-v1.md" in runner
+    assert "f800edfdb516caf128e0036d824130dc" in runner
+    assert "61bbcd5392eceb65837d95ffc25c23f8" in runner
+    assert "--expected-report-sha256" in runner
+    assert "--expected-protocol-sha256" in runner
+    assert "selection.score_threshold_selected" in runner
+    assert "selection.call_rate_selected" in runner
+    assert "selection.protected_outcome_used" in runner
