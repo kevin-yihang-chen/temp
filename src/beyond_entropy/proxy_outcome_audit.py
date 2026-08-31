@@ -254,6 +254,7 @@ def merge_answer_likelihood_shards(
         "rollouts_sha256",
         "model",
         "model_revision",
+        "measurement_config",
         "code_revision",
         "shard_count",
         "scientific_status",
@@ -327,6 +328,7 @@ def merge_answer_likelihood_shards(
         "rollouts_sha256": baseline["rollouts_sha256"],
         "model": baseline["model"],
         "model_revision": baseline["model_revision"],
+        "measurement_config": baseline["measurement_config"],
         "code_revision": baseline["code_revision"],
         "scientific_status": baseline["scientific_status"],
         "shard_count": expected_shard_count,
@@ -982,6 +984,7 @@ def analyze_proxy_outcomes(
             "implementation_contract_sha256": implementation_sha256,
             "model": provenance["model"],
             "model_revision": provenance["model_revision"],
+            "measurement_config": provenance["measurement_config"],
             "score_code_revision": provenance["code_revision"],
             "analysis_code_revision": code_revision,
             "analysis_module_sha256": sha256_file(Path(__file__)),
@@ -1008,6 +1011,270 @@ def analyze_proxy_outcomes(
         "scores_sha256": score_sha256,
         "protocol_sha256": protocol_sha256,
         "implementation_contract_sha256": implementation_sha256,
+        "analysis_code_revision": code_revision,
+    }
+    _atomic_write_json(output_path / "audit.complete.json", completion)
+    return report
+
+
+def compare_proxy_nll_hardware(
+    *,
+    first_scores: str | Path,
+    first_benchmark: str | Path,
+    second_scores: str | Path,
+    second_benchmark: str | Path,
+    protocol: str | Path,
+    output_dir: str | Path,
+    expected_first_scores_sha256: str | None = None,
+    expected_second_scores_sha256: str | None = None,
+    expected_protocol_sha256: str | None = None,
+    expected_decisions: int = 64,
+    remaining_gpu_minutes: float,
+    code_revision: str,
+) -> dict[str, Any]:
+    """Compare matched engineering scores and apply the frozen hardware rule."""
+
+    import numpy as np  # type: ignore[import-not-found]
+
+    _require(remaining_gpu_minutes > 0.0, "remaining GPU minutes must be positive")
+    protocol_path = Path(protocol).resolve()
+    protocol_sha256 = sha256_file(protocol_path)
+    if expected_protocol_sha256 is not None:
+        _require(protocol_sha256 == expected_protocol_sha256, "hardware protocol hash mismatch")
+
+    runs: dict[str, dict[str, Any]] = {}
+    for score_value, benchmark_value, expected_hash in (
+        (first_scores, first_benchmark, expected_first_scores_sha256),
+        (second_scores, second_benchmark, expected_second_scores_sha256),
+    ):
+        score_path = Path(score_value).resolve()
+        benchmark_path = Path(benchmark_value).resolve()
+        score_sha256 = sha256_file(score_path)
+        if expected_hash is not None:
+            _require(score_sha256 == expected_hash, "hardware score SHA-256 mismatch")
+        provenance = _read_json(_provenance_path(score_path))
+        benchmark = _read_json(benchmark_path)
+        _require(provenance.get("schema") == SCORE_SCHEMA, "hardware score schema mismatch")
+        _require(provenance.get("output_sha256") == score_sha256, "hardware score hash mismatch")
+        _require(provenance.get("raw_targets_written") is False, "hardware raw-target contract")
+        _require(benchmark.get("output_sha256") == score_sha256, "benchmark/score hash mismatch")
+        gpu_type = str(benchmark.get("gpu_type", ""))
+        _require(gpu_type in {"h800", "rtx_4090"}, "unsupported benchmark GPU type")
+        _require(gpu_type not in runs, "duplicate benchmark GPU type")
+        rows = _read_jsonl(score_path)
+        grouped = _validate_decisions(rows)
+        _require(len(grouped) == expected_decisions, "hardware decision count mismatch")
+        _require(len(rows) == expected_decisions * 5, "hardware score record count mismatch")
+        measurement = provenance.get("measurement_config")
+        _require(isinstance(measurement, Mapping), "hardware measurement config is absent")
+        accelerator = str(measurement.get("accelerator_name", ""))
+        if gpu_type == "h800":
+            _require("H800" in accelerator, "H800 provenance accelerator mismatch")
+        else:
+            _require("4090" in accelerator, "4090 provenance accelerator mismatch")
+        runs[gpu_type] = {
+            "score_path": score_path,
+            "score_sha256": score_sha256,
+            "provenance": provenance,
+            "benchmark_path": benchmark_path,
+            "benchmark": benchmark,
+            "grouped": grouped,
+            "measurement": dict(measurement),
+        }
+    _require(set(runs) == {"h800", "rtx_4090"}, "matched hardware pair is incomplete")
+
+    first_run = runs["h800"]
+    second_run = runs["rtx_4090"]
+    first_provenance = first_run["provenance"]
+    second_provenance = second_run["provenance"]
+    for name in (
+        "manifest_sha256",
+        "rollouts_sha256",
+        "model",
+        "model_revision",
+        "target_rule",
+        "code_revision",
+        "shard_count",
+        "shard_index",
+    ):
+        _require(
+            first_provenance.get(name) == second_provenance.get(name),
+            f"hardware provenance differs for {name}",
+        )
+    ignored_measurement = {"accelerator_name", "compute_capability"}
+    first_measurement = {
+        key: value
+        for key, value in first_run["measurement"].items()
+        if key not in ignored_measurement
+    }
+    second_measurement = {
+        key: value
+        for key, value in second_run["measurement"].items()
+        if key not in ignored_measurement
+    }
+    _require(first_measurement == second_measurement, "non-hardware numerical contract differs")
+
+    keys = sorted(first_run["grouped"])
+    _require(keys == sorted(second_run["grouped"]), "hardware decision identities differ")
+    gaps: dict[str, list[float]] = {"h800": [], "rtx_4090": []}
+    selected: dict[str, list[str]] = {"h800": [], "rtx_4090": []}
+    for key in keys:
+        reference_rows: dict[str, Mapping[str, Any]] | None = None
+        for gpu_type in ("h800", "rtx_4090"):
+            siblings = runs[gpu_type]["grouped"][key]
+            by_action = {str(row["action_id"]): row for row in siblings}
+            answer = next(row for row in siblings if row["action_type"] == "ANSWER")
+            zooms = sorted(
+                (row for row in siblings if row["action_type"] == "ZOOM"),
+                key=lambda row: str(row["action_id"]),
+            )
+            if reference_rows is None:
+                reference_rows = by_action
+            else:
+                _require(set(by_action) == set(reference_rows), "hardware action identities differ")
+                for action_id, row in by_action.items():
+                    reference = reference_rows[action_id]
+                    for name in (
+                        "state_id",
+                        "replicate_id",
+                        "source_id",
+                        "image_id",
+                        "action_type",
+                        "target_answer_sha256",
+                        "correct_before",
+                        "correct_after",
+                        "entropy_before",
+                        "entropy_after",
+                        "tool_cost",
+                    ):
+                        _require(row[name] == reference[name], "hardware score populations differ")
+            answer_nll = _finite(answer["answer_mean_nll"], "hardware ANSWER NLL")
+            decision_gaps = [
+                answer_nll - _finite(row["answer_mean_nll"], "hardware ZOOM NLL")
+                for row in zooms
+            ]
+            gaps[gpu_type].extend(decision_gaps)
+            best = max(range(len(zooms)), key=lambda index: decision_gaps[index])
+            selected[gpu_type].append(str(zooms[best]["action_id"]))
+
+    h800 = np.asarray(gaps["h800"], dtype=np.float64)
+    rtx = np.asarray(gaps["rtx_4090"], dtype=np.float64)
+    ones = np.ones_like(h800)
+    pearson = _weighted_correlation(h800, rtx, ones)
+    spearman = _weighted_correlation(
+        _weighted_midranks(ones, _rank_plan(h800)),
+        _weighted_midranks(ones, _rank_plan(rtx)),
+        ones,
+    )
+    absolute = np.abs(h800 - rtx)
+    sign_agreement = float(np.mean((h800 > 0.0) == (rtx > 0.0)))
+    top_one_agreement = float(
+        np.mean(
+            np.asarray(selected["h800"], dtype=object)
+            == np.asarray(selected["rtx_4090"], dtype=object)
+        )
+    )
+    rtx_benchmark = runs["rtx_4090"]["benchmark"]
+    h800_benchmark = runs["h800"]["benchmark"]
+    rtx_wall = _finite(
+        rtx_benchmark["projected_four_gpu_full_wall_seconds"], "4090 wall projection"
+    )
+    rtx_gpu_minutes = _finite(
+        rtx_benchmark["projected_four_gpu_gpu_minutes"], "4090 quota projection"
+    )
+    h800_eligible = spearman >= 0.99 and sign_agreement >= 0.95 and top_one_agreement >= 0.95
+    if rtx_wall <= 4.0 * 60.0 * 60.0 and rtx_gpu_minutes <= remaining_gpu_minutes:
+        selected_hardware = "rtx_4090"
+        decision_reason = "4090 projection fits four hours and live quota; matches rollout hardware"
+    elif h800_eligible:
+        selected_hardware = "h800"
+        decision_reason = "4090 fit condition failed and all frozen H800 stability gates passed"
+    else:
+        selected_hardware = "rtx_4090_resumable"
+        decision_reason = "4090 fit condition failed and H800 stability gates did not all pass"
+
+    report = {
+        "schema": "proxy_nll_hardware_consistency_audit_v1",
+        "scientific_status": "engineering numerical-stability audit; not a task result",
+        "population": {
+            "decisions": len(keys),
+            "zoom_actions": len(h800),
+        },
+        "loss_gap_consistency": {
+            "pearson": pearson,
+            "spearman": spearman,
+            "sign_agreement": sign_agreement,
+            "top_one_crop_agreement": top_one_agreement,
+            "absolute_difference": {
+                "median": float(np.median(absolute)),
+                "p95": float(np.quantile(absolute, 0.95)),
+                "maximum": float(absolute.max()),
+            },
+        },
+        "benchmarks": {
+            gpu_type: {
+                "accelerator_name": runs[gpu_type]["measurement"]["accelerator_name"],
+                "elapsed_seconds": runs[gpu_type]["benchmark"]["elapsed_seconds"],
+                "projected_four_gpu_full_wall_seconds": runs[gpu_type]["benchmark"][
+                    "projected_four_gpu_full_wall_seconds"
+                ],
+                "projected_four_gpu_gpu_minutes": runs[gpu_type]["benchmark"][
+                    "projected_four_gpu_gpu_minutes"
+                ],
+                "scores_sha256": runs[gpu_type]["score_sha256"],
+                "measurement_config": runs[gpu_type]["measurement"],
+            }
+            for gpu_type in ("rtx_4090", "h800")
+        },
+        "hardware_decision": {
+            "selected": selected_hardware,
+            "reason": decision_reason,
+            "remaining_gpu_minutes_at_decision": remaining_gpu_minutes,
+            "gates": {
+                "rtx_4090_projected_wall_at_most_four_hours": rtx_wall <= 14400.0,
+                "rtx_4090_projected_gpu_minutes_fit_live_quota": (
+                    rtx_gpu_minutes <= remaining_gpu_minutes
+                ),
+                "h800_spearman_at_least_0_99": spearman >= 0.99,
+                "h800_sign_agreement_at_least_0_95": sign_agreement >= 0.95,
+                "h800_top_one_agreement_at_least_0_95": top_one_agreement >= 0.95,
+                "h800_all_stability_gates": h800_eligible,
+            },
+        },
+        "inputs": {
+            "protocol": str(protocol_path),
+            "protocol_sha256": protocol_sha256,
+            "analysis_code_revision": code_revision,
+            "analysis_module_sha256": sha256_file(Path(__file__)),
+            "h800_scores": str(runs["h800"]["score_path"]),
+            "rtx_4090_scores": str(runs["rtx_4090"]["score_path"]),
+        },
+    }
+    output_path = Path(output_dir).resolve()
+    report_path = output_path / "report.json"
+    markdown_path = output_path / "report.md"
+    _atomic_write_json(report_path, report)
+    lines = [
+        "# Proxy-NLL hardware consistency audit",
+        "",
+        "Status: engineering numerical-stability audit; not a task result.",
+        "",
+        f"- Matched decisions: {len(keys)}",
+        f"- Loss-gap Pearson: {pearson:.8f}",
+        f"- Loss-gap Spearman: {spearman:.8f}",
+        f"- Sign agreement: {sign_agreement:.6f}",
+        f"- Top-one crop agreement: {top_one_agreement:.6f}",
+        f"- Median / p95 / max absolute gap difference: {np.median(absolute):.8f} / {np.quantile(absolute, 0.95):.8f} / {absolute.max():.8f}",
+        f"- Frozen hardware decision: {selected_hardware}",
+        f"- Reason: {decision_reason}",
+        "",
+    ]
+    _atomic_write_text(markdown_path, "\n".join(lines))
+    completion = {
+        "schema": "proxy_nll_hardware_consistency_completion_v1",
+        "report_sha256": sha256_file(report_path),
+        "markdown_sha256": sha256_file(markdown_path),
+        "protocol_sha256": protocol_sha256,
         "analysis_code_revision": code_revision,
     }
     _atomic_write_json(output_path / "audit.complete.json", completion)

@@ -70,6 +70,7 @@ def main() -> None:
         resume=args.resume,
         model=args.model,
         model_revision=args.model_revision,
+        measurement_config=scorer.measurement_config(),
         code_revision=args.code_revision,
         scientific_status=args.scientific_status,
     )

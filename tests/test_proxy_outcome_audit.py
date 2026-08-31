@@ -11,6 +11,7 @@ from beyond_entropy.proxy_outcome_audit import (
     AUDIT_SCHEMA,
     MERGE_SCHEMA,
     analyze_proxy_outcomes,
+    compare_proxy_nll_hardware,
     merge_answer_likelihood_shards,
 )
 
@@ -101,6 +102,10 @@ def _score_shards(tmp_path: Path) -> list[Path]:
                 "rollouts_sha256": "c" * 64,
                 "model": "test-model",
                 "model_revision": "test-revision",
+                "measurement_config": {
+                    "accelerator_name": "test-device",
+                    "requested_dtype": "bfloat16",
+                },
                 "code_revision": "test-code",
                 "shard_count": 4,
                 "shard_index": shard_index,
@@ -199,9 +204,12 @@ def test_merge_rejects_tampered_shard_configuration(tmp_path: Path) -> None:
 
 def test_screenqa_proxy_h800_job_contracts() -> None:
     root = Path(__file__).resolve().parents[1]
-    benchmark = (root / "scripts/slurm_screenqa_proxy_nll_benchmark_h800.sh").read_text()
+    benchmark = (root / "scripts/slurm_screenqa_proxy_nll_benchmark.sh").read_text()
     benchmark_submit = (
         root / "scripts/submit_screenqa_proxy_nll_benchmark_h800.sh"
+    ).read_text()
+    benchmark_4090_submit = (
+        root / "scripts/submit_screenqa_proxy_nll_benchmark_4090.sh"
     ).read_text()
     full = (root / "scripts/slurm_screenqa_proxy_nll_full_h800.sh").read_text()
     full_submit = (
@@ -212,8 +220,13 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
     assert "--shard-count 227" in benchmark
     assert '"${decisions}" -ne 64' in benchmark
     assert "#SBATCH --mail-type=ALL" in benchmark
+    assert "BE_PROXY_BENCHMARK_GPU_TYPE" in benchmark
+    assert "measurement_config.accelerator_name" in benchmark
     assert '--mail-user="${notify_email}"' in benchmark_submit
     assert "--mail-type=ALL" in benchmark_submit
+    assert "--gres=gpu:rtx_4090:1" in benchmark_4090_submit
+    assert "--partition=debug" in benchmark_4090_submit
+    assert "--mail-type=ALL" in benchmark_4090_submit
 
     assert "#SBATCH --partition=q-h800" in full
     assert "#SBATCH --gres=gpu:h800:4" in full
@@ -229,3 +242,97 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
     assert '--mail-user="${notify_email}"' in full_submit
     assert "--mail-type=ALL" in full_submit
     assert "BE_PROXY_FULL_RESUME" in full_submit
+
+
+def _hardware_score_run(tmp_path: Path, gpu_type: str) -> tuple[Path, Path]:
+    score_path = tmp_path / f"{gpu_type}.jsonl"
+    config_sha256 = ("d" if gpu_type == "h800" else "e") * 64
+    rows = [
+        row
+        for decision_index in range(8)
+        for row in _score_rows(decision_index, config_sha256)
+    ]
+    _write_jsonl(score_path, rows)
+    accelerator = "NVIDIA H800" if gpu_type == "h800" else "NVIDIA GeForce RTX 4090"
+    capability = [9, 0] if gpu_type == "h800" else [8, 9]
+    measurement = {
+        "device_map": "cuda:0",
+        "device_type": "cuda",
+        "accelerator_name": accelerator,
+        "compute_capability": capability,
+        "requested_dtype": "bfloat16",
+        "parameter_dtype": "torch.bfloat16",
+        "attention_implementation": "sdpa",
+        "actual_attention_implementation": "sdpa",
+        "min_pixels": 200704,
+        "max_pixels": 602112,
+        "system_prompt": "You are a helpful assistant.",
+        "torch_version": "test",
+        "cuda_runtime_version": "test",
+        "transformers_version": "test",
+        "local_files_only": True,
+    }
+    _write_json(
+        score_path.with_suffix(".provenance.json"),
+        {
+            "schema": SCORE_SCHEMA,
+            "target_rule": TARGET_RULE,
+            "manifest_sha256": "b" * 64,
+            "rollouts_sha256": "c" * 64,
+            "model": "test-model",
+            "model_revision": "test-revision",
+            "measurement_config": measurement,
+            "code_revision": "test-code",
+            "shard_count": 227,
+            "shard_index": 0,
+            "scientific_status": "engineering test",
+            "config_sha256": config_sha256,
+            "decisions": 8,
+            "records": 40,
+            "sources": 2,
+            "output_sha256": sha256_file(score_path),
+            "raw_targets_written": False,
+        },
+    )
+    benchmark_path = tmp_path / f"{gpu_type}-benchmark.json"
+    _write_json(
+        benchmark_path,
+        {
+            "schema": "screenqa_proxy_nll_hardware_benchmark_v1",
+            "gpu_type": gpu_type,
+            "accelerator_name": accelerator,
+            "elapsed_seconds": 10,
+            "projected_four_gpu_full_wall_seconds": 1000,
+            "projected_four_gpu_gpu_minutes": 100,
+            "output_sha256": sha256_file(score_path),
+            "code_revision": "test-code",
+        },
+    )
+    return score_path, benchmark_path
+
+
+def test_hardware_consistency_audit_applies_frozen_4090_preference(tmp_path: Path) -> None:
+    h800_scores, h800_benchmark = _hardware_score_run(tmp_path, "h800")
+    rtx_scores, rtx_benchmark = _hardware_score_run(tmp_path, "rtx_4090")
+    protocol = tmp_path / "hardware-protocol.md"
+    protocol.write_text("# frozen hardware protocol\n", encoding="utf-8")
+    report = compare_proxy_nll_hardware(
+        first_scores=h800_scores,
+        first_benchmark=h800_benchmark,
+        second_scores=rtx_scores,
+        second_benchmark=rtx_benchmark,
+        protocol=protocol,
+        output_dir=tmp_path / "hardware-audit",
+        expected_first_scores_sha256=sha256_file(h800_scores),
+        expected_second_scores_sha256=sha256_file(rtx_scores),
+        expected_protocol_sha256=sha256_file(protocol),
+        expected_decisions=8,
+        remaining_gpu_minutes=500,
+        code_revision="test-code",
+    )
+    assert report["loss_gap_consistency"]["pearson"] == pytest.approx(1.0)
+    assert report["loss_gap_consistency"]["spearman"] == pytest.approx(1.0)
+    assert report["loss_gap_consistency"]["top_one_crop_agreement"] == 1.0
+    assert report["hardware_decision"]["selected"] == "rtx_4090"
+    assert report["hardware_decision"]["gates"]["h800_all_stability_gates"] is True
+    assert (tmp_path / "hardware-audit/audit.complete.json").is_file()

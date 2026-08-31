@@ -4,8 +4,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --time=00:45:00
-#SBATCH --job-name=be-proxy-nll-h800-bench
-#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-proxy-nll-h800-benchmark-%j.out
+#SBATCH --job-name=be-proxy-nll-benchmark
+#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-proxy-nll-benchmark-%j.out
 #SBATCH --mail-user=yihangc@connect.hku.hk
 #SBATCH --mail-type=ALL
 
@@ -14,6 +14,7 @@ set -euo pipefail
 required=(
   BE_PROXY_EXPECTED_CODE_REVISION BE_PROXY_SCORER_SHA256
   BE_PROXY_SCORE_MODULE_SHA256 BE_PROXY_BENCHMARK_WORKER_SHA256
+  BE_PROXY_BENCHMARK_GPU_TYPE
 )
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -21,16 +22,20 @@ for name in "${required[@]}"; do
     exit 2
   fi
 done
+if [[ "${BE_PROXY_BENCHMARK_GPU_TYPE}" != h800 && "${BE_PROXY_BENCHMARK_GPU_TYPE}" != rtx_4090 ]]; then
+  echo "BE_PROXY_BENCHMARK_GPU_TYPE must be h800 or rtx_4090" >&2
+  exit 2
+fi
 
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
 manifest="${repo_dir}/artifacts/screenqa-train-factorized-v1/ranker-manifest-v1/manifest.jsonl"
 rollouts="${repo_dir}/artifacts/screenqa-train-factorized-v1/ranker-rollouts-v1/merged/rollouts.jsonl"
-output_dir="${repo_dir}/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/benchmark-h800-${SLURM_JOB_ID}"
+output_dir="${repo_dir}/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/benchmark-${BE_PROXY_BENCHMARK_GPU_TYPE}-${SLURM_JOB_ID}"
 output="${output_dir}/answer-nll.jsonl"
 scorer="${repo_dir}/scripts/score_visual_action_answer_nll.py"
 score_module="${repo_dir}/src/beyond_entropy/answer_likelihood.py"
-worker="${repo_dir}/scripts/slurm_screenqa_proxy_nll_benchmark_h800.sh"
+worker="${repo_dir}/scripts/slurm_screenqa_proxy_nll_benchmark.sh"
 manifest_sha256=a2b6941e2a073b24571d2ccb50960f7c1cd70cb0ce53dc8339c7ec44a47f67ec
 rollouts_sha256=0437d2a499adccb1b4e19eb0160583789cee00edf244718ecae9e290108bb8c9
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
@@ -82,8 +87,8 @@ export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
-export OMP_NUM_THREADS=8
-export MKL_NUM_THREADS=8
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
+export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 mkdir -p "${output_dir}"
 start_epoch=$(date +%s)
 
@@ -107,7 +112,7 @@ cd "${repo_dir}"
   --max-pixels 602112 \
   --system-prompt "You are a helpful assistant." \
   --code-revision "${actual_revision}" \
-  --scientific-status "64-decision H800 engineering throughput benchmark on opened ScreenQA development data; not a scientific result"
+  --scientific-status "64-decision ${BE_PROXY_BENCHMARK_GPU_TYPE} engineering throughput benchmark on opened ScreenQA development data; not a scientific result"
 
 end_epoch=$(date +%s)
 elapsed_seconds=$((end_epoch - start_epoch))
@@ -117,8 +122,25 @@ if [[ "${decisions}" -ne 64 || "${records}" -ne 320 || "${elapsed_seconds}" -le 
   echo "ScreenQA proxy H800 benchmark output contract failed" >&2
   exit 2
 fi
+accelerator_name=$(jq -r '.measurement_config.accelerator_name' "${output%.jsonl}.provenance.json")
+case "${BE_PROXY_BENCHMARK_GPU_TYPE}" in
+  h800)
+    if [[ "${accelerator_name}" != *H800* ]]; then
+      echo "expected H800 runtime, got ${accelerator_name}" >&2
+      exit 2
+    fi
+    ;;
+  rtx_4090)
+    if [[ "${accelerator_name}" != *4090* ]]; then
+      echo "expected RTX 4090 runtime, got ${accelerator_name}" >&2
+      exit 2
+    fi
+    ;;
+esac
 jq -n \
-  --arg schema screenqa_proxy_nll_h800_benchmark_v1 \
+  --arg schema screenqa_proxy_nll_hardware_benchmark_v1 \
+  --arg gpu_type "${BE_PROXY_BENCHMARK_GPU_TYPE}" \
+  --arg accelerator_name "${accelerator_name}" \
   --arg output_sha256 "$(sha256sum "${output}" | cut -d ' ' -f 1)" \
   --arg code_revision "${actual_revision}" \
   --argjson decisions "${decisions}" \
@@ -126,7 +148,8 @@ jq -n \
   --argjson elapsed_seconds "${elapsed_seconds}" \
   '{
     schema: $schema,
-    gpu_type: "h800",
+    gpu_type: $gpu_type,
+    accelerator_name: $accelerator_name,
     gpu_count: 1,
     decisions: $decisions,
     records: $records,
@@ -139,6 +162,6 @@ jq -n \
     code_revision: $code_revision,
     scientific_status: "engineering throughput only; not a scientific result"
   }' > "${output_dir}/benchmark.json"
-printf 'screenqa_proxy_nll_h800_benchmark_sha256=%s decisions=%s records=%s elapsed_seconds=%s\n' \
+printf 'screenqa_proxy_nll_benchmark_sha256=%s gpu_type=%s decisions=%s records=%s elapsed_seconds=%s\n' \
   "$(sha256sum "${output_dir}/benchmark.json" | cut -d ' ' -f 1)" \
-  "${decisions}" "${records}" "${elapsed_seconds}"
+  "${BE_PROXY_BENCHMARK_GPU_TYPE}" "${decisions}" "${records}" "${elapsed_seconds}"

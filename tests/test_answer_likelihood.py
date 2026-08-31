@@ -124,6 +124,7 @@ def test_score_rollout_answer_likelihood_is_atomic_resumable_and_hides_target(
         checkpoint_interval=1,
         model="test-model",
         model_revision="revision",
+        measurement_config={"dtype": "test"},
         code_revision="code",
         scientific_status="test",
     )
@@ -150,6 +151,7 @@ def test_score_rollout_answer_likelihood_is_atomic_resumable_and_hides_target(
         resume=True,
         model="test-model",
         model_revision="revision",
+        measurement_config={"dtype": "test"},
         code_revision="code",
         scientific_status="test",
     )
@@ -169,6 +171,7 @@ def test_answer_likelihood_rejects_hash_and_partial_checkpoint(tmp_path: Path) -
             expected_manifest_sha256="0" * 64,
             model="test-model",
             model_revision="revision",
+            measurement_config={"dtype": "test"},
             code_revision="code",
             scientific_status="test",
         )
@@ -194,6 +197,7 @@ def test_answer_likelihood_rejects_hash_and_partial_checkpoint(tmp_path: Path) -
             resume=True,
             model="test-model",
             model_revision="revision",
+            measurement_config={"dtype": "test"},
             code_revision="code",
             scientific_status="test",
         )
