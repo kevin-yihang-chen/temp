@@ -239,7 +239,7 @@ run_collect_shard() {
       --visual-crop-ratio 2.0 \
       --visual-cost 1.0 \
       --generation-seeds 0 \
-      --bootstrap-resamples 0 \
+      --bootstrap-resamples 100 \
       --bootstrap-seed 20260903 \
       --scientific-status "frozen Qwen-7B mechanism diagnostic on opened ScreenQA ranker development; no protected role and not candidate selection" \
       --max-new-tokens 32 \

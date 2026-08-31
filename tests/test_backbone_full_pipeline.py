@@ -15,6 +15,7 @@ def test_qwen7b_full_worker_is_frozen_to_four_h800s() -> None:
     assert "#SBATCH --mail-type=ALL" in worker
     assert "cc594898137f460bfe9f0759e9844b3ce807cfb5" in worker
     assert "--shard-count 4" in worker
+    assert "--bootstrap-resamples 0" not in worker
     assert "--bootstrap-resamples 5000" in worker
     assert "--bootstrap-seed 20260903" in worker
     assert "runtime_measurement.peak_allocated_bytes" in worker
