@@ -137,6 +137,28 @@ def test_replication_decision_rejects_protected_outcome_use(tmp_path: Path) -> N
         raise AssertionError("protected outcome use was accepted")
 
 
+def test_replication_decision_rejects_duplicate_sparse_rate(tmp_path: Path) -> None:
+    protocol = tmp_path / "protocol.md"
+    protocol.write_text("# frozen protocol\n", encoding="utf-8")
+    payload = _report(sha256_file(protocol))
+    payload["call_rate_grid"]["answer_loss_gap"].append(
+        copy.deepcopy(payload["call_rate_grid"]["answer_loss_gap"][0])
+    )
+    report = tmp_path / "report.json"
+    _write(report, payload)
+    try:
+        decide_proxy_replication(
+            report=report,
+            protocol=protocol,
+            output_dir=tmp_path / "decision",
+            code_revision="test-code",
+        )
+    except ValueError as exc:
+        assert "must occur exactly once" in str(exc)
+    else:
+        raise AssertionError("duplicate sparse call-rate row was accepted")
+
+
 def test_docvqa_replication_decision_runner_is_hash_locked() -> None:
     root = Path(__file__).resolve().parents[1]
     runner = (root / "scripts/run_docvqa_proxy_replication_decision.sh").read_text()

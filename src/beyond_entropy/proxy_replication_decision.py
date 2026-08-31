@@ -181,18 +181,24 @@ def decide_proxy_replication(
 
     grid = call_rate_grid.get("answer_loss_gap")
     _require(isinstance(grid, Sequence) and not isinstance(grid, (str, bytes)), "answer-loss grid missing")
-    sparse_rows: dict[float, Mapping[str, Any]] = {}
+    sparse_rows: dict[float, list[Mapping[str, Any]]] = {
+        rate: [] for rate in SPARSE_CALL_RATES
+    }
     for row in grid:
         _require(isinstance(row, Mapping), "malformed answer-loss grid row")
         rate = _number(row.get("target_call_rate"), "target call rate")
-        if any(math.isclose(rate, expected, abs_tol=1e-12) for expected in SPARSE_CALL_RATES):
-            sparse_rows[rate] = row
-    _require(len(sparse_rows) == len(SPARSE_CALL_RATES), "sparse call-rate grid incomplete")
+        for expected in SPARSE_CALL_RATES:
+            if math.isclose(rate, expected, abs_tol=1e-12):
+                sparse_rows[expected].append(row)
+                break
     qualifying_rates: list[float] = []
     sparse_evidence: list[dict[str, float]] = []
     for expected_rate in SPARSE_CALL_RATES:
-        matches = [row for rate, row in sparse_rows.items() if math.isclose(rate, expected_rate)]
-        _require(len(matches) == 1, "duplicate sparse call-rate row")
+        matches = sparse_rows[expected_rate]
+        _require(
+            len(matches) == 1,
+            f"sparse call-rate row must occur exactly once: {expected_rate}",
+        )
         metrics = matches[0].get("metrics")
         _require(isinstance(metrics, Mapping), "sparse grid metrics missing")
         utility = _metric(metrics, "mean_policy_utility")
