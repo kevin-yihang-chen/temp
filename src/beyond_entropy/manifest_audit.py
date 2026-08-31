@@ -28,7 +28,7 @@ def _bundle_sha256(image_paths: Sequence[Path], *, root: Path) -> str:
 
 def _validate_target(payload: Mapping[str, Any], *, scorer: str) -> None:
     target = payload.get("target")
-    if scorer in {"docvqa", "textvqa"}:
+    if scorer in {"docvqa", "textvqa", "screenqa"}:
         if not isinstance(target, Mapping):
             raise ValueError(f"{scorer} target must be a mapping")
         answers = target.get("answers")

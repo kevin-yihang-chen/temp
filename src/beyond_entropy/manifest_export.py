@@ -15,9 +15,11 @@ from .cross_benchmark import (
     build_docvqa_prompt,
     build_hrbench_context,
     build_hrbench_prompt,
+    build_screenqa_prompt,
     build_textvqa_prompt,
     docvqa_target,
     hrbench_target,
+    screenqa_target,
     textvqa_target,
 )
 
@@ -64,6 +66,14 @@ BENCHMARK_SPECS: dict[str, BenchmarkSpec] = {
         scorer="textvqa",
         selection_fields=("ocr_tokens",),
         source_fields=("image_id",),
+    ),
+    "screenqa": BenchmarkSpec(
+        dataset_id="google-research-datasets/screen_qa",
+        default_revision="1dfdbccaf56948821b5fa8ffe5d186fe4751e46d",
+        split="train",
+        scorer="screenqa",
+        selection_fields=(),
+        source_fields=("source_group_id",),
     ),
     "hrbench4k": BenchmarkSpec(
         dataset_id="DreamMr/HR-Bench",
@@ -112,6 +122,8 @@ def benchmark_stratum(row: Mapping[str, Any], *, task: str) -> str:
             value = "ocr-006-015"
         else:
             value = "ocr-016-plus"
+    elif task == "screenqa":
+        value = "allocated-app-duplicate-component"
     elif task in {"hrbench4k", "hrbench8k"}:
         category = str(row["category"]).strip()
         cycle_category = str(row["cycle_category"]).strip()
@@ -130,6 +142,8 @@ def benchmark_source_group(row: Mapping[str, Any], *, task: str) -> str:
         value = str(row["docId"]).strip()
     elif task == "textvqa":
         value = str(row["image_id"]).strip()
+    elif task == "screenqa":
+        value = str(row["source_group_id"]).strip()
     elif task in {"hrbench4k", "hrbench8k"}:
         value = str(row["index"]).strip()
     else:
@@ -284,6 +298,14 @@ def image_digest(image: Any) -> str:
 
 def _decode_row_image(row: Mapping[str, Any], *, task: str) -> Any:
     raw_image = row["image"]
+    if task == "screenqa" and isinstance(raw_image, (str, Path)):
+        try:
+            from PIL import Image  # type: ignore[import-untyped]
+
+            with Image.open(raw_image) as image:
+                return image.convert("RGB")
+        except Exception as exc:
+            raise ValueError("could not decode ScreenQA image path") from exc
     if task in {"hrbench4k", "hrbench8k"}:
         if not isinstance(raw_image, str) or not raw_image.strip():
             raise ValueError("HRBench image must be a non-empty base64 string")
@@ -396,6 +418,29 @@ def _manifest_payload(
             "source_index": source_index,
             "dataset_revision": dataset_revision,
         }
+    if task == "screenqa":
+        raw_image_id = str(row["image_id"]).strip()
+        source_group_id = str(row["source_group_id"]).strip()
+        question = str(row["question"]).strip()
+        if not raw_image_id or not source_group_id or not question:
+            raise ValueError(
+                "ScreenQA image_id, source_group_id, and question must be non-empty"
+            )
+        namespace = state_namespace or "screenqa"
+        return {
+            "state_id": f"{namespace}:{source_index}",
+            "image_id": image_id,
+            "source_id": f"screenqa:{source_group_id}",
+            "image_path": image_path,
+            "question": question,
+            "model_prompt": build_screenqa_prompt(question),
+            "target": screenqa_target(row["ground_truth"]),
+            "benchmark": "screenqa",
+            "stratum": benchmark_stratum(row, task=task),
+            "source_index": source_index,
+            "rico_ui_id": raw_image_id,
+            "dataset_revision": dataset_revision,
+        }
     if task in {"hrbench4k", "hrbench8k"}:
         index = str(row["index"]).strip()
         question = str(row["question"]).strip()
@@ -456,13 +501,21 @@ def export_benchmark_manifest(
     image_dir = destination / "images"
     image_dir.mkdir(parents=True, exist_ok=True)
     payloads: list[dict[str, Any]] = []
+    screenqa_image_cache: dict[str, tuple[str, str]] = {}
     for row, source_index in zip(rows, source_indices):
-        image = _decode_row_image(row, task=task)
-        image_id = image_digest(image)
-        image_name = f"{image_id}.png"
-        image_destination = image_dir / image_name
-        if not image_destination.exists():
-            image.save(image_destination, format="PNG")
+        screenqa_raw_id = str(row.get("image_id", "")).strip() if task == "screenqa" else ""
+        cached_image = screenqa_image_cache.get(screenqa_raw_id)
+        if cached_image is None:
+            image = _decode_row_image(row, task=task)
+            image_id = image_digest(image)
+            image_name = f"{image_id}.png"
+            image_destination = image_dir / image_name
+            if not image_destination.exists():
+                image.save(image_destination, format="PNG")
+            if task == "screenqa":
+                screenqa_image_cache[screenqa_raw_id] = (image_id, image_name)
+        else:
+            image_id, image_name = cached_image
         payloads.append(
             _manifest_payload(
                 row,

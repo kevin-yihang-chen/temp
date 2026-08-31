@@ -9,6 +9,8 @@ from .chartqapro import chartqapro_match, chartqapro_spec_match
 from .cross_benchmark import (
     docvqa_anls_match,
     hrbench_answer,
+    screenqa_short_exact_match,
+    screenqa_short_f1_match,
     textvqa_soft_match,
 )
 from .rollout import AgentState, GroundTruth, TaskExample
@@ -143,6 +145,10 @@ def scorer_by_name(name: str) -> Callable[[str, GroundTruth], float]:
         return docvqa_anls_match
     if name == "textvqa":
         return textvqa_soft_match
+    if name == "screenqa":
+        return screenqa_short_exact_match
+    if name == "screenqa-f1":
+        return screenqa_short_f1_match
     if name == "hrbench":
         return hrbench_match
     raise ValueError(f"unsupported benchmark scorer: {name}")

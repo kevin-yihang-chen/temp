@@ -328,9 +328,14 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     from .crops import ChartLayoutProposer, UGGridProposer
     from .qwen_backend import Qwen25VLBackend
     from .rollout import CachedVisualBackend, collect_sibling_rollouts
+    from .sharding import SHARD_ALGORITHM, stable_shard_index
 
     if args.checkpoint_interval <= 0:
         raise ValueError("checkpoint_interval must be positive")
+    if args.shard_count <= 0:
+        raise ValueError("shard_count must be positive")
+    if not 0 <= args.shard_index < args.shard_count:
+        raise ValueError("shard_index must be in [0, shard_count)")
     manifest_sha256 = hashlib.sha256(args.manifest.read_bytes()).hexdigest()
     if (
         args.expected_manifest_sha256
@@ -340,7 +345,17 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             "manifest SHA-256 mismatch: "
             f"expected {args.expected_manifest_sha256}, got {manifest_sha256}"
         )
-    examples = load_manifest(args.manifest, limit=args.limit)
+    manifest_examples = load_manifest(args.manifest, limit=args.limit)
+    examples = [
+        example
+        for example in manifest_examples
+        if stable_shard_index(example.state.state_id, args.shard_count)
+        == args.shard_index
+    ]
+    if not examples:
+        raise ValueError(
+            f"shard {args.shard_index} of {args.shard_count} contains no examples"
+        )
     examples_by_state = {example.state.state_id: example for example in examples}
     proposer: ChartLayoutProposer | UGGridProposer
     if args.proposer == "chart-layout":
@@ -502,6 +517,11 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         "code_revision": os.environ.get("BE_CODE_REVISION"),
         "manifest": str(args.manifest.resolve()),
         "manifest_sha256": manifest_sha256,
+        "manifest_limit": args.limit,
+        "manifest_examples_before_sharding": len(manifest_examples),
+        "shard_algorithm": SHARD_ALGORITHM,
+        "shard_count": args.shard_count,
+        "shard_index": args.shard_index,
         "output": str(args.output.resolve()),
         "output_sha256": output_sha256,
         "model": args.model,
@@ -730,6 +750,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     collect_qwen.add_argument("--manifest", type=Path, required=True)
     collect_qwen.add_argument("--expected-manifest-sha256")
+    collect_qwen.add_argument(
+        "--shard-count",
+        type=int,
+        default=1,
+        help="deterministically partition manifest states across this many workers",
+    )
+    collect_qwen.add_argument(
+        "--shard-index",
+        type=int,
+        default=0,
+        help="zero-based deterministic worker partition to collect",
+    )
     collect_qwen.add_argument("--output", type=Path, required=True)
     collect_qwen.add_argument(
         "--resume",
@@ -763,6 +795,7 @@ def build_parser() -> argparse.ArgumentParser:
             "chartqapro-spec",
             "docvqa",
             "textvqa",
+            "screenqa",
             "hrbench",
         ),
         required=True,

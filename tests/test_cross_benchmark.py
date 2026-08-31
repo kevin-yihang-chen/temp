@@ -7,11 +7,15 @@ from beyond_entropy.cross_benchmark import (
     build_docvqa_prompt,
     build_hrbench_context,
     build_hrbench_prompt,
+    build_screenqa_prompt,
     build_textvqa_prompt,
     docvqa_anls_match,
     docvqa_target,
     evalai_normalize_answer,
     hrbench_target,
+    normalize_squad_answer,
+    screenqa_short_metrics,
+    screenqa_target,
     textvqa_soft_match,
     textvqa_target,
 )
@@ -50,6 +54,11 @@ def test_released_prompt_adapters_do_not_expose_targets():
         {"B": "large", "A": "small"},
     ) == "Which label is smallest?\nA. small\nB. large"
     assert "correct" not in hr_prompt.casefold()
+
+    assert build_screenqa_prompt("What is the app name?") == (
+        "What is the app name?\n"
+        "Answer the question using a single word or phrase."
+    )
 
 
 def test_docvqa_anls_matches_pinned_threshold_and_multi_reference_rules():
@@ -101,6 +110,24 @@ def test_textvqa_target_requires_ten_answers_and_is_not_mutated():
     assert payload == {"answers": ["yes"] * 10}
     with pytest.raises(ValueError, match="exactly ten"):
         textvqa_target(["yes"] * 9)
+
+
+def test_screenqa_short_matches_official_sqa_s_rules():
+    target = GroundTruth(screenqa_target(["The red-blue app", "other answer"]))
+    assert normalize_squad_answer("A RED-blue, app!") == "redblue app"
+    assert screenqa_short_metrics("A RED-blue, app!", target) == (1.0, 1.0)
+    assert screenqa_short_metrics("red app", target) == (0.0, pytest.approx(0.5))
+    assert scorer_by_name("screenqa")("The red-blue app", target) == 1.0
+    assert scorer_by_name("screenqa-f1")("red app", target) == pytest.approx(0.5)
+
+
+def test_screenqa_short_preserves_official_no_answer_special_case():
+    no_answer = GroundTruth(screenqa_target(["<no answer>"]))
+    ordinary = GroundTruth(screenqa_target(["answer"]))
+    assert screenqa_short_metrics("<no answer>", no_answer) == (1.0, 1.0)
+    assert screenqa_short_metrics("<no answer>", ordinary) == (0.0, 0.0)
+    # The official special case is deliberately exact and precedes normalization.
+    assert screenqa_short_metrics("<NO ANSWER>", no_answer) == (0.0, 0.0)
 
 
 def test_hrbench_uses_released_letter_extraction_and_structured_target():

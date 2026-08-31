@@ -145,6 +145,10 @@ def test_cross_benchmark_specs_are_revision_pinned():
     assert BENCHMARK_SPECS["docvqa"].dataset_name == "DocVQA"
     assert len(BENCHMARK_SPECS["docvqa"].default_revision) == 40
     assert BENCHMARK_SPECS["textvqa"].scorer == "textvqa"
+    assert BENCHMARK_SPECS["screenqa"].scorer == "screenqa"
+    assert BENCHMARK_SPECS["screenqa"].default_revision == (
+        "1dfdbccaf56948821b5fa8ffe5d186fe4751e46d"
+    )
     assert BENCHMARK_SPECS["hrbench4k"].split == "hrbench_4k"
     assert BENCHMARK_SPECS["hrbench8k"].split == "hrbench_8k"
 
@@ -160,6 +164,9 @@ def test_cross_benchmark_strata_use_only_pre_outcome_fields():
     assert benchmark_stratum(
         {"category": "cross", "cycle_category": "text"}, task="hrbench4k"
     ) == "cross:text"
+    assert benchmark_stratum({}, task="screenqa") == (
+        "allocated-app-duplicate-component"
+    )
 
 
 def test_hash_ranked_source_selection_is_order_independent_and_keeps_groups():
@@ -324,6 +331,62 @@ def test_export_textvqa_records_explicit_train_split_and_namespace(tmp_path):
     assert result["state_namespace"] == "textvqa-train-ranker"
 
 
+def test_export_screenqa_binds_component_source_and_official_scorer(tmp_path):
+    row = {
+        "image": Image.new("RGB", (10, 16), "white"),
+        "image_id": "rico-17",
+        "source_group_id": "component-hash",
+        "question": "What word is shown?",
+        "ground_truth": ["settings", "the settings"],
+    }
+    result = export_benchmark_manifest(
+        [row],
+        source_indices=[91],
+        task="screenqa",
+        dataset_id="google-research-datasets/screen_qa",
+        dataset_revision="1dfdbccaf56948821b5fa8ffe5d186fe4751e46d",
+        dataset_split="train",
+        state_namespace="screenqa-train-ranker",
+        output_dir=tmp_path,
+        seed=20260831,
+    )
+    payload = json.loads((tmp_path / "manifest.jsonl").read_text())
+    assert payload["state_id"] == "screenqa-train-ranker:91"
+    assert payload["source_id"] == "screenqa:component-hash"
+    assert payload["rico_ui_id"] == "rico-17"
+    assert payload["question"] == "What word is shown?"
+    assert payload["model_prompt"].endswith("single word or phrase.")
+    assert payload["target"] == {"answers": ["settings", "the settings"]}
+    assert result["scorer"] == "screenqa"
+
+
+def test_export_screenqa_accepts_local_image_paths_and_reuses_image(tmp_path):
+    source_image = tmp_path / "source.jpg"
+    Image.new("RGB", (10, 16), "white").save(source_image, format="JPEG")
+    rows = [
+        {
+            "image": str(source_image),
+            "image_id": "rico-17",
+            "source_group_id": "component-hash",
+            "question": f"Question {index}?",
+            "ground_truth": ["answer"],
+        }
+        for index in range(2)
+    ]
+    output = tmp_path / "output"
+    result = export_benchmark_manifest(
+        rows,
+        source_indices=[91, 92],
+        task="screenqa",
+        dataset_id="google-research-datasets/screen_qa",
+        dataset_revision="revision",
+        output_dir=output,
+        seed=20260831,
+    )
+    assert result["unique_images"] == 1
+    assert len(list((output / "images").glob("*.png"))) == 1
+
+
 def test_export_rejects_empty_explicit_dataset_split(tmp_path):
     row = {
         "image": Image.new("RGB", (10, 10), "blue"),
@@ -403,7 +466,7 @@ def test_collect_qwen_rejects_changed_manifest_before_model_load(tmp_path):
         args.func(args)
 
 
-@pytest.mark.parametrize("scorer", ["docvqa", "textvqa", "hrbench"])
+@pytest.mark.parametrize("scorer", ["docvqa", "textvqa", "screenqa", "hrbench"])
 def test_collect_qwen_accepts_cross_benchmark_scorers(tmp_path, scorer):
     args = build_parser().parse_args(
         [
@@ -434,6 +497,52 @@ def test_collect_qwen_accepts_batched_atomic_checkpoint_interval(tmp_path):
         ]
     )
     assert args.checkpoint_interval == 32
+
+
+def test_collect_qwen_accepts_deterministic_shard_arguments(tmp_path):
+    args = build_parser().parse_args(
+        [
+            "collect-qwen",
+            "--manifest",
+            str(tmp_path / "manifest.jsonl"),
+            "--output",
+            str(tmp_path / "output.jsonl"),
+            "--scorer",
+            "screenqa",
+            "--shard-count",
+            "4",
+            "--shard-index",
+            "2",
+        ]
+    )
+    assert args.shard_count == 4
+    assert args.shard_index == 2
+
+
+@pytest.mark.parametrize(
+    ("shard_count", "shard_index", "message"),
+    [(0, 0, "shard_count"), (2, -1, "shard_index"), (2, 2, "shard_index")],
+)
+def test_collect_qwen_rejects_invalid_shard_before_manifest_io(
+    tmp_path, shard_count, shard_index, message
+):
+    args = build_parser().parse_args(
+        [
+            "collect-qwen",
+            "--manifest",
+            str(tmp_path / "missing-manifest.jsonl"),
+            "--output",
+            str(tmp_path / "output.jsonl"),
+            "--scorer",
+            "screenqa",
+            "--shard-count",
+            str(shard_count),
+            "--shard-index",
+            str(shard_index),
+        ]
+    )
+    with pytest.raises(ValueError, match=message):
+        args.func(args)
 
 
 def test_collect_qwen_rejects_nonpositive_checkpoint_interval_before_io(tmp_path):

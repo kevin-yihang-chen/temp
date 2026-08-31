@@ -9,6 +9,7 @@ from .rollout import GroundTruth
 
 UG_REFERENCE_COMMIT = "13050ee49865e4330519108f42d1ccfccff1aee1"
 _SHORT_ANSWER_SUFFIX = "\nAnswer the question using a single word or phrase."
+SCREENQA_NO_ANSWER = "<no answer>"
 
 
 def _nonempty_text(value: object, *, name: str) -> str:
@@ -50,6 +51,13 @@ def textvqa_target(answers: Sequence[object]) -> dict[str, list[str]]:
     return {"answers": list(normalized)}
 
 
+def screenqa_target(answers: Sequence[object]) -> dict[str, list[str]]:
+    """Build the evaluation-only payload for ScreenQA Short references."""
+
+    normalized = _answer_list(list(answers), benchmark="ScreenQA Short")
+    return {"answers": list(normalized)}
+
+
 def hrbench_target(
     answer: object,
     *,
@@ -87,6 +95,70 @@ def build_textvqa_prompt(
             str(token) for token in ocr_tokens
         )
     return prompt + _SHORT_ANSWER_SUFFIX
+
+
+def build_screenqa_prompt(question: object) -> str:
+    """Request the concise answer format used by ScreenQA Short."""
+
+    return _nonempty_text(question, name="ScreenQA question") + _SHORT_ANSWER_SUFFIX
+
+
+def normalize_squad_answer(text: object) -> str:
+    """Match the official ScreenQA SQuAD preprocessing exactly."""
+
+    import string
+
+    normalized = str(text).lower()
+    normalized = "".join(character for character in normalized if character not in string.punctuation)
+    normalized = re.sub(r"\b(a|an|the)\b", " ", normalized)
+    return " ".join(normalized.split())
+
+
+def screenqa_short_metrics(
+    answer: str, ground_truth: GroundTruth
+) -> tuple[float, float]:
+    """Return official ScreenQA Short SQA-S exact match and token F1."""
+
+    references = _answer_list(ground_truth.target, benchmark="ScreenQA Short")
+    prediction = str(answer)
+    if prediction == SCREENQA_NO_ANSWER:
+        matched = float(SCREENQA_NO_ANSWER in references)
+        return matched, matched
+    filtered_references = [
+        reference for reference in references if reference != SCREENQA_NO_ANSWER
+    ]
+    if not filtered_references:
+        return 0.0, 0.0
+    normalized_prediction = normalize_squad_answer(prediction)
+    normalized_references = [normalize_squad_answer(reference) for reference in filtered_references]
+    exact_match = float(normalized_prediction in normalized_references)
+    prediction_tokens = normalized_prediction.split()
+
+    def token_f1(reference: str) -> float:
+        from collections import Counter
+
+        reference_tokens = reference.split()
+        common = Counter(prediction_tokens) & Counter(reference_tokens)
+        matches = sum(common.values())
+        if matches == 0:
+            return 0.0
+        precision = matches / len(prediction_tokens)
+        recall = matches / len(reference_tokens)
+        return 2.0 * precision * recall / (precision + recall)
+
+    return exact_match, max(token_f1(reference) for reference in normalized_references)
+
+
+def screenqa_short_exact_match(answer: str, ground_truth: GroundTruth) -> float:
+    """Primary ScreenQA Short SQA-S exact-match scorer."""
+
+    return screenqa_short_metrics(answer, ground_truth)[0]
+
+
+def screenqa_short_f1_match(answer: str, ground_truth: GroundTruth) -> float:
+    """Secondary ScreenQA Short SQA-S token-F1 scorer."""
+
+    return screenqa_short_metrics(answer, ground_truth)[1]
 
 
 def _normalized_hrbench_options(
