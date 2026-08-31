@@ -27,7 +27,9 @@ def main() -> None:
     parser.add_argument("--expected-gpu-name", required=True)
     parser.add_argument("--expected-code-revision", required=True)
     parser.add_argument("--rollout-seconds", type=float, required=True)
+    parser.add_argument("--rollout-resume-seconds", type=float, required=True)
     parser.add_argument("--answer-nll-seconds", type=float, required=True)
+    parser.add_argument("--answer-nll-resume-seconds", type=float, required=True)
     args = parser.parse_args()
     result = verify_backbone_engineering_smoke(
         manifest=args.manifest,
@@ -44,7 +46,9 @@ def main() -> None:
         expected_gpu_name=args.expected_gpu_name,
         expected_code_revision=args.expected_code_revision,
         rollout_seconds=args.rollout_seconds,
+        rollout_resume_seconds=args.rollout_resume_seconds,
         answer_nll_seconds=args.answer_nll_seconds,
+        answer_nll_resume_seconds=args.answer_nll_resume_seconds,
     )
     print(json.dumps(result["timing_seconds"], sort_keys=True))
 

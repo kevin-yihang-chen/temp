@@ -153,7 +153,9 @@ def _verify(paths: dict[str, Path | str], *, output: Path) -> dict[str, object]:
         expected_gpu_name="H100",
         expected_code_revision=CODE,
         rollout_seconds=10.0,
+        rollout_resume_seconds=2.0,
         answer_nll_seconds=5.0,
+        answer_nll_resume_seconds=3.0,
     )
 
 
@@ -162,7 +164,8 @@ def test_backbone_smoke_verifies_endpoint_blind_artifacts(tmp_path: Path) -> Non
     result = _verify(paths, output=tmp_path / "smoke.complete.json")
     assert result["passed"] is True
     assert result["population"]["decisions"] == 2
-    assert result["timing_seconds"]["total"] == pytest.approx(15.0)
+    assert result["timing_seconds"]["first_pass_total"] == pytest.approx(15.0)
+    assert result["timing_seconds"]["engineering_total"] == pytest.approx(20.0)
     assert result["outcome_use"]["task_endpoints_computed"] is False
 
 

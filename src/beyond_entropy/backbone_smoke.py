@@ -85,7 +85,9 @@ def verify_backbone_engineering_smoke(
     expected_gpu_name: str,
     expected_code_revision: str,
     rollout_seconds: float,
+    rollout_resume_seconds: float,
     answer_nll_seconds: float,
+    answer_nll_resume_seconds: float,
 ) -> dict[str, Any]:
     """Verify an endpoint-blind rollout plus answer-NLL engineering smoke."""
 
@@ -216,10 +218,14 @@ def verify_backbone_engineering_smoke(
     for key, expected in required_nll_values.items():
         if nll_provenance.get(key) != expected:
             raise ValueError(f"smoke answer-NLL provenance mismatch: {key}")
-    if not math.isfinite(rollout_seconds) or rollout_seconds <= 0:
-        raise ValueError("rollout time must be finite and positive")
-    if not math.isfinite(answer_nll_seconds) or answer_nll_seconds <= 0:
-        raise ValueError("answer-NLL time must be finite and positive")
+    timing_values = {
+        "rollout_first_pass": rollout_seconds,
+        "rollout_resume_validation": rollout_resume_seconds,
+        "answer_nll_first_pass": answer_nll_seconds,
+        "answer_nll_resume_validation": answer_nll_resume_seconds,
+    }
+    if any(not math.isfinite(value) or value <= 0 for value in timing_values.values()):
+        raise ValueError("all smoke timing values must be finite and positive")
 
     result = {
         "schema": SMOKE_SCHEMA,
@@ -235,9 +241,9 @@ def verify_backbone_engineering_smoke(
         "model": {"name": expected_model, "revision": expected_model_revision},
         "accelerator_name": accelerator,
         "timing_seconds": {
-            "rollout_including_resume": rollout_seconds,
-            "answer_nll_including_resume": answer_nll_seconds,
-            "total": rollout_seconds + answer_nll_seconds,
+            **timing_values,
+            "first_pass_total": rollout_seconds + answer_nll_seconds,
+            "engineering_total": sum(timing_values.values()),
         },
         "inputs": {
             "manifest_sha256": expected_manifest_sha256,
