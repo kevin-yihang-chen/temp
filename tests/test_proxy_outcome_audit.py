@@ -296,6 +296,33 @@ def test_docvqa_proxy_smoke_contracts() -> None:
     assert "--mail-type=ALL" in submitter
 
 
+def test_docvqa_proxy_full_contracts() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (root / "scripts/slurm_docvqa_proxy_nll_full_4090.sh").read_text()
+    submitter = (
+        root / "scripts/submit_docvqa_proxy_nll_full_4090.sh"
+    ).read_text()
+    assert "#SBATCH --gres=gpu:rtx_4090:4" in worker
+    assert "#SBATCH --cpus-per-task=16" in worker
+    assert "#SBATCH --time=04:00:00" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert "--shard-count 4" in worker
+    assert "--expected-decisions 13580" in worker
+    assert "--expected-records 67900" in worker
+    assert "--expected-sources 3500" in worker
+    assert "--bootstrap-resamples 2000" in worker
+    assert "--bootstrap-seed 20260901" in worker
+    assert '--study-label "DocVQA ranker development"' in worker
+    assert "outcome_use.protected_role_inputs_used" in worker
+    assert "measurement_config.accelerator_name" in worker
+    assert "BE_DOCVQA_PROXY_FULL_RESUME" in worker
+    assert "risk-calibration/" not in worker
+    assert "formal-test/" not in worker
+    assert "reserve-comparator/" not in worker
+    assert '--mail-user="${notify_email}"' in submitter
+    assert "--mail-type=ALL" in submitter
+
+
 def _hardware_score_run(tmp_path: Path, gpu_type: str) -> tuple[Path, Path]:
     score_path = tmp_path / f"{gpu_type}.jsonl"
     config_sha256 = ("d" if gpu_type == "h800" else "e") * 64
