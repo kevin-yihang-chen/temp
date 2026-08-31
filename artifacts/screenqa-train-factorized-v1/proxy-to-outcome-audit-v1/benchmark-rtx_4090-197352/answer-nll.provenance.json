@@ -1,0 +1,43 @@
+{
+  "checkpoint_interval": 8,
+  "code_revision": "e4de14c00bcc162edd9701b7e9c1fddbfd09a2a1",
+  "config_sha256": "a9a3a2aa2438ec8a04a85e26e880be4172d6eeeef4a4074a3ee945935f549288",
+  "decisions": 64,
+  "manifest": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ranker-manifest-v1/manifest.jsonl",
+  "manifest_sha256": "a2b6941e2a073b24571d2ccb50960f7c1cd70cb0ce53dc8339c7ec44a47f67ec",
+  "measurement_config": {
+    "accelerator_name": "NVIDIA GeForce RTX 4090",
+    "actual_attention_implementation": "sdpa",
+    "attention_implementation": "sdpa",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda_runtime_version": "12.1",
+    "device_map": "cuda:0",
+    "device_type": "cuda",
+    "local_files_only": true,
+    "max_pixels": 602112,
+    "min_pixels": 200704,
+    "parameter_dtype": "torch.bfloat16",
+    "requested_dtype": "bfloat16",
+    "system_prompt": "You are a helpful assistant.",
+    "torch_version": "2.4.0+cu121",
+    "transformers_version": "5.4.0"
+  },
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "output": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/benchmark-rtx_4090-197352/answer-nll.jsonl",
+  "output_sha256": "4c9a5e93c45410792bab3bc3f06d3dea94bc2918f602bc33bce31295f9bdff15",
+  "raw_targets_written": false,
+  "records": 320,
+  "resumed_from_decisions": 0,
+  "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ranker-rollouts-v1/merged/rollouts.jsonl",
+  "rollouts_sha256": "0437d2a499adccb1b4e19eb0160583789cee00edf244718ecae9e290108bb8c9",
+  "schema": "visual_action_answer_nll_v1",
+  "scientific_status": "64-decision rtx_4090 engineering throughput benchmark on opened ScreenQA development data; not a scientific result",
+  "shard_count": 227,
+  "shard_index": 0,
+  "sources": 64,
+  "target_rule": "normalized_mode_then_shortest_then_first_index_v1"
+}

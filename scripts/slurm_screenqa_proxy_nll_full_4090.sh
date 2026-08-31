@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-#SBATCH --partition=q-h800
-#SBATCH --gres=gpu:h800:4
+#SBATCH --partition=debug
+#SBATCH --gres=gpu:rtx_4090:4
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=192G
-#SBATCH --time=12:00:00
+#SBATCH --mem=128G
+#SBATCH --time=04:00:00
 #SBATCH --job-name=be-screenqa-proxy-nll
-#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-proxy-nll-full-h800-%j.out
+#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-proxy-nll-full-4090-%j.out
 #SBATCH --mail-user=yihangc@connect.hku.hk
 #SBATCH --mail-type=ALL
 
@@ -17,6 +17,8 @@ required=(
   BE_PROXY_ANALYZER_SHA256 BE_PROXY_AUDIT_MODULE_SHA256
   BE_PROXY_FULL_WORKER_SHA256 BE_PROXY_PROTOCOL_SHA256
   BE_PROXY_IMPLEMENTATION_CONTRACT_SHA256
+  BE_PROXY_HARDWARE_PROTOCOL_SHA256 BE_PROXY_HARDWARE_REPORT_SHA256
+  BE_PROXY_HARDWARE_COMPLETION_SHA256 BE_PROXY_HARDWARE_ACTIVATION_SHA256
   BE_PROXY_FULL_RESUME
 )
 for name in "${required[@]}"; do
@@ -40,16 +42,26 @@ manifest="${repo_dir}/artifacts/screenqa-train-factorized-v1/ranker-manifest-v1/
 rollouts="${repo_dir}/artifacts/screenqa-train-factorized-v1/ranker-rollouts-v1/merged/rollouts.jsonl"
 protocol="${repo_dir}/artifacts/screenqa-train-factorized-v1/ops/proxy-to-outcome-audit-protocol-v1.md"
 implementation_contract="${repo_dir}/artifacts/screenqa-train-factorized-v1/ops/proxy-to-outcome-analysis-implementation-v1.md"
+hardware_protocol="${repo_dir}/artifacts/screenqa-train-factorized-v1/ops/proxy-nll-hardware-consistency-protocol-v1.md"
+hardware_report="${repo_dir}/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/hardware-consistency-v1/report.json"
+hardware_completion="${repo_dir}/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/hardware-consistency-v1/audit.complete.json"
+hardware_activation="${repo_dir}/artifacts/screenqa-train-factorized-v1/ops/proxy-nll-full-hardware-activation-v1.md"
 scorer="${repo_dir}/scripts/score_visual_action_answer_nll.py"
 score_module="${repo_dir}/src/beyond_entropy/answer_likelihood.py"
 merger="${repo_dir}/scripts/merge_visual_action_answer_nll.py"
 analyzer="${repo_dir}/scripts/analyze_visual_action_proxy_outcomes.py"
 audit_module="${repo_dir}/src/beyond_entropy/proxy_outcome_audit.py"
-worker="${repo_dir}/scripts/slurm_screenqa_proxy_nll_full_h800.sh"
+worker="${repo_dir}/scripts/slurm_screenqa_proxy_nll_full_4090.sh"
 manifest_sha256=a2b6941e2a073b24571d2ccb50960f7c1cd70cb0ce53dc8339c7ec44a47f67ec
 rollouts_sha256=0437d2a499adccb1b4e19eb0160583789cee00edf244718ecae9e290108bb8c9
 frozen_protocol_sha256=42d952c35ac16f5584ae4fa0f6849920ba0bdc86a3b7cdfd92fb8fdc79c3f129
 frozen_implementation_sha256=c497ec89317cbfa6cc7fa2097b8be064c21a29132f95e446b649994ac65c117e
+frozen_hardware_protocol_sha256=6402862c1b60bc0a62f58b2389ac05422e20ab84ee74ef627535b4aebb177a0e
+frozen_hardware_report_sha256=bb1ba6d1e066086bcaebd1713f6ccee796656892087986bb3a8adae6ffc371a8
+frozen_hardware_completion_sha256=ea26bf4898f41baa30e90886f372d594a1b3bdc84770d62647c42b1b1ff6e981
+frozen_hardware_activation_sha256=fec80e9c97e054ad195fbd482de697db28a91a8422410c8582d3b0a0e966df4e
+frozen_scorer_sha256=d278b8cd50a58133d6f512467dce8b53a38a690ade3e874b9721c61adabe523d
+frozen_score_module_sha256=10c2b647b6ebbc036d6ce06b046521476b4f3d26e73e66b63b7d3f32382b51e4
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
 
 check_hash() {
@@ -84,12 +96,32 @@ check_hash "${manifest}" "${manifest_sha256}" "manifest"
 check_hash "${rollouts}" "${rollouts_sha256}" "rollouts"
 check_hash "${protocol}" "${frozen_protocol_sha256}" "frozen protocol"
 check_hash "${implementation_contract}" "${frozen_implementation_sha256}" "implementation contract"
+check_hash "${hardware_protocol}" "${frozen_hardware_protocol_sha256}" "hardware protocol"
+check_hash "${hardware_report}" "${frozen_hardware_report_sha256}" "hardware report"
+check_hash "${hardware_completion}" "${frozen_hardware_completion_sha256}" "hardware completion"
+check_hash "${hardware_activation}" "${frozen_hardware_activation_sha256}" "hardware activation"
+if [[ "${BE_PROXY_SCORER_SHA256}" != "${frozen_scorer_sha256}" \
+  || "${BE_PROXY_SCORE_MODULE_SHA256}" != "${frozen_score_module_sha256}" ]]; then
+  echo "ScreenQA full proxy-NLL scoring components differ from hardware activation" >&2
+  exit 2
+fi
 if [[ "${BE_PROXY_PROTOCOL_SHA256}" != "${frozen_protocol_sha256}" ]]; then
   echo "ScreenQA full proxy-NLL submitted protocol hash mismatch" >&2
   exit 2
 fi
 if [[ "${BE_PROXY_IMPLEMENTATION_CONTRACT_SHA256}" != "${frozen_implementation_sha256}" ]]; then
   echo "ScreenQA full proxy-NLL submitted implementation contract hash mismatch" >&2
+  exit 2
+fi
+if [[ "${BE_PROXY_HARDWARE_PROTOCOL_SHA256}" != "${frozen_hardware_protocol_sha256}" \
+  || "${BE_PROXY_HARDWARE_REPORT_SHA256}" != "${frozen_hardware_report_sha256}" \
+  || "${BE_PROXY_HARDWARE_COMPLETION_SHA256}" != "${frozen_hardware_completion_sha256}" \
+  || "${BE_PROXY_HARDWARE_ACTIVATION_SHA256}" != "${frozen_hardware_activation_sha256}" ]]; then
+  echo "ScreenQA full proxy-NLL submitted hardware contract hash mismatch" >&2
+  exit 2
+fi
+if [[ "$(jq -r '.hardware_decision.selected' "${hardware_report}")" != rtx_4090 ]]; then
+  echo "ScreenQA full proxy-NLL hardware report did not select RTX 4090" >&2
   exit 2
 fi
 for protected in \
@@ -152,7 +184,7 @@ for shard_index in 0 1 2 3; do
     --max-pixels 602112 \
     --system-prompt "You are a helpful assistant." \
     --code-revision "${actual_revision}" \
-    --scientific-status "frozen retrospective proxy-to-outcome audit on opened ScreenQA ranker development bank; not candidate selection or independent validation" \
+    --scientific-status "frozen retrospective proxy-to-outcome audit on opened ScreenQA ranker development bank using hardware-audited RTX 4090; not candidate selection or independent validation" \
     > "${shard_log}" 2>&1 &
   pids+=("$!")
 done
@@ -167,6 +199,13 @@ if [[ "${failed}" -ne 0 ]]; then
   echo "one or more ScreenQA proxy-NLL score shards failed; complete checkpoints were retained" >&2
   exit 1
 fi
+for shard_index in 0 1 2 3; do
+  shard_provenance="${shard_dir}/answer-nll-shard-${shard_index}-of-4.provenance.json"
+  if [[ "$(jq -r '.measurement_config.accelerator_name' "${shard_provenance}")" != *4090* ]]; then
+    echo "ScreenQA full proxy-NLL shard ${shard_index} did not run on RTX 4090" >&2
+    exit 2
+  fi
+done
 
 merged="${merged_dir}/answer-nll.jsonl"
 merge_args=(

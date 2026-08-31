@@ -1,0 +1,16 @@
+{
+  "schema": "screenqa_proxy_nll_hardware_benchmark_v1",
+  "gpu_type": "h800",
+  "accelerator_name": "NVIDIA H800",
+  "gpu_count": 1,
+  "decisions": 64,
+  "records": 320,
+  "elapsed_seconds": 85,
+  "decisions_per_second": 0.7529411764705882,
+  "records_per_second": 3.764705882352941,
+  "projected_four_gpu_full_wall_seconds": 4818.10546875,
+  "projected_four_gpu_gpu_minutes": 321.20703125,
+  "output_sha256": "362df54951811ffd24dbc9c25ff16f38fb4da38c0de92078220db7c8872102d7",
+  "code_revision": "e4de14c00bcc162edd9701b7e9c1fddbfd09a2a1",
+  "scientific_status": "engineering throughput only; not a scientific result"
+}

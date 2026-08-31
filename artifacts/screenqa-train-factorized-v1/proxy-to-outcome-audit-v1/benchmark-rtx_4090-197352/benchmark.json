@@ -1,0 +1,16 @@
+{
+  "schema": "screenqa_proxy_nll_hardware_benchmark_v1",
+  "gpu_type": "rtx_4090",
+  "accelerator_name": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 1,
+  "decisions": 64,
+  "records": 320,
+  "elapsed_seconds": 100,
+  "decisions_per_second": 0.64,
+  "records_per_second": 3.2,
+  "projected_four_gpu_full_wall_seconds": 5668.359375,
+  "projected_four_gpu_gpu_minutes": 377.890625,
+  "output_sha256": "4c9a5e93c45410792bab3bc3f06d3dea94bc2918f602bc33bce31295f9bdff15",
+  "code_revision": "e4de14c00bcc162edd9701b7e9c1fddbfd09a2a1",
+  "scientific_status": "engineering throughput only; not a scientific result"
+}

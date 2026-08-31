@@ -211,9 +211,9 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
     benchmark_4090_submit = (
         root / "scripts/submit_screenqa_proxy_nll_benchmark_4090.sh"
     ).read_text()
-    full = (root / "scripts/slurm_screenqa_proxy_nll_full_h800.sh").read_text()
+    full = (root / "scripts/slurm_screenqa_proxy_nll_full_4090.sh").read_text()
     full_submit = (
-        root / "scripts/submit_screenqa_proxy_nll_full_h800.sh"
+        root / "scripts/submit_screenqa_proxy_nll_full_4090.sh"
     ).read_text()
     assert "#SBATCH --partition=q-hgpu-small" in benchmark
     assert "#SBATCH --gres=gpu:h800:1" in benchmark
@@ -228,9 +228,9 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
     assert "--partition=debug" in benchmark_4090_submit
     assert "--mail-type=ALL" in benchmark_4090_submit
 
-    assert "#SBATCH --partition=q-h800" in full
-    assert "#SBATCH --gres=gpu:h800:4" in full
-    assert "#SBATCH --time=12:00:00" in full
+    assert "#SBATCH --partition=debug" in full
+    assert "#SBATCH --gres=gpu:rtx_4090:4" in full
+    assert "#SBATCH --time=04:00:00" in full
     assert "#SBATCH --mail-type=ALL" in full
     assert "--shard-count 4" in full
     assert "--expected-decisions 14511" in full
@@ -238,6 +238,8 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
     assert "--bootstrap-resamples 2000" in full
     assert "--implementation-contract" in full
     assert "frozen_implementation_sha256=" in full
+    assert "frozen_hardware_activation_sha256=" in full
+    assert "measurement_config.accelerator_name" in full
     assert "protected role opened" in full
     assert '--mail-user="${notify_email}"' in full_submit
     assert "--mail-type=ALL" in full_submit

@@ -1,0 +1,96 @@
+{
+  "benchmarks": {
+    "h800": {
+      "accelerator_name": "NVIDIA H800",
+      "elapsed_seconds": 85,
+      "measurement_config": {
+        "accelerator_name": "NVIDIA H800",
+        "actual_attention_implementation": "sdpa",
+        "attention_implementation": "sdpa",
+        "compute_capability": [
+          9,
+          0
+        ],
+        "cuda_runtime_version": "12.1",
+        "device_map": "cuda:0",
+        "device_type": "cuda",
+        "local_files_only": true,
+        "max_pixels": 602112,
+        "min_pixels": 200704,
+        "parameter_dtype": "torch.bfloat16",
+        "requested_dtype": "bfloat16",
+        "system_prompt": "You are a helpful assistant.",
+        "torch_version": "2.4.0+cu121",
+        "transformers_version": "5.4.0"
+      },
+      "projected_four_gpu_full_wall_seconds": 4818.10546875,
+      "projected_four_gpu_gpu_minutes": 321.20703125,
+      "scores_sha256": "362df54951811ffd24dbc9c25ff16f38fb4da38c0de92078220db7c8872102d7"
+    },
+    "rtx_4090": {
+      "accelerator_name": "NVIDIA GeForce RTX 4090",
+      "elapsed_seconds": 100,
+      "measurement_config": {
+        "accelerator_name": "NVIDIA GeForce RTX 4090",
+        "actual_attention_implementation": "sdpa",
+        "attention_implementation": "sdpa",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "cuda_runtime_version": "12.1",
+        "device_map": "cuda:0",
+        "device_type": "cuda",
+        "local_files_only": true,
+        "max_pixels": 602112,
+        "min_pixels": 200704,
+        "parameter_dtype": "torch.bfloat16",
+        "requested_dtype": "bfloat16",
+        "system_prompt": "You are a helpful assistant.",
+        "torch_version": "2.4.0+cu121",
+        "transformers_version": "5.4.0"
+      },
+      "projected_four_gpu_full_wall_seconds": 5668.359375,
+      "projected_four_gpu_gpu_minutes": 377.890625,
+      "scores_sha256": "4c9a5e93c45410792bab3bc3f06d3dea94bc2918f602bc33bce31295f9bdff15"
+    }
+  },
+  "hardware_decision": {
+    "gates": {
+      "h800_all_stability_gates": false,
+      "h800_sign_agreement_at_least_0_95": false,
+      "h800_spearman_at_least_0_99": false,
+      "h800_top_one_agreement_at_least_0_95": false,
+      "rtx_4090_projected_gpu_minutes_fit_live_quota": true,
+      "rtx_4090_projected_wall_at_most_four_hours": true
+    },
+    "reason": "4090 projection fits four hours and live quota; matches rollout hardware",
+    "remaining_gpu_minutes_at_decision": 3296.0,
+    "selected": "rtx_4090"
+  },
+  "inputs": {
+    "analysis_code_revision": "e4de14c00bcc162edd9701b7e9c1fddbfd09a2a1",
+    "analysis_module_sha256": "ec89d9c0bdf91ebaa902e0152f5b10e09f4fa60fafed41fc936bdd886ea9f8c0",
+    "h800_scores": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/benchmark-h800-197351/answer-nll.jsonl",
+    "protocol": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ops/proxy-nll-hardware-consistency-protocol-v1.md",
+    "protocol_sha256": "6402862c1b60bc0a62f58b2389ac05422e20ab84ee74ef627535b4aebb177a0e",
+    "rtx_4090_scores": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/benchmark-rtx_4090-197352/answer-nll.jsonl"
+  },
+  "loss_gap_consistency": {
+    "absolute_difference": {
+      "maximum": 0.39057445526123047,
+      "median": 0.006744901649653884,
+      "p95": 0.10904854536056519
+    },
+    "pearson": 0.9907346323922269,
+    "sign_agreement": 0.8984375,
+    "spearman": 0.9267530661715111,
+    "top_one_crop_agreement": 0.734375
+  },
+  "population": {
+    "decisions": 64,
+    "zoom_actions": 256
+  },
+  "schema": "proxy_nll_hardware_consistency_audit_v1",
+  "scientific_status": "engineering numerical-stability audit; not a task result"
+}
