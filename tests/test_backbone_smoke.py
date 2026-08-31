@@ -187,3 +187,22 @@ def test_backbone_smoke_rejects_raw_target_and_wrong_gpu(tmp_path: Path) -> None
     _write_json(nll_provenance, payload)
     with pytest.raises(ValueError, match="accelerator"):
         _verify(paths, output=tmp_path / "wrong-gpu.json")
+
+
+def test_backbone_smoke_workers_are_contract_locked() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (root / "scripts/slurm_screenqa_backbone_7b_smoke.sh").read_text()
+    submit = (root / "scripts/submit_screenqa_backbone_7b_smoke.sh").read_text()
+    assert "cc594898137f460bfe9f0759e9844b3ce807cfb5" in worker
+    assert "4af43ac80a1666c174774d1c33383ad" in worker
+    assert "1cd70d11168e12a2855ec01e8a869d" in worker
+    assert "a26b8bc6e8a7c81df3cad59f05ac3c" in worker
+    assert "--limit 32" in worker
+    assert "--expected-gpu-name" in worker
+    assert "task endpoint may select hardware" in worker
+    assert "q-hgpu-small" in submit
+    assert "gpu:h100:1" in submit
+    assert "gpu:h800:1" in submit
+    assert "gpu:rtx_4090:1" in submit
+    assert "show-cpu-gpu-quota" in submit
+    assert "--mail-type=ALL" in submit
