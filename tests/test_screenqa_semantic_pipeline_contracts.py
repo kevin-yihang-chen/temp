@@ -62,6 +62,24 @@ def test_screenqa_semantic_fit_is_cpu_only_and_freezes_or_stops_once():
     assert "tracked worktree must be clean" in submitter
     assert "--mail-type=ALL" in submitter
     assert "gpu_count=0" in submitter
+
+
+def test_screenqa_semantic_fit_deferred_chain_is_hash_bound_and_notified():
+    root = Path(__file__).resolve().parents[1]
+    worker = (
+        root / "scripts/slurm_deferred_screenqa_semantic_fit_submit.sh"
+    ).read_text()
+    submitter = (
+        root / "scripts/submit_screenqa_semantic_fit_deferred.sh"
+    ).read_text()
+    assert "#SBATCH --gres" not in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert "BE_SCREENQA_SEMANTIC_DEFERRED_SHA256" in worker
+    assert "BE_SCREENQA_SEMANTIC_FIT_SUBMITTER_SHA256" in worker
+    assert "--dependency=\"afterok:${feature_job_id}\"" in submitter
+    assert "--kill-on-invalid-dep=yes" in submitter
+    assert "--mail-type=ALL" in submitter
+    assert "gpu_count=0" in submitter
     assert (root / "scripts/merge_semantic_feature_shards.py").read_bytes() == (
         root
         / "artifacts/docvqa-train-factorized-v2/ops/merge_semantic_feature_shards.py"
