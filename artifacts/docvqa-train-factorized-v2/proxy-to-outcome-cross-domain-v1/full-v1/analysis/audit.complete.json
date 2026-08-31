@@ -1,0 +1,12 @@
+{
+  "analysis_code_revision": "05a4d4907039029f8372dcff80239c9cf9e14dfd",
+  "implementation_contract_sha256": "43d884c2749539d9d25b05038e7d4897783c1ae38041a00ff70440b42d4e5a73",
+  "markdown": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/proxy-to-outcome-cross-domain-v1/full-v1/analysis/report.md",
+  "markdown_sha256": "0e653397478660e55dae9bba2ee29f039da31de3cda873dd41894bbecabb09e8",
+  "protocol_sha256": "106879da7d15db351a4145e5a06c43fc3f33803182d1ca4e6f08362b076f8cbe",
+  "report": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/proxy-to-outcome-cross-domain-v1/full-v1/analysis/report.json",
+  "report_sha256": "38c2147d9a9dc22597f038bd091874b9d2d44be829029885ac3a6f4f6dbd1954",
+  "schema": "visual_action_proxy_outcome_audit_completion_v1",
+  "scores_sha256": "f23e32bfbfa264f0362dd43881443c9c6ed507400d1fe7c2577688db5767e938",
+  "study_label": "DocVQA ranker development"
+}

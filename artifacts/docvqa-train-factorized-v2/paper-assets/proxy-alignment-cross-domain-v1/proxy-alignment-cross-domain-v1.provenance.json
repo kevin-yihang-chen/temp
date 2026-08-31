@@ -1,0 +1,48 @@
+{
+  "implementation": {
+    "cli": "/userhome/cs3/yihangc/Documents/beyond-entropy/scripts/render_proxy_alignment_figure.py",
+    "cli_sha256": "781e6d38fac011d68326253461e34ff42d48a646e8d0e0adc6ba6c019b35f891",
+    "code_revision": "7934df176d09da42983a9cb24762da7d19ff7349",
+    "matplotlib_version": "3.9.2",
+    "module": "/userhome/cs3/yihangc/Documents/beyond-entropy/src/beyond_entropy/proxy_alignment_figure.py",
+    "module_sha256": "d081431005abb7b28c8e2caaf18a00a4a2c3defaba931a4a11f9353145b4186f",
+    "numpy_version": "1.26.4"
+  },
+  "outputs": {
+    "csv": {
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/paper-assets/proxy-alignment-cross-domain-v1/proxy-alignment-cross-domain-v1.csv",
+      "sha256": "5e2fa71a838279441b193395dfe651f8b3ac10a2ebb411aa8669e131abf294a3"
+    },
+    "pdf": {
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/paper-assets/proxy-alignment-cross-domain-v1/proxy-alignment-cross-domain-v1.pdf",
+      "sha256": "3f07404ae5bc4f510e2760cc7772792e247903fea28cbf30c8c31f5616c167b7"
+    },
+    "png": {
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/paper-assets/proxy-alignment-cross-domain-v1/proxy-alignment-cross-domain-v1.png",
+      "sha256": "1e5d7427256bd81cba5d4ed6d927762d3af3cdcc154dfd57fc4487cdf9514e59"
+    }
+  },
+  "reports": [
+    {
+      "decisions": 14511,
+      "label": "ScreenQA",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/analysis/report.json",
+      "sha256": "438a5e64072826480aa41a5ccf78224bb4b8191a04976bf26760f4278181276a",
+      "sources": 1510
+    },
+    {
+      "decisions": 13580,
+      "label": "DocVQA",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/proxy-to-outcome-cross-domain-v1/full-v1/analysis/report.json",
+      "sha256": "38c2147d9a9dc22597f038bd091874b9d2d44be829029885ac3a6f4f6dbd1954",
+      "sources": 3500
+    }
+  ],
+  "schema": "proxy_alignment_paper_figure_v1",
+  "scientific_status": "descriptive opened-development mechanism evidence; not independent validation or candidate selection",
+  "selection": {
+    "call_rate_selected": false,
+    "protected_outcome_used": false,
+    "threshold_selected": false
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "code_revision": "9b2116f793e0e68d16b31ee4a5b96db6fff0105c",
+  "decision": "replicated_alignment",
+  "decision_json": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/proxy-to-outcome-cross-domain-v1/full-v1/decision/decision.json",
+  "decision_json_sha256": "f7f95a79e8d1aa386f4f10a909968a844bf94e5bb01ae6a2cf805fc8c2d10ca2",
+  "decision_markdown": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/proxy-to-outcome-cross-domain-v1/full-v1/decision/decision.md",
+  "decision_markdown_sha256": "5466be218c28e39a42b41c586961d03a68aa87738a7ada80cac8c810424afb4d",
+  "protocol_sha256": "106879da7d15db351a4145e5a06c43fc3f33803182d1ca4e6f08362b076f8cbe",
+  "report_sha256": "38c2147d9a9dc22597f038bd091874b9d2d44be829029885ac3a6f4f6dbd1954",
+  "schema": "visual_action_proxy_replication_completion_v1"
+}

@@ -1,0 +1,67 @@
+{
+  "conditions": {
+    "answer_loss_spearman_ci_low_above_zero": {
+      "passed": true,
+      "summary": "ci_low=0.22994635"
+    },
+    "answer_loss_top_one_gain_ci_low_above_zero": {
+      "passed": true,
+      "summary": "ci_low=0.01643523"
+    },
+    "answer_loss_top_one_gain_exceeds_entropy_and_random": {
+      "passed": true,
+      "summary": "answer=0.01910627, entropy=0.00647653, random=-0.00532801"
+    },
+    "answer_loss_top_one_harm_below_entropy_and_random": {
+      "passed": true,
+      "summary": "answer=0.01119293, entropy=0.02135493, random=0.02825847"
+    },
+    "positive_sparse_utility_lower_endpoint": {
+      "evidence": [
+        {
+          "ci_low": 0.0020690798259311483,
+          "point": 0.0029031717451918006,
+          "target_call_rate": 0.005
+        },
+        {
+          "ci_low": 0.003795402438049666,
+          "point": 0.004842973894570727,
+          "target_call_rate": 0.01
+        },
+        {
+          "ci_low": 0.005733355853159723,
+          "point": 0.007080426827534561,
+          "target_call_rate": 0.02
+        },
+        {
+          "ci_low": 0.009322474317176617,
+          "point": 0.011139890742434135,
+          "target_call_rate": 0.05
+        },
+        {
+          "ci_low": 0.010240758961001694,
+          "point": 0.012256062422301841,
+          "target_call_rate": 0.1
+        }
+      ],
+      "passed": true,
+      "summary": "qualifying_rates=[0.005, 0.01, 0.02, 0.05, 0.1]"
+    }
+  },
+  "decision": "replicated_alignment",
+  "inputs": {
+    "code_revision": "9b2116f793e0e68d16b31ee4a5b96db6fff0105c",
+    "decision_module_sha256": "3f1fa418f53ee6fecc3e0889bedff164c09bdb0e716dc17cf38a0f0df1f79727",
+    "protocol": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/ops/proxy-to-outcome-cross-domain-protocol-v1.md",
+    "protocol_sha256": "106879da7d15db351a4145e5a06c43fc3f33803182d1ca4e6f08362b076f8cbe",
+    "report": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/proxy-to-outcome-cross-domain-v1/full-v1/analysis/report.json",
+    "report_sha256": "38c2147d9a9dc22597f038bd091874b9d2d44be829029885ac3a6f4f6dbd1954"
+  },
+  "interpretation": "The frozen cross-domain replication gate passed. This authorizes writing a separate DocVQA-development to ScreenQA-untouched surrogate protocol; it does not validate or select that future method.",
+  "schema": "visual_action_proxy_replication_decision_v1",
+  "selection": {
+    "call_rate_selected": false,
+    "protected_outcome_used": false,
+    "score_threshold_selected": false
+  }
+}
