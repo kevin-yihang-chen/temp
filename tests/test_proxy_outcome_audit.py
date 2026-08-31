@@ -277,6 +277,25 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
     assert "BE_PROXY_FULL_RESUME" in full_submit
 
 
+def test_docvqa_proxy_smoke_contracts() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (root / "scripts/slurm_docvqa_proxy_nll_smoke.sh").read_text()
+    submitter = (root / "scripts/submit_docvqa_proxy_nll_smoke.sh").read_text()
+    assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --gres=gpu:rtx_4090:1" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert "ranker-training/manifest.jsonl" in worker
+    assert "ranker-training/qwen3b-c4-seed0/rollouts.jsonl" in worker
+    assert "--shard-count 13580" in worker
+    assert "--checkpoint-interval 1" in worker
+    assert "raw_targets_written" in worker
+    assert "measurement_config.accelerator_name" in worker
+    assert "BE_DOCVQA_PROXY_PROTOCOL_SHA256" in worker
+    assert "BE_DOCVQA_PROXY_IMPLEMENTATION_SHA256" in worker
+    assert '--mail-user="${notify_email}"' in submitter
+    assert "--mail-type=ALL" in submitter
+
+
 def _hardware_score_run(tmp_path: Path, gpu_type: str) -> tuple[Path, Path]:
     score_path = tmp_path / f"{gpu_type}.jsonl"
     config_sha256 = ("d" if gpu_type == "h800" else "e") * 64
