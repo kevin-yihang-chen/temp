@@ -415,16 +415,21 @@ def evaluate_decoupled_loss_proposal_gate(
     decoupled_match = match_call_count_threshold(
         decoupled_scores, target_calls=DECOUPLED_TARGET_CALLS
     )
+    incumbent_matched_call_keys = {
+        key
+        for key, score in incumbent_scores.items()
+        if score >= float(incumbent_match["threshold"])
+    }
+    incumbent_frozen_call_keys = {
+        key
+        for key, score in incumbent_scores.items()
+        if score >= INCUMBENT_THRESHOLD
+    }
     if (
         incumbent_match["calls"] != DECOUPLED_TARGET_CALLS
-        or not math.isclose(
-            float(incumbent_match["threshold"]),
-            INCUMBENT_THRESHOLD,
-            rel_tol=0.0,
-            abs_tol=1e-15,
-        )
+        or incumbent_matched_call_keys != incumbent_frozen_call_keys
     ):
-        raise ValueError("incumbent matched-call threshold no longer reproduces")
+        raise ValueError("incumbent matched-call set no longer reproduces")
     evaluated = _evaluate(
         baselines=baselines,
         zooms=zooms,

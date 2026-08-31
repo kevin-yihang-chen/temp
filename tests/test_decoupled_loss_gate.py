@@ -63,6 +63,20 @@ def test_match_call_count_threshold_preserves_ties_and_prefers_fewer_calls():
     assert result["selection_uses_outcomes"] is False
 
 
+def test_order_statistic_and_midpoint_thresholds_can_encode_the_same_call_set():
+    scores = {
+        ("a", "r"): 0.9,
+        ("b", "r"): 0.7,
+        ("c", "r"): 0.2,
+    }
+    matched = match_call_count_threshold(scores, target_calls=2)
+    midpoint_threshold = 0.45
+    assert matched["threshold"] == 0.7
+    assert {
+        key for key, value in scores.items() if value >= matched["threshold"]
+    } == {key for key, value in scores.items() if value >= midpoint_threshold}
+
+
 def test_prediction_index_rejects_oracle_or_outcome_fields():
     key = ("state", "replicate-000")
     clean = [
