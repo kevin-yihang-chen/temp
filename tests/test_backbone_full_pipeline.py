@@ -11,6 +11,7 @@ def test_qwen7b_full_worker_is_frozen_to_four_h800s() -> None:
     subprocess.run(["bash", "-n", str(worker_path)], check=True)
 
     assert "#SBATCH --gres=gpu:h800:4" in worker
+    assert "#SBATCH --partition=q-h800" in worker
     assert "#SBATCH --mail-type=ALL" in worker
     assert "cc594898137f460bfe9f0759e9844b3ce807cfb5" in worker
     assert "--shard-count 4" in worker
@@ -33,6 +34,7 @@ def test_qwen7b_full_submitter_binds_quota_cache_and_mail() -> None:
     assert "/usr/local/slurm/bin/sinfo" in submit
     assert "/usr/local/slurm/bin/squeue" in submit
     assert "gpu:h800:4" in submit
+    assert "--partition=q-h800" in submit
     assert "gpu_remaining" in submit
     assert "-lt 240" in submit
     assert "local_files_only=True" in submit

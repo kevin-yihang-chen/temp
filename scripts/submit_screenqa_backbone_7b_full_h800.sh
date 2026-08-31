@@ -39,7 +39,7 @@ model_revision=cc594898137f460bfe9f0759e9844b3ce807cfb5
 protocol_sha256=1cd70d11168e12a2855ec01e8a869d89b82c4e87c3d864c566ed7db02bb61474
 population_activation_sha256=a26b8bc6e8a7c81df3cad59f05ac3c9b35b6c340e71f5596175556cd0af6ee6e
 analysis_implementation_sha256=3da107bef0fa8614e6cb088f4e54745cba9d8dcb872b5764c705c12bdf773eb1
-hardware_activation_sha256=fa456ae16cba431836900282eec952125eff9982849bede5378c86731f0202b1
+hardware_activation_sha256=4bf3d87ad4af3166d1f163fea0878077f213ca2a23977526b70d4979dded8948
 smoke_completion_sha256=e944437165523b4dab5261822abbeb002872f068d0ecd70b7af023688ae64e11
 collector_sha256=6512131e7a9bbe55b65f9229a044df43e0fa9c4564e4c20fca060a2a17059346
 backend_sha256=5ee063fb3d8abe3461186e7185960afd002848f1f31aad7b1fdbc1fc53840acb
@@ -158,7 +158,7 @@ export_args="PATH=/usr/local/bin:/usr/bin:/bin,HOME=/userhome/cs3/yihangc,LANG=C
 
 submission=$(
   /usr/local/slurm/bin/sbatch \
-    --partition=q-hgpu-small \
+    --partition=q-h800 \
     --gres=gpu:h800:4 \
     --cpus-per-task=32 \
     --mem=384G \

@@ -28,7 +28,7 @@ No task endpoint from the smoke was reported or used for this decision.
 
 ## Activated hardware
 
-Use exactly four NVIDIA H800 GPUs in `q-hgpu-small`, on one node, with 32 CPUs,
+Use exactly four NVIDIA H800 GPUs in `q-h800`, on one node, with 32 CPUs,
 384 GiB host memory, and a one-hour limit. This follows the preregistered
 preference for an advanced accelerator because:
 
@@ -38,6 +38,20 @@ preference for an advanced accelerator because:
    one-hour request;
 4. the full reserve fits the live quota by more than tenfold;
 5. four same-class H100 GPUs were unavailable at activation.
+
+## Pre-execution QOS correction
+
+Immediately before the first full submission on 2026-09-01, the live
+association still allowed four generic GPUs and four H800 GPUs, but
+`q-hgpu-small` rejected the request before enqueue with
+`QOSMaxGRESPerUser`. No job was created and no endpoint was computed. The
+dedicated `q-h800` partition exposes the same H800 node class under its
+non-debug QOS. A Slurm `--test-only` request for the unchanged four-H800,
+32-CPU, 384-GiB, one-hour allocation passed on `gpucluster-g3`; its synthetic
+ID `199140` was confirmed absent from the queue. The partition was therefore
+corrected to `q-h800` before execution. Model, population, prompt, actions,
+measurement, sharding, analysis, quota reserve, and every outcome boundary
+remain unchanged.
 
 Every rollout and likelihood process must see exactly one physical H800. Mixed
 hardware, model shrinking, quantization, offload, and population reduction are
