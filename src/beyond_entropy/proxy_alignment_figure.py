@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import importlib.metadata
 import json
 import math
 from dataclasses import dataclass
@@ -344,7 +345,11 @@ def write_provenance(
     output_pdf: Path,
     output_png: Path,
     metric_csv: Path,
+    code_revision: str,
+    renderer_cli: Path,
 ) -> None:
+    if not code_revision.strip():
+        raise ValueError("code revision must be non-empty")
     payload = {
         "schema": "proxy_alignment_paper_figure_v1",
         "scientific_status": (
@@ -365,6 +370,15 @@ def write_provenance(
             "pdf": {"path": str(output_pdf.resolve()), "sha256": sha256_file(output_pdf)},
             "png": {"path": str(output_png.resolve()), "sha256": sha256_file(output_png)},
             "csv": {"path": str(metric_csv.resolve()), "sha256": sha256_file(metric_csv)},
+        },
+        "implementation": {
+            "code_revision": code_revision,
+            "module": str(Path(__file__).resolve()),
+            "module_sha256": sha256_file(Path(__file__).resolve()),
+            "cli": str(renderer_cli.resolve()),
+            "cli_sha256": sha256_file(renderer_cli.resolve()),
+            "matplotlib_version": importlib.metadata.version("matplotlib"),
+            "numpy_version": importlib.metadata.version("numpy"),
         },
         "selection": {
             "threshold_selected": False,

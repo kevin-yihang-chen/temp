@@ -36,6 +36,7 @@ def main() -> None:
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--basename", default="proxy-alignment-v1")
+    parser.add_argument("--code-revision", required=True)
     args = parser.parse_args()
 
     reports = _mapping(args.report, argument="--report")
@@ -70,6 +71,8 @@ def main() -> None:
         output_pdf=output_pdf,
         output_png=output_png,
         metric_csv=metric_csv,
+        code_revision=args.code_revision,
+        renderer_cli=Path(__file__),
     )
     print(
         f"proxy_alignment_figure={output_pdf} reports={len(data)} "

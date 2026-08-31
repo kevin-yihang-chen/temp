@@ -79,6 +79,8 @@ def test_load_and_render_hash_bound_proxy_figure(tmp_path: Path) -> None:
     png = tmp_path / "figure.png"
     csv = tmp_path / "figure.csv"
     provenance = tmp_path / "figure.provenance.json"
+    renderer_cli = tmp_path / "renderer.py"
+    renderer_cli.write_text("# fixture renderer\n", encoding="utf-8")
     write_metric_csv(csv, metric_rows([audit]))
     render_proxy_alignment_figure([audit], output_pdf=pdf, output_png=png)
     write_provenance(
@@ -87,12 +89,16 @@ def test_load_and_render_hash_bound_proxy_figure(tmp_path: Path) -> None:
         output_pdf=pdf,
         output_png=png,
         metric_csv=csv,
+        code_revision="fixture-code-revision",
+        renderer_cli=renderer_cli,
     )
     assert pdf.stat().st_size > 1_000
     assert png.stat().st_size > 1_000
     output = json.loads(provenance.read_text(encoding="utf-8"))
     assert output["selection"]["protected_outcome_used"] is False
     assert output["outputs"]["pdf"]["sha256"] == sha256_file(pdf)
+    assert output["implementation"]["code_revision"] == "fixture-code-revision"
+    assert output["implementation"]["cli_sha256"] == sha256_file(renderer_cli)
 
 
 def test_proxy_figure_rejects_hash_and_outcome_leakage(tmp_path: Path) -> None:
