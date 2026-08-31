@@ -42,6 +42,26 @@ def test_promoted_semantic_sharding_tools_match_frozen_protocol_bytes():
         root
         / "artifacts/docvqa-train-factorized-v2/ops/prepare_semantic_feature_batch_shards.py"
     ).read_bytes()
+
+
+def test_screenqa_semantic_fit_is_cpu_only_and_freezes_or_stops_once():
+    root = Path(__file__).resolve().parents[1]
+    worker = (root / "scripts/slurm_screenqa_semantic_fit.sh").read_text()
+    submitter = (root / "scripts/submit_screenqa_semantic_fit.sh").read_text()
+    assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --gres" not in worker
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert "--feature-mode hybrid-context-semantic" in worker
+    assert "--model-family factorized-oof" in worker
+    assert "--bootstrap-resamples 2000" in worker
+    assert "freeze_screenqa_semantic_candidate.py" in worker
+    assert "further_ranker_search_allowed" in (
+        root / "scripts/freeze_screenqa_semantic_candidate.py"
+    ).read_text()
+    assert "tracked worktree must be clean" in submitter
+    assert "--mail-type=ALL" in submitter
+    assert "gpu_count=0" in submitter
     assert (root / "scripts/merge_semantic_feature_shards.py").read_bytes() == (
         root
         / "artifacts/docvqa-train-factorized-v2/ops/merge_semantic_feature_shards.py"
