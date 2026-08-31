@@ -202,41 +202,12 @@ class Qwen25VLAnswerLikelihood:
 
     def measurement_config(self) -> dict[str, Any]:
         """Return the numerical/runtime contract that must follow every score."""
+        return self.backend.measurement_config()
 
-        try:
-            import torch  # type: ignore[import-not-found]
-            import transformers  # type: ignore[import-not-found]
-        except ImportError as exc:  # pragma: no cover - scorer already requires both
-            raise RuntimeError("Qwen measurement metadata requires torch and transformers") from exc
-        parameter = next(self.backend.model.parameters())
-        device = parameter.device
-        accelerator_name: str | None = None
-        compute_capability: list[int] | None = None
-        if device.type == "cuda":
-            accelerator_name = str(torch.cuda.get_device_name(device))
-            capability = torch.cuda.get_device_capability(device)
-            compute_capability = [int(capability[0]), int(capability[1])]
-        return {
-            "device_map": self.backend.device_map,
-            "device_type": device.type,
-            "accelerator_name": accelerator_name,
-            "compute_capability": compute_capability,
-            "requested_dtype": self.backend.dtype,
-            "parameter_dtype": str(parameter.dtype),
-            "attention_implementation": self.backend.attention_implementation,
-            "actual_attention_implementation": str(
-                getattr(self.backend.model.config, "_attn_implementation", "unknown")
-            ),
-            "min_pixels": self.backend.min_pixels,
-            "max_pixels": self.backend.max_pixels,
-            "system_prompt": self.backend.system_prompt,
-            "torch_version": str(torch.__version__),
-            "cuda_runtime_version": (
-                None if torch.version.cuda is None else str(torch.version.cuda)
-            ),
-            "transformers_version": str(transformers.__version__),
-            "local_files_only": self.local_files_only,
-        }
+    def runtime_measurement(self) -> dict[str, Any]:
+        """Return process-local peak memory without changing the score config hash."""
+
+        return self.backend.runtime_measurement()
 
     def score(self, request: AnswerLikelihoodRequest) -> AnswerLikelihoodScore:
         try:

@@ -3,9 +3,36 @@ from __future__ import annotations
 import math
 import hashlib
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from .rollout import AgentState, ModelOutput, VisualObservation
+
+
+_PEAK_MEMORY_FIELDS = ("peak_allocated_bytes", "peak_reserved_bytes")
+
+
+def merge_runtime_measurements(
+    previous: Mapping[str, Any] | None,
+    current: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Preserve immutable runtime metadata and the largest observed CUDA peaks."""
+
+    merged = dict(current)
+    if previous is None:
+        return merged
+    previous_keys = set(previous) - set(_PEAK_MEMORY_FIELDS)
+    current_keys = set(current) - set(_PEAK_MEMORY_FIELDS)
+    if previous_keys != current_keys or any(
+        previous[key] != current[key] for key in previous_keys
+    ):
+        raise ValueError("Qwen runtime measurement configuration changed on resume")
+    for field in _PEAK_MEMORY_FIELDS:
+        old_value = int(previous.get(field, 0))
+        new_value = int(current.get(field, 0))
+        if old_value < 0 or new_value < 0:
+            raise ValueError("Qwen runtime peak memory must be non-negative")
+        merged[field] = max(old_value, new_value)
+    return merged
 
 
 class Qwen25VLBackend:
@@ -70,6 +97,62 @@ class Qwen25VLBackend:
         self.min_pixels = min_pixels
         self.max_pixels = max_pixels
         self.system_prompt = system_prompt
+        self.local_files_only = local_files_only
+
+    def measurement_config(self) -> dict[str, Any]:
+        """Return the frozen numerical and accelerator configuration."""
+
+        import torch  # type: ignore[import-not-found]
+        import transformers  # type: ignore[import-not-found]
+
+        parameter = next(self.model.parameters())
+        device = parameter.device
+        accelerator_name: str | None = None
+        compute_capability: list[int] | None = None
+        if device.type == "cuda":
+            accelerator_name = str(torch.cuda.get_device_name(device))
+            capability = torch.cuda.get_device_capability(device)
+            compute_capability = [int(capability[0]), int(capability[1])]
+        return {
+            "device_map": self.device_map,
+            "device_type": device.type,
+            "accelerator_name": accelerator_name,
+            "compute_capability": compute_capability,
+            "requested_dtype": self.dtype,
+            "parameter_dtype": str(parameter.dtype),
+            "attention_implementation": self.attention_implementation,
+            "actual_attention_implementation": str(
+                getattr(self.model.config, "_attn_implementation", "unknown")
+            ),
+            "min_pixels": self.min_pixels,
+            "max_pixels": self.max_pixels,
+            "system_prompt": self.system_prompt,
+            "torch_version": str(torch.__version__),
+            "cuda_runtime_version": (
+                None if torch.version.cuda is None else str(torch.version.cuda)
+            ),
+            "transformers_version": str(transformers.__version__),
+            "local_files_only": self.local_files_only,
+        }
+
+    def runtime_measurement(self) -> dict[str, Any]:
+        """Return the numerical contract plus process-local CUDA peak memory."""
+
+        import torch  # type: ignore[import-not-found]
+
+        result = self.measurement_config()
+        device = next(self.model.parameters()).device
+        if device.type == "cuda":
+            result["peak_allocated_bytes"] = int(
+                torch.cuda.max_memory_allocated(device)
+            )
+            result["peak_reserved_bytes"] = int(
+                torch.cuda.max_memory_reserved(device)
+            )
+        else:
+            result["peak_allocated_bytes"] = 0
+            result["peak_reserved_bytes"] = 0
+        return result
 
     @staticmethod
     def _crop_pixels(image: Any, observation: VisualObservation) -> Any:

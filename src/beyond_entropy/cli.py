@@ -326,7 +326,7 @@ def command_fit_baseline(args: argparse.Namespace) -> None:
 def command_collect_qwen(args: argparse.Namespace) -> None:
     from .benchmarks import load_manifest, scorer_by_name
     from .crops import ChartLayoutProposer, UGGridProposer
-    from .qwen_backend import Qwen25VLBackend
+    from .qwen_backend import Qwen25VLBackend, merge_runtime_measurements
     from .rollout import CachedVisualBackend, collect_sibling_rollouts
     from .sharding import SHARD_ALGORITHM, stable_shard_index
 
@@ -373,6 +373,17 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         )
     scorer = scorer_by_name(args.scorer)
     records: list[ActionRecord] = []
+    provenance_path = args.output.with_suffix(".provenance.json")
+    previous_runtime_measurement: dict[str, Any] | None = None
+    if provenance_path.is_file():
+        existing_provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+        if not isinstance(existing_provenance, dict):
+            raise ValueError("Qwen rollout provenance must be a JSON object")
+        existing_runtime = existing_provenance.get("runtime_measurement")
+        if existing_runtime is not None:
+            if not isinstance(existing_runtime, dict):
+                raise ValueError("Qwen rollout runtime measurement is malformed")
+            previous_runtime_measurement = existing_runtime
     if args.output.exists():
         if not args.resume:
             raise FileExistsError(
@@ -450,21 +461,21 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     pending = [
         example for example in examples if example.state.state_id not in checkpoint_counts
     ]
+    runtime_measurement = previous_runtime_measurement
     if pending:
-        backend = CachedVisualBackend(
-            Qwen25VLBackend(
-                args.model,
-                revision=args.model_revision,
-                device_map=args.device_map,
-                dtype=args.dtype,
-                attention_implementation=args.attention_implementation,
-                max_new_tokens=args.max_new_tokens,
-                min_pixels=args.min_pixels,
-                max_pixels=args.max_pixels,
-                local_files_only=not args.allow_download,
-                system_prompt=args.system_prompt,
-            )
+        raw_backend = Qwen25VLBackend(
+            args.model,
+            revision=args.model_revision,
+            device_map=args.device_map,
+            dtype=args.dtype,
+            attention_implementation=args.attention_implementation,
+            max_new_tokens=args.max_new_tokens,
+            min_pixels=args.min_pixels,
+            max_pixels=args.max_pixels,
+            local_files_only=not args.allow_download,
+            system_prompt=args.system_prompt,
         )
+        backend = CachedVisualBackend(raw_backend)
         for position, example in enumerate(pending, start=1):
             records.extend(
                 collect_sibling_rollouts(
@@ -493,6 +504,10 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
                     ),
                     flush=True,
                 )
+        runtime_measurement = merge_runtime_measurements(
+            previous_runtime_measurement,
+            raw_backend.runtime_measurement(),
+        )
     diagnostic_path = args.output.with_suffix(".diagnostic.json")
     diagnostic = {
         "point_estimate": diagnostic_to_dict(entropy_diagnostic(records)),
@@ -510,7 +525,6 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         except importlib.metadata.PackageNotFoundError:
             return None
 
-    provenance_path = args.output.with_suffix(".provenance.json")
     output_sha256 = hashlib.sha256(args.output.read_bytes()).hexdigest()
     provenance = {
         "scientific_status": args.scientific_status,
@@ -554,6 +568,8 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             "Pillow": package_version("Pillow"),
         },
     }
+    if runtime_measurement is not None:
+        provenance["runtime_measurement"] = runtime_measurement
     _write_json(provenance, provenance_path)
     print(
         json.dumps(

@@ -9,6 +9,34 @@ from beyond_entropy.answer_likelihood import (
     Qwen25VLAnswerLikelihood,
     score_rollout_answer_likelihood,
 )
+from beyond_entropy.qwen_backend import merge_runtime_measurements
+
+
+def _existing_runtime_measurement(path: Path) -> dict[str, object] | None:
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    value = payload.get("runtime_measurement")
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("answer-likelihood runtime measurement is malformed")
+    return value
+
+
+def _rewrite_provenance(path: Path, payload: dict[str, object]) -> None:
+    temporary = path.with_name(path.name + ".tmp")
+    if temporary.exists():
+        raise FileExistsError(f"answer-likelihood provenance staging exists: {temporary}")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, allow_nan=False, indent=2, sort_keys=True))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -47,6 +75,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    provenance_path = args.output.resolve().with_suffix(".provenance.json")
+    previous_runtime = _existing_runtime_measurement(provenance_path)
     scorer = Qwen25VLAnswerLikelihood(
         args.model,
         revision=args.model_revision,
@@ -76,6 +106,11 @@ def main() -> None:
         code_revision=args.code_revision,
         scientific_status=args.scientific_status,
     )
+    result["runtime_measurement"] = merge_runtime_measurements(
+        previous_runtime,
+        scorer.runtime_measurement(),
+    )
+    _rewrite_provenance(provenance_path, result)
     print(json.dumps(result, indent=2, sort_keys=True))
 
 
