@@ -130,3 +130,17 @@ def test_proxy_figure_accepts_percentile_interval_excluding_point(tmp_path: Path
         label="Fixture", report=report, expected_sha256=sha256_file(report)
     )
     assert audit.correlation["answer_loss_gap"].point == pytest.approx(0.01)
+
+
+def test_cross_domain_figure_runner_is_hash_locked() -> None:
+    root = Path(__file__).resolve().parents[1]
+    runner = (root / "scripts/run_cross_domain_proxy_alignment_figure.sh").read_text()
+    assert "438a5e64072826480aa41a5ccf78224b" in runner
+    assert "781e6d38fac011d68326253461e34ff4" in runner
+    assert "d081431005abb7b28c8e2caaf18a00a" in runner
+    assert "analysis/audit.complete.json" in runner
+    assert "decision/decision.complete.json" in runner
+    assert "--report \"ScreenQA=${screenqa_report}\"" in runner
+    assert "--report \"DocVQA=${docvqa_report}\"" in runner
+    assert "selection.protected_outcome_used" in runner
+    assert "implementation.module_sha256" in runner
