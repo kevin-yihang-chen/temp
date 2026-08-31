@@ -1,0 +1,80 @@
+{
+  "code_revision": "4680dc3bca467b04a01717d71252322f60b79522",
+  "decisions": 14511,
+  "input_shards": [
+    {
+      "config_sha256": "017fcdc3266f952367dfb57eecf9d94af72cd29e9ba88ed0f4bcc7fb74ff7567",
+      "decisions": 3628,
+      "output_sha256": "b826b3b65b7d3e3f5ec8e1ae5363ee1d611d6ac0cbd368e48f5d5bfb6c97c02e",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-0-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-0-of-4.provenance.json",
+      "provenance_sha256": "2e235588eea23ac622dafe721e961264f814e8f3c892662d8f7dc73a3d32a4d6",
+      "records": 18140,
+      "shard_index": 0
+    },
+    {
+      "config_sha256": "f452c0c0a02e6d89a070d7239202b0ad6ee6f6d9201e0dbe433a609a23548c21",
+      "decisions": 3628,
+      "output_sha256": "529a87bd39684fc85c5df78bbe02340b1f3ccc3f00c07c8bd85cf4c8a6c02164",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-1-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-1-of-4.provenance.json",
+      "provenance_sha256": "71480367192d32af6441a36774000b57177c64c8e95a35e660a39834fb217f1b",
+      "records": 18140,
+      "shard_index": 1
+    },
+    {
+      "config_sha256": "068cb65ecebbae4057469da9d874c8ac2e520e34f4a032a38244a4abf12eb738",
+      "decisions": 3628,
+      "output_sha256": "5d783c55fac93ae44e557f5915a2d18987beab678fe38a6cd31c6693b774282a",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-2-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-2-of-4.provenance.json",
+      "provenance_sha256": "eacf215054dbd743fe0864cad493f9990300d1a441d01850a05fbbdcc1065d24",
+      "records": 18140,
+      "shard_index": 2
+    },
+    {
+      "config_sha256": "5b832af92de650f28c1869dda465df8c034a3d2c1c3638c5069ae3c6a2f7644c",
+      "decisions": 3627,
+      "output_sha256": "19e2cb15e08cbd164a9ad6253b697577ca9d141eb60a134dd36308b915048585",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-3-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-3-of-4.provenance.json",
+      "provenance_sha256": "f9c44ab88a08f3e9e485b9a367bad9f2c1ae7a1be19c9ce178dd9fe6960dd940",
+      "records": 18135,
+      "shard_index": 3
+    }
+  ],
+  "manifest_sha256": "a2b6941e2a073b24571d2ccb50960f7c1cd70cb0ce53dc8339c7ec44a47f67ec",
+  "measurement_config": {
+    "accelerator_name": "NVIDIA GeForce RTX 4090",
+    "actual_attention_implementation": "sdpa",
+    "attention_implementation": "sdpa",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda_runtime_version": "12.1",
+    "device_map": "cuda:0",
+    "device_type": "cuda",
+    "local_files_only": true,
+    "max_pixels": 602112,
+    "min_pixels": 200704,
+    "parameter_dtype": "torch.bfloat16",
+    "requested_dtype": "bfloat16",
+    "system_prompt": "You are a helpful assistant.",
+    "torch_version": "2.4.0+cu121",
+    "transformers_version": "5.4.0"
+  },
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "output": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/merged/answer-nll.jsonl",
+  "output_sha256": "be0fc8c25109f9617f525fabecc370eac51e5990f4deaf7df4eaa33e36ca4e66",
+  "raw_targets_written": false,
+  "records": 72555,
+  "rollouts_sha256": "0437d2a499adccb1b4e19eb0160583789cee00edf244718ecae9e290108bb8c9",
+  "schema": "visual_action_answer_nll_merged_v1",
+  "scientific_status": "frozen retrospective proxy-to-outcome audit on opened ScreenQA ranker development bank using hardware-audited RTX 4090; not candidate selection or independent validation",
+  "score_schema": "visual_action_answer_nll_v1",
+  "shard_count": 4,
+  "sources": 1510,
+  "target_rule": "normalized_mode_then_shortest_then_first_index_v1"
+}

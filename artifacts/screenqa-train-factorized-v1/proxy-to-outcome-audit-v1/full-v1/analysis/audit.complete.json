@@ -1,0 +1,11 @@
+{
+  "analysis_code_revision": "4680dc3bca467b04a01717d71252322f60b79522",
+  "implementation_contract_sha256": "c497ec89317cbfa6cc7fa2097b8be064c21a29132f95e446b649994ac65c117e",
+  "markdown": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/analysis/report.md",
+  "markdown_sha256": "9ef7223bd601a726de364b4c08fc8eea5a791827b93eed45bd56e3ed00fe2e66",
+  "protocol_sha256": "42d952c35ac16f5584ae4fa0f6849920ba0bdc86a3b7cdfd92fb8fdc79c3f129",
+  "report": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/analysis/report.json",
+  "report_sha256": "438a5e64072826480aa41a5ccf78224bb4b8191a04976bf26760f4278181276a",
+  "schema": "visual_action_proxy_outcome_audit_completion_v1",
+  "scores_sha256": "be0fc8c25109f9617f525fabecc370eac51e5990f4deaf7df4eaa33e36ca4e66"
+}

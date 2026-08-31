@@ -1,0 +1,1508 @@
+{
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "grid": "outcomes resampled by source conditional on the full-bank descriptive ranking",
+    "method": "iid whole-source percentile bootstrap with all decisions/actions retained",
+    "n_resamples": 2000,
+    "seed": 20260831,
+    "spearman": "exact weighted midranks under integer source multiplicities"
+  },
+  "call_rate_grid": {
+    "answer_loss_gap": [
+      {
+        "achieved_call_rate": 0.005030666391013714,
+        "calls": 73,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "point": 0.0,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0014819676971363585,
+            "ci_low": 0.00048383561923146705,
+            "point": 0.000964785335262904,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.0012003448695663667,
+            "ci_low": 0.00025777467410174746,
+            "point": 0.0007132520157122183,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.045756068606983474,
+            "ci_low": 0.015442530442530446,
+            "point": 0.030042918454935622,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.2837879546212879,
+            "ci_low": 0.1044776119402985,
+            "point": 0.1917808219178082,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.8955223880597015,
+            "ci_low": 0.7162120453787121,
+            "point": 0.8082191780821918,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.005,
+        "threshold_inclusive": 1.4799461364746094,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.009992419543794363,
+        "calls": 145,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "point": 0.0,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0028236560851074956,
+            "ci_low": 0.001368339030683904,
+            "point": 0.002067397146991937,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.0022787259955406223,
+            "ci_low": 0.0008860574926584284,
+            "point": 0.0015677761698022188,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.08624533320888556,
+            "ci_low": 0.04279221940881819,
+            "point": 0.06437768240343347,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.2740740740740741,
+            "ci_low": 0.14046448373260806,
+            "point": 0.20689655172413793,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.8595355162673919,
+            "ci_low": 0.725925925925926,
+            "point": 0.7931034482758621,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.01,
+        "threshold_inclusive": 1.0265135765075684,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.019984839087588725,
+        "calls": 290,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "point": 0.0,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.005111212409316405,
+            "ci_low": 0.0030591617552763787,
+            "point": 0.00406588105575081,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.004051521841025266,
+            "ci_low": 0.0021098840066138156,
+            "point": 0.003066639101371373,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.15708385879846054,
+            "ci_low": 0.0965632619825267,
+            "point": 0.12660944206008584,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.24752634427429882,
+            "ci_low": 0.16,
+            "point": 0.20344827586206896,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.84,
+            "ci_low": 0.7524736557257012,
+            "point": 0.7965517241379311,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.02,
+        "threshold_inclusive": 0.6778717041015625,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.05003101095720488,
+        "calls": 726,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.004451203918853973,
+            "ci_low": 0.0,
+            "point": 0.0013774104683195593,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.00857388615567069,
+            "ci_low": 0.005858412510768317,
+            "point": 0.00723589001447178,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.006010480425554837,
+            "ci_low": 0.0034263073453061482,
+            "point": 0.004734339466611536,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.2641519733047705,
+            "ci_low": 0.1905665112497511,
+            "point": 0.22746781115879827,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.17011922004076815,
+            "ci_low": 0.12040488639772268,
+            "point": 0.1446280991735537,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.8784166089178596,
+            "ci_low": 0.8288536768734789,
+            "point": 0.8539944903581267,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.05,
+        "threshold_inclusive": 0.3853304386138917,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.0999931086761767,
+        "calls": 1451,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.0077256502827158105,
+            "ci_low": 0.0013503479539941393,
+            "point": 0.004135079255685734,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.013190791270442771,
+            "ci_low": 0.00955841135209296,
+            "point": 0.011370684308455654,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.008120386064019542,
+            "ci_low": 0.004616473419227811,
+            "point": 0.0063710288746468184,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.41163334217025493,
+            "ci_low": 0.320889761406743,
+            "point": 0.3669527896995708,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.13110124834767528,
+            "ci_low": 0.09706460555273405,
+            "point": 0.11371467953135768,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.8988778039905634,
+            "ci_low": 0.8657518994099198,
+            "point": 0.8821502412129566,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.1,
+        "threshold_inclusive": 0.21248340606689453,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.25001722830955825,
+        "calls": 3628,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.010843550289246074,
+            "ci_low": 0.004988431438327737,
+            "point": 0.007717750826901874,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.020917891950750122,
+            "ci_low": 0.015808929731402334,
+            "point": 0.018330921369995177,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.008356724387744237,
+            "ci_low": 0.0033737974065811463,
+            "point": 0.005830059954517261,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.673251208378088,
+            "ci_low": 0.5868594632768361,
+            "point": 0.630901287553648,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.08352162322581645,
+            "ci_low": 0.06332905030086235,
+            "point": 0.0733186328555678,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9279038880509469,
+            "ci_low": 0.9093510672856544,
+            "point": 0.9189636163175303,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.25,
+        "threshold_inclusive": 0.05674617923796177,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.5000344566191165,
+        "calls": 7256,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.008818283646704575,
+            "ci_low": 0.005148245783212024,
+            "point": 0.006890848952590959,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.02415745288088338,
+            "ci_low": 0.01855379042806319,
+            "point": 0.02136310385225002,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.0008572382507042641,
+            "ci_low": -0.006444915474379855,
+            "point": -0.003638618978705813,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.8112897328741661,
+            "ci_low": 0.730258791336749,
+            "point": 0.7725321888412017,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.04830502629776627,
+            "ci_low": 0.037175703915447805,
+            "point": 0.042723263506063945,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9555720704609577,
+            "ci_low": 0.9450716617058954,
+            "point": 0.9503858875413451,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.5,
+        "threshold_inclusive": 0.007630917429924014,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 1.0,
+        "calls": 14511,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.011665206129310096,
+            "ci_low": 0.008221114530509555,
+            "point": 0.009854593067328233,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.020435310074837246,
+            "ci_low": 0.014079395284008053,
+            "point": 0.017297222796499208,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.02956468992516274,
+            "ci_low": -0.03592060471599193,
+            "point": -0.032702777203500795,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.880324977028831,
+            "ci_low": 0.8116843522331327,
+            "point": 0.8454935622317596,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.020435310074837246,
+            "ci_low": 0.014079395284008053,
+            "point": 0.017297222796499208,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9755139199575814,
+            "ci_low": 0.9700787903324146,
+            "point": 0.9728481841361726,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 1.0,
+        "threshold_inclusive": -4.695068836212158,
+        "threshold_status": "descriptive_development_only"
+      }
+    ],
+    "entropy_reduction": [
+      {
+        "achieved_call_rate": 0.005030666391013714,
+        "calls": 73,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.07317969870875174,
+            "ci_low": 0.0,
+            "point": 0.0273972602739726,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.000875858377677294,
+            "ci_low": 0.0,
+            "point": 0.0004134794293983874,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.0006096914576720455,
+            "ci_low": -0.00023593455879833484,
+            "point": 0.00016194610984770165,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.029852340859803535,
+            "ci_low": 0.006396248242072314,
+            "point": 0.017167381974248927,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.16901408450704225,
+            "ci_low": 0.0,
+            "point": 0.0821917808219178,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9565217391304348,
+            "ci_low": 0.8133333333333334,
+            "point": 0.8904109589041096,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.005,
+        "threshold_inclusive": 0.08273225429002196,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.009992419543794363,
+        "calls": 145,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.11383275261324034,
+            "ci_low": 0.029839771729587378,
+            "point": 0.06896551724137931,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0009819855967870322,
+            "ci_low": -0.00040796895695879116,
+            "point": 0.0002756529529322583,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.0004618607392097378,
+            "ci_low": -0.0008885081975475288,
+            "point": -0.00022396802425746003,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.04651388575299163,
+            "ci_low": 0.016128105302187615,
+            "point": 0.030042918454935622,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.09589699683877762,
+            "ci_low": -0.04026980948257198,
+            "point": 0.027586206896551724,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.948054353054353,
+            "ci_low": 0.8510558907589711,
+            "point": 0.903448275862069,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.01,
+        "threshold_inclusive": 0.060029728384688494,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.019984839087588725,
+        "calls": 290,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.10943533948491943,
+            "ci_low": 0.047454151740362514,
+            "point": 0.07586206896551724,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0013476409684573414,
+            "ci_low": -0.0005623209866208413,
+            "point": 0.0004134794293983874,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": 0.0003401530017058877,
+            "ci_low": -0.0015645075916933886,
+            "point": -0.0005857625249810494,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.08371442125237188,
+            "ci_low": 0.03802487090877554,
+            "point": 0.060085836909871244,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.06667224080267556,
+            "ci_low": -0.028883482446502375,
+            "point": 0.020689655172413793,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9366727129337539,
+            "ci_low": 0.8682432432432432,
+            "point": 0.903448275862069,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.02,
+        "threshold_inclusive": 0.040453438491870955,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.05003101095720488,
+        "calls": 726,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.12536744877215347,
+            "ci_low": 0.08070992770439649,
+            "point": 0.10192837465564739,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0018411635720280333,
+            "ci_low": -0.0014594689941953322,
+            "point": 0.0002067397146991937,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.0006466176252794846,
+            "ci_low": -0.003950636003968887,
+            "point": -0.002294810833161051,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.2,
+            "ci_low": 0.13022622007703186,
+            "point": 0.16523605150214593,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.03688214958261894,
+            "ci_low": -0.029536020791653423,
+            "point": 0.004132231404958678,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9154090522694529,
+            "ci_low": 0.8726784228529167,
+            "point": 0.8939393939393939,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.05,
+        "threshold_inclusive": 0.02072386536747217,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.0999931086761767,
+        "calls": 1451,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.11679069106076403,
+            "ci_low": 0.08436469396211636,
+            "point": 0.10062026188835287,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0016848164741423168,
+            "ci_low": -0.002873384320227346,
+            "point": -0.0006202191440975812,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.0033070767552253193,
+            "ci_low": -0.007940114953924117,
+            "point": -0.005619874577906418,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.33966998046570496,
+            "ci_low": 0.25052645788336936,
+            "point": 0.2939914163090129,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.016902901507987848,
+            "ci_low": -0.028771883429417666,
+            "point": -0.006202618883528601,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9205883342569867,
+            "ci_low": 0.8900268190710775,
+            "point": 0.9055823569951758,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.1,
+        "threshold_inclusive": 0.010911601906021431,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.25001722830955825,
+        "calls": 3628,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.0625188904891276,
+            "ci_low": 0.04767020913794613,
+            "point": 0.05512679162072767,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0031000066658523786,
+            "ci_low": -0.002346458601544004,
+            "point": 0.0004134794293983874,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.009429204299314799,
+            "ci_low": -0.014894011776455215,
+            "point": -0.012087381986079528,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.4888039603074909,
+            "ci_low": 0.39231098008169374,
+            "point": 0.44206008583690987,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.012247522297946758,
+            "ci_low": -0.009348763918864952,
+            "point": 0.0016538037486218302,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9506280338169849,
+            "ci_low": 0.9356482866448919,
+            "point": 0.9432194046306505,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.25,
+        "threshold_inclusive": 0.004061421117512509,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 0.5000344566191165,
+        "calls": 7256,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.0356713585127343,
+            "ci_low": 0.027470157086958744,
+            "point": 0.03156008820286659,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0031689084353963754,
+            "ci_low": -0.0025784045421584113,
+            "point": 0.0002756529529322583,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.021870947602514405,
+            "ci_low": -0.02760497077313813,
+            "point": -0.02472606987802357,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.5471708235484655,
+            "ci_low": 0.4491899105779023,
+            "point": 0.5,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.0062913222573301114,
+            "ci_low": -0.005150397058524404,
+            "point": 0.0005512679162072767,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.971871939646315,
+            "ci_low": 0.9637879689105687,
+            "point": 0.9678886438809261,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 0.5,
+        "threshold_inclusive": 0.0011435624037403613,
+        "threshold_status": "descriptive_development_only"
+      },
+      {
+        "achieved_call_rate": 1.0,
+        "calls": 14511,
+        "metrics": {
+          "induced_harm_per_call": {
+            "ci_high": 0.02369968990952416,
+            "ci_low": 0.01887042216858386,
+            "point": 0.021294190614016953,
+            "valid_resamples": 2000
+          },
+          "mean_policy_task_gain": {
+            "ci_high": 0.0015129920008576843,
+            "ci_low": -0.00495342217262511,
+            "point": -0.0017917441940596788,
+            "valid_resamples": 2000
+          },
+          "mean_policy_utility": {
+            "ci_high": -0.04848700799914232,
+            "ci_low": -0.0549534221726251,
+            "point": -0.05179174419405968,
+            "valid_resamples": 2000
+          },
+          "rescue_within_helpful_states": {
+            "ci_high": 0.6536610367242625,
+            "ci_low": 0.560339256495694,
+            "point": 0.6072961373390557,
+            "valid_resamples": 2000
+          },
+          "task_gain_per_call": {
+            "ci_high": 0.0015129920008576843,
+            "ci_low": -0.00495342217262511,
+            "point": -0.0017917441940596788,
+            "valid_resamples": 2000
+          },
+          "unnecessary_calls_per_call": {
+            "ci_high": 0.9827339614362232,
+            "ci_low": 0.9782036715914495,
+            "point": 0.9804975535800428,
+            "valid_resamples": 2000
+          }
+        },
+        "target_call_rate": 1.0,
+        "threshold_inclusive": -0.14913136228127163,
+        "threshold_status": "descriptive_development_only"
+      }
+    ]
+  },
+  "correlations": {
+    "answer_loss_gap": {
+      "pearson": {
+        "ci_high": 0.2855039578887414,
+        "ci_low": 0.22966767606279043,
+        "point": 0.25768241641707723,
+        "valid_resamples": 2000
+      },
+      "spearman": {
+        "ci_high": 0.21545184789090324,
+        "ci_low": 0.19167497397682431,
+        "point": 0.20347348809990873,
+        "valid_resamples": 2000
+      }
+    },
+    "entropy_reduction": {
+      "pearson": {
+        "ci_high": 0.12134369431510449,
+        "ci_low": 0.07598840112296405,
+        "point": 0.09906867934417851,
+        "valid_resamples": 2000
+      },
+      "spearman": {
+        "ci_high": 0.08603714462447376,
+        "ci_low": 0.05269483266136305,
+        "point": 0.06975817695092754,
+        "valid_resamples": 2000
+      }
+    }
+  },
+  "definitions": {
+    "answer_loss_gap": "answer_now_mean_nll - zoom_mean_nll",
+    "entropy_reduction": "entropy_before - entropy_after",
+    "grid_rounding": "nearest integer with half rounded upward; at least one call",
+    "grid_thresholds": "selected on this opened development population; descriptive only",
+    "random": "exact uniform expectation over four crops",
+    "task_gain": "correct_after - correct_before",
+    "utility": "task_gain - 0.05 * tool_cost"
+  },
+  "disagreements": {
+    "loss_improves_task_falls": {
+      "count": 125,
+      "examples": [
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.010936721810139716,
+          "loss_gap": 0.9531698226928711,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:2262e2409a4485a975eaa74d867e4b9bb90c44fbe8ee9922b469e73db5ee842f",
+          "state_id": "screenqa-train-factorized-v1-ranker:33401",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.009167820011498407,
+          "loss_gap": 0.5744330286979675,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e9a75d4f783597b1ee7d48a2f99a0ac9569d0c4fb24b8608a522ab6e796751aa",
+          "state_id": "screenqa-train-factorized-v1-ranker:24635",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": -0.016882966214325272,
+          "loss_gap": 0.37352809906005857,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e186aa80afe8f81659f309532448bb32c71543c28bc293d5a5034a36328c4acf",
+          "state_id": "screenqa-train-factorized-v1-ranker:9011",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.006124010862549767,
+          "loss_gap": 0.3234071731567383,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:32368d7018e7ecb5382ca55563d6c3ae02d03d4345c1a569c0de99b7c2bf264b",
+          "state_id": "screenqa-train-factorized-v1-ranker:4521",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.0390617582500757,
+          "loss_gap": 0.2860964238643646,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:f365f0318c8f4983f3618f296fef0a94f031fabfee7a6b86cffbcf74afa21298",
+          "state_id": "screenqa-train-factorized-v1-ranker:21207",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.005186091361766947,
+          "loss_gap": 0.2680399417877197,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:63fd441e797e832bf023dec99f5035975759fb68639be2404b7487b7d9bb9ce1",
+          "state_id": "screenqa-train-factorized-v1-ranker:15649",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.03413533519293802,
+          "loss_gap": 0.22894680500030518,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:58970542acf01e735f6e6bd8c4d58c29409a9734a44fa5789626764ed704ca88",
+          "state_id": "screenqa-train-factorized-v1-ranker:63769",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.01638443100576599,
+          "loss_gap": 0.22356700897216797,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:93b460347e951ab394a0717d8df035c7cc67f1530353fa150ceaf48fa0896ea5",
+          "state_id": "screenqa-train-factorized-v1-ranker:31342",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.026643615421683836,
+          "loss_gap": 0.20262467861175537,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:5a55c4f15c90d568a2d2034520234dcfe9cf78203e8eb1a8c4485a2f048e6696",
+          "state_id": "screenqa-train-factorized-v1-ranker:43126",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.03789589263033122,
+          "loss_gap": 0.2021723985671997,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:566ca17d1e3276e20fbc7bd908c09c204114bb5d9b88f1a87b8cc74a4556bcaa",
+          "state_id": "screenqa-train-factorized-v1-ranker:28703",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.029547672253102064,
+          "loss_gap": 0.19172836281359196,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:b744f24b21ff0ac86f6125c00cc88549ff197772d8782fe664b983b18f7e41a9",
+          "state_id": "screenqa-train-factorized-v1-ranker:16035",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.02529326083604247,
+          "loss_gap": 0.16862975226508242,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:fa6e84b525e053d804bf3d6ddac461474643c45964a02498debce309bc7508d9",
+          "state_id": "screenqa-train-factorized-v1-ranker:11902",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.019832319968069598,
+          "loss_gap": 0.16846239566802979,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:54f15ddc16f09b7609188aaa7370e19d12241286daaaa74d9160be87edf16d62",
+          "state_id": "screenqa-train-factorized-v1-ranker:18156",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.023687788018088955,
+          "loss_gap": 0.1592626397808393,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:5a03195759ec61f293f743e86594235004995086e67ffcf2ce3c8f39369f9538",
+          "state_id": "screenqa-train-factorized-v1-ranker:52870",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.055350278120022266,
+          "loss_gap": 0.1553822159767151,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:566ca17d1e3276e20fbc7bd908c09c204114bb5d9b88f1a87b8cc74a4556bcaa",
+          "state_id": "screenqa-train-factorized-v1-ranker:28717",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.014588651363737881,
+          "loss_gap": 0.14839824040730765,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:1aba5a1f699f2a54a90709c8aa84d25514fb0aa0ca83c6b98cebcff59abfbc30",
+          "state_id": "screenqa-train-factorized-v1-ranker:16052",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": 0.006464450997817846,
+          "loss_gap": 0.14543551206588745,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:fedb4e25d866c174f06109e6f83cc26959442ba24a548bdac5fc3a684efe8248",
+          "state_id": "screenqa-train-factorized-v1-ranker:62503",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.00426267254321526,
+          "loss_gap": 0.14431875944137573,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:d9daefd7e674d711c26cfd5b69ec39ec372fa21a83ea789ed79126a25c724e1c",
+          "state_id": "screenqa-train-factorized-v1-ranker:57821",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": -0.012291087745091852,
+          "loss_gap": 0.13616633415222168,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:2f2a47c4d09956ca1dbd2c8c3739a6e90282c819b5ea4e11eff25807dbc93ef4",
+          "state_id": "screenqa-train-factorized-v1-ranker:13602",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.02414384648935603,
+          "loss_gap": 0.13103768229484558,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:ebef51c56f777300b08e6e29d0c105caf936c18356b7d39723e1425025c8bfed",
+          "state_id": "screenqa-train-factorized-v1-ranker:66802",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.011934585752896965,
+          "loss_gap": 0.1262968381245928,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:1aba5a1f699f2a54a90709c8aa84d25514fb0aa0ca83c6b98cebcff59abfbc30",
+          "state_id": "screenqa-train-factorized-v1-ranker:16052",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": 0.008658831134501575,
+          "loss_gap": 0.11859695116678874,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:9912e45847acf4fd3d19e7c692151faa6e1359d7ff0e1090a9469d08be430569",
+          "state_id": "screenqa-train-factorized-v1-ranker:51554",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.008430879330262542,
+          "loss_gap": 0.11567637324333191,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:b744f24b21ff0ac86f6125c00cc88549ff197772d8782fe664b983b18f7e41a9",
+          "state_id": "screenqa-train-factorized-v1-ranker:1700",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": -0.031104146154636213,
+          "loss_gap": 0.11318683624267578,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:becacb4dffa7144e606865ec5a0dded9d0731313ffbbaabd933e9bd67c9176f4",
+          "state_id": "screenqa-train-factorized-v1-ranker:54020",
+          "task_gain": -1.0,
+          "utility": -1.05
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": -0.040726983454078436,
+          "loss_gap": 0.11170649528503418,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:341ea26bc9475add0bab743b28c8fd04dfc434c947fff30484cd4ea521f0c186",
+          "state_id": "screenqa-train-factorized-v1-ranker:37049",
+          "task_gain": -1.0,
+          "utility": -1.05
+        }
+      ],
+      "rate_over_zoom_actions": 0.002153538694783268,
+      "source_count": 80
+    },
+    "task_improves_without_positive_loss_gap": {
+      "count": 175,
+      "examples": [
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.018255347199738026,
+          "loss_gap": -2.98386287689209,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:4a86088d2aa918de5e9f44e6aab8db6d4469e86343a16a4e42f888cc94eccced",
+          "state_id": "screenqa-train-factorized-v1-ranker:6935",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.06386305706109852,
+          "loss_gap": -2.2971770763397217,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:5927fcd49a76daa73f0ce4b2d1d43985e54512eb804d791653ea0c816f05af6a",
+          "state_id": "screenqa-train-factorized-v1-ranker:23501",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.03254972002469003,
+          "loss_gap": -1.7146443128585815,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:82b96bc072ef2b5faa982091400bdb50e13dfee9220d9ae5c002533c069a6ce1",
+          "state_id": "screenqa-train-factorized-v1-ranker:60390",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.1623303640209248,
+          "loss_gap": -1.0432774424552917,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:912b82f2fb2b17a206170536bc70c22f2b3c6e22c113ccc74567692505efb08a",
+          "state_id": "screenqa-train-factorized-v1-ranker:18809",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": -0.04466139813885092,
+          "loss_gap": -0.9045438766479492,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:dfb85963dfcd2a5b372929f22d8f354a0a56ecc4ea7c833b9215db990ef03b0f",
+          "state_id": "screenqa-train-factorized-v1-ranker:47585",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.05375309119699523,
+          "loss_gap": -0.812542200088501,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:96255be017c0d358517326163f6bd0c6e8c27808302ebc822cecf9b112eb72a6",
+          "state_id": "screenqa-train-factorized-v1-ranker:61481",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.05125579526647925,
+          "loss_gap": -0.7208566665649414,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:dfb85963dfcd2a5b372929f22d8f354a0a56ecc4ea7c833b9215db990ef03b0f",
+          "state_id": "screenqa-train-factorized-v1-ranker:47585",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": -0.04385971318309505,
+          "loss_gap": -0.6298389434814453,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:dfb85963dfcd2a5b372929f22d8f354a0a56ecc4ea7c833b9215db990ef03b0f",
+          "state_id": "screenqa-train-factorized-v1-ranker:47585",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.0205173343711067,
+          "loss_gap": -0.6065726280212402,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e6b7d63d690ed55a599fdb0f4d81af82e0c6a1d076dde76cf0b74b80a125fdef",
+          "state_id": "screenqa-train-factorized-v1-ranker:23777",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": -0.047966816477128305,
+          "loss_gap": -0.5871988832950592,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e95ec5b4bb48d4a63e4fc225b0c20df116bb53563846d7f9ae93c9ef7413f4f0",
+          "state_id": "screenqa-train-factorized-v1-ranker:25916",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": -0.08470179154948496,
+          "loss_gap": -0.5223447680473328,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:912b82f2fb2b17a206170536bc70c22f2b3c6e22c113ccc74567692505efb08a",
+          "state_id": "screenqa-train-factorized-v1-ranker:18809",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": 0.001972466241568327,
+          "loss_gap": -0.4585137367248535,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:58970542acf01e735f6e6bd8c4d58c29409a9734a44fa5789626764ed704ca88",
+          "state_id": "screenqa-train-factorized-v1-ranker:63773",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": -0.05258959253842477,
+          "loss_gap": -0.4423507750034332,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e95ec5b4bb48d4a63e4fc225b0c20df116bb53563846d7f9ae93c9ef7413f4f0",
+          "state_id": "screenqa-train-factorized-v1-ranker:25916",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": -0.05623253073523908,
+          "loss_gap": -0.39387255907058716,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:2796f859451e83684932c2c386bb3f87ce2ec07b5f1a511dbbd670bd97e946b3",
+          "state_id": "screenqa-train-factorized-v1-ranker:31497",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": -0.09469950631804144,
+          "loss_gap": -0.3868391215801239,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:529ac6bb4ace99e2d21d0cbd5c2e8562e76e8f3c51326c392173dcb921f09144",
+          "state_id": "screenqa-train-factorized-v1-ranker:25533",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": 0.021372817057584016,
+          "loss_gap": -0.36322176456451416,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:4ef9c3339460dd1f567337165b3c00f5bd598365091391c8253a6f74a08e1878",
+          "state_id": "screenqa-train-factorized-v1-ranker:34477",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": 0.004162020515650511,
+          "loss_gap": -0.3546910285949707,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:911c921c0b1efefe542639e9e165e21d7f5e479f54d6dfc70b7222b1bc2ba4ad",
+          "state_id": "screenqa-train-factorized-v1-ranker:12072",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-00",
+          "entropy_proxy": -0.07216049561975524,
+          "loss_gap": -0.34946727752685547,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:96255be017c0d358517326163f6bd0c6e8c27808302ebc822cecf9b112eb72a6",
+          "state_id": "screenqa-train-factorized-v1-ranker:61481",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.013289081398397684,
+          "loss_gap": -0.3274412155151367,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:823c6cc3b511a038ad9a4f201c8fec51217eff9509960d7c16be87f323dde208",
+          "state_id": "screenqa-train-factorized-v1-ranker:61407",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": -0.025352015635386728,
+          "loss_gap": -0.3076523505151272,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:5a03195759ec61f293f743e86594235004995086e67ffcf2ce3c8f39369f9538",
+          "state_id": "screenqa-train-factorized-v1-ranker:52873",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": 0.006984848761931062,
+          "loss_gap": -0.29203271865844727,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:7b7f3de098a1b0b3dbb0f28e9f64bb1f75ea2248616100eca625400a1da507a0",
+          "state_id": "screenqa-train-factorized-v1-ranker:13785",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.013035368549430541,
+          "loss_gap": -0.28608036041259766,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:f8332b2b79a658a6b7f6cb052329455ac8160ba17592ba16cf9c565fb01c2ecd",
+          "state_id": "screenqa-train-factorized-v1-ranker:28304",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-02",
+          "entropy_proxy": 0.0233890748963776,
+          "loss_gap": -0.27698516845703125,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:9cde50a7820db3615c5ed9ecbbc78998b94cfce408af5a99930f7438f3c70933",
+          "state_id": "screenqa-train-factorized-v1-ranker:26461",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-01",
+          "entropy_proxy": -0.04857515731418971,
+          "loss_gap": -0.26172640919685364,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e95ec5b4bb48d4a63e4fc225b0c20df116bb53563846d7f9ae93c9ef7413f4f0",
+          "state_id": "screenqa-train-factorized-v1-ranker:25916",
+          "task_gain": 1.0,
+          "utility": 0.95
+        },
+        {
+          "action_id": "ug-grid-03",
+          "entropy_proxy": -0.04755386339093093,
+          "loss_gap": -0.26102879643440247,
+          "replicate_id": "replicate-000",
+          "source_id": "screenqa:e95ec5b4bb48d4a63e4fc225b0c20df116bb53563846d7f9ae93c9ef7413f4f0",
+          "state_id": "screenqa-train-factorized-v1-ranker:25916",
+          "task_gain": 1.0,
+          "utility": 0.95
+        }
+      ],
+      "rate_over_zoom_actions": 0.003014954172696575,
+      "source_count": 104
+    }
+  },
+  "inputs": {
+    "analysis_code_revision": "4680dc3bca467b04a01717d71252322f60b79522",
+    "analysis_module_sha256": "ec89d9c0bdf91ebaa902e0152f5b10e09f4fa60fafed41fc936bdd886ea9f8c0",
+    "implementation_contract": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ops/proxy-to-outcome-analysis-implementation-v1.md",
+    "implementation_contract_sha256": "c497ec89317cbfa6cc7fa2097b8be064c21a29132f95e446b649994ac65c117e",
+    "measurement_config": {
+      "accelerator_name": "NVIDIA GeForce RTX 4090",
+      "actual_attention_implementation": "sdpa",
+      "attention_implementation": "sdpa",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "cuda_runtime_version": "12.1",
+      "device_map": "cuda:0",
+      "device_type": "cuda",
+      "local_files_only": true,
+      "max_pixels": 602112,
+      "min_pixels": 200704,
+      "parameter_dtype": "torch.bfloat16",
+      "requested_dtype": "bfloat16",
+      "system_prompt": "You are a helpful assistant.",
+      "torch_version": "2.4.0+cu121",
+      "transformers_version": "5.4.0"
+    },
+    "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+    "protocol": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ops/proxy-to-outcome-audit-protocol-v1.md",
+    "protocol_sha256": "42d952c35ac16f5584ae4fa0f6849920ba0bdc86a3b7cdfd92fb8fdc79c3f129",
+    "score_code_revision": "4680dc3bca467b04a01717d71252322f60b79522",
+    "scores": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/merged/answer-nll.jsonl",
+    "scores_provenance_sha256": "655361cac4b04a3c4a4a5deb95a67bbc8718d5eb029a2e6ec26fb8427ef57f58",
+    "scores_sha256": "be0fc8c25109f9617f525fabecc370eac51e5990f4deaf7df4eaa33e36ca4e66"
+  },
+  "outcome_use": {
+    "calibration_opened": false,
+    "formal_opened": false,
+    "opened_ranker_development_used": true,
+    "reserve_opened": false,
+    "screenqa_candidate_search_reopened": false,
+    "validation_or_test_opened": false
+  },
+  "population": {
+    "decisions": 14511,
+    "helpful_decisions": 466,
+    "score_records": 72555,
+    "sources": 1510,
+    "zoom_actions": 58044
+  },
+  "schema": "visual_action_proxy_outcome_audit_v1",
+  "scientific_status": "retrospective development-only diagnostic on opened ScreenQA ranker data; not candidate selection or independent validation",
+  "top_one": {
+    "answer_loss_gap": {
+      "metrics": {
+        "induced_harm_rate": {
+          "ci_high": 0.011665206129310096,
+          "ci_low": 0.008221114530509555,
+          "point": 0.009854593067328233,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain": {
+          "ci_high": 0.020435310074837246,
+          "ci_low": 0.014079395284008053,
+          "point": 0.017297222796499208,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain_regret": {
+          "ci_high": 0.01154334148050477,
+          "ci_low": 0.008172368173615259,
+          "point": 0.00978567982909517,
+          "valid_resamples": 2000
+        },
+        "mean_utility": {
+          "ci_high": -0.02956468992516274,
+          "ci_low": -0.03592060471599193,
+          "point": -0.032702777203500795,
+          "valid_resamples": 2000
+        },
+        "mean_utility_regret": {
+          "ci_high": 0.01154334148050477,
+          "ci_low": 0.008172368173615259,
+          "point": 0.00978567982909517,
+          "valid_resamples": 2000
+        },
+        "rescue_within_helpful_states": {
+          "ci_high": 0.880324977028831,
+          "ci_low": 0.8116843522331327,
+          "point": 0.8454935622317596,
+          "valid_resamples": 2000
+        }
+      },
+      "tie_break": "lexicographically_first_action_id"
+    },
+    "entropy_reduction": {
+      "metrics": {
+        "induced_harm_rate": {
+          "ci_high": 0.02369968990952416,
+          "ci_low": 0.01887042216858386,
+          "point": 0.021294190614016953,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain": {
+          "ci_high": 0.0015129920008576843,
+          "ci_low": -0.00495342217262511,
+          "point": -0.0017917441940596788,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain_regret": {
+          "ci_high": 0.03185944552528324,
+          "ci_low": 0.025865951262244165,
+          "point": 0.028874646819654057,
+          "valid_resamples": 2000
+        },
+        "mean_utility": {
+          "ci_high": -0.04848700799914232,
+          "ci_low": -0.0549534221726251,
+          "point": -0.05179174419405968,
+          "valid_resamples": 2000
+        },
+        "mean_utility_regret": {
+          "ci_high": 0.03185944552528324,
+          "ci_low": 0.025865951262244165,
+          "point": 0.028874646819654057,
+          "valid_resamples": 2000
+        },
+        "rescue_within_helpful_states": {
+          "ci_high": 0.6536610367242625,
+          "ci_low": 0.560339256495694,
+          "point": 0.6072961373390557,
+          "valid_resamples": 2000
+        }
+      },
+      "tie_break": "lexicographically_first_action_id"
+    },
+    "oracle": {
+      "metrics": {
+        "induced_harm_rate": {
+          "ci_high": 0.0063439020056713065,
+          "ci_low": 0.003889005357521648,
+          "point": 0.005030666391013714,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain": {
+          "ci_high": 0.030342886741031277,
+          "ci_low": 0.023943874404813312,
+          "point": 0.027082902625594377,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain_regret": {
+          "ci_high": 0.0,
+          "ci_low": 0.0,
+          "point": 0.0,
+          "valid_resamples": 2000
+        },
+        "mean_utility": {
+          "ci_high": -0.019657113258968715,
+          "ci_low": -0.02605612559518668,
+          "point": -0.02291709737440563,
+          "valid_resamples": 2000
+        },
+        "mean_utility_regret": {
+          "ci_high": 0.0,
+          "ci_low": 0.0,
+          "point": 0.0,
+          "valid_resamples": 2000
+        },
+        "rescue_within_helpful_states": {
+          "ci_high": 1.0,
+          "ci_low": 1.0,
+          "point": 1.0,
+          "valid_resamples": 2000
+        }
+      },
+      "tie_break": "lexicographically_first_action_id"
+    },
+    "random_expected": {
+      "definition": "exact uniform expectation over the four crops; no Monte Carlo seed",
+      "metrics": {
+        "induced_harm_rate": {
+          "ci_high": 0.025962824038498703,
+          "ci_low": 0.021947087402675036,
+          "point": 0.02398180690510647,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain": {
+          "ci_high": -0.006753010672975461,
+          "ci_low": -0.011807976848470502,
+          "point": -0.00928605885190545,
+          "valid_resamples": 2000
+        },
+        "mean_task_gain_regret": {
+          "ci_high": 0.03890235893278351,
+          "ci_low": 0.033889070550405104,
+          "point": 0.03636896147749983,
+          "valid_resamples": 2000
+        },
+        "mean_utility": {
+          "ci_high": -0.05675301067297547,
+          "ci_low": -0.061807976848470496,
+          "point": -0.059286058851905445,
+          "valid_resamples": 2000
+        },
+        "mean_utility_regret": {
+          "ci_high": 0.03890235893278351,
+          "ci_low": 0.033889070550405104,
+          "point": 0.03636896147749983,
+          "valid_resamples": 2000
+        },
+        "rescue_within_helpful_states": {
+          "ci_high": 0.48437902706185565,
+          "ci_low": 0.4318167719377397,
+          "point": 0.45761802575107297,
+          "valid_resamples": 2000
+        }
+      }
+    }
+  }
+}

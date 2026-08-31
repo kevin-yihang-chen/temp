@@ -1,0 +1,43 @@
+{
+  "checkpoint_interval": 32,
+  "code_revision": "4680dc3bca467b04a01717d71252322f60b79522",
+  "config_sha256": "068cb65ecebbae4057469da9d874c8ac2e520e34f4a032a38244a4abf12eb738",
+  "decisions": 3628,
+  "manifest": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ranker-manifest-v1/manifest.jsonl",
+  "manifest_sha256": "a2b6941e2a073b24571d2ccb50960f7c1cd70cb0ce53dc8339c7ec44a47f67ec",
+  "measurement_config": {
+    "accelerator_name": "NVIDIA GeForce RTX 4090",
+    "actual_attention_implementation": "sdpa",
+    "attention_implementation": "sdpa",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda_runtime_version": "12.1",
+    "device_map": "cuda:0",
+    "device_type": "cuda",
+    "local_files_only": true,
+    "max_pixels": 602112,
+    "min_pixels": 200704,
+    "parameter_dtype": "torch.bfloat16",
+    "requested_dtype": "bfloat16",
+    "system_prompt": "You are a helpful assistant.",
+    "torch_version": "2.4.0+cu121",
+    "transformers_version": "5.4.0"
+  },
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "output": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/proxy-to-outcome-audit-v1/full-v1/score-shards/answer-nll-shard-2-of-4.jsonl",
+  "output_sha256": "5d783c55fac93ae44e557f5915a2d18987beab678fe38a6cd31c6693b774282a",
+  "raw_targets_written": false,
+  "records": 18140,
+  "resumed_from_decisions": 0,
+  "rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ranker-rollouts-v1/merged/rollouts.jsonl",
+  "rollouts_sha256": "0437d2a499adccb1b4e19eb0160583789cee00edf244718ecae9e290108bb8c9",
+  "schema": "visual_action_answer_nll_v1",
+  "scientific_status": "frozen retrospective proxy-to-outcome audit on opened ScreenQA ranker development bank using hardware-audited RTX 4090; not candidate selection or independent validation",
+  "shard_count": 4,
+  "shard_index": 2,
+  "sources": 1208,
+  "target_rule": "normalized_mode_then_shortest_then_first_index_v1"
+}
