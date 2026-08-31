@@ -1,0 +1,57 @@
+{
+  "code_revision": "859ed3ae3c8a059640e587b8cdef89c2340f426e",
+  "original_process_peak_reconstructed": false,
+  "passed": true,
+  "plan": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/execution/rollout-runtime-replay-199179/plan.json",
+  "plan_sha256": "a0dc8efaea62bb1796b9e15066afe02fd3ef3ca1f5bb07bda02d4a557a2aabee",
+  "prior_job_ids": [
+    "199141",
+    "199143",
+    "199148"
+  ],
+  "protected_role_inputs_used": false,
+  "repairs": [
+    {
+      "full_provenance_sha256": "94679baacc40a2e67e9f5690146282bba0e91a200b161dce9949ca0506756253",
+      "full_rollouts_sha256": "42455dd30204ced0ba407c74d5c947c6eba7b164651ba49b3388b5963d664fef",
+      "peak_allocated_bytes": 16957166080,
+      "peak_reserved_bytes": 17404264448,
+      "repair_audit": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00000-of-00004/runtime-recovery.audit.json",
+      "repair_audit_sha256": "af0385a465b4bcc7aa3b0119ab80755351894988def78ed9eb32aed1ce32df00",
+      "shard_index": 0,
+      "state_id": "screenqa-train-factorized-v1-ranker:282"
+    },
+    {
+      "full_provenance_sha256": "1c40a3bf880e2a1c69c00284439a2dd1aaae67d4c4ad3b25e2fd42fed88ab9d7",
+      "full_rollouts_sha256": "0e7579a9dd8fc87214fe920c470fcd7ce0f7fbe25fea36bebaaa7d46921528ea",
+      "peak_allocated_bytes": 16957739520,
+      "peak_reserved_bytes": 17381195776,
+      "repair_audit": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00001-of-00004/runtime-recovery.audit.json",
+      "repair_audit_sha256": "249a9e3ed74632a20fdf99c737abda068aa29677e630ec5085adaa8affc4ba40",
+      "shard_index": 1,
+      "state_id": "screenqa-train-factorized-v1-ranker:428"
+    },
+    {
+      "full_provenance_sha256": "c8b832d0fb9c08de95f949764225c05d25be57686e569c8f833ca01b87f28f0d",
+      "full_rollouts_sha256": "c59f32f0359f2a1144f2a7c67ba1e34ab57cc0bcb91cc8ce10b883124853ed6c",
+      "peak_allocated_bytes": 16956001792,
+      "peak_reserved_bytes": 17381195776,
+      "repair_audit": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00002-of-00004/runtime-recovery.audit.json",
+      "repair_audit_sha256": "a1f7105dfa8e15386dbabef36381bc9bb4000080ae62278f9fd62c1b249299c3",
+      "shard_index": 2,
+      "state_id": "screenqa-train-factorized-v1-ranker:765"
+    },
+    {
+      "full_provenance_sha256": "6ef7b7990d76dcac584d1b9f6b19186a576332c996e57a9b374854000b46326b",
+      "full_rollouts_sha256": "a688f4eee444fc9638c33ac4f650c39891378457506480e7f9a5cebf074374b2",
+      "peak_allocated_bytes": 16927605760,
+      "peak_reserved_bytes": 17276338176,
+      "repair_audit": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00003-of-00004/runtime-recovery.audit.json",
+      "repair_audit_sha256": "885c8ca9d057629250443e573329b17bcfe6de96b116269203c4dfe49727ee03",
+      "shard_index": 3,
+      "state_id": "screenqa-train-factorized-v1-ranker:63"
+    }
+  ],
+  "schema": "qwen_rollout_runtime_replay_completion_v1",
+  "target_contents_recorded": false
+}

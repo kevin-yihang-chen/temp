@@ -1,0 +1,49 @@
+{
+  "exact_five_record_match": true,
+  "full_provenance_sha256_after": "6ef7b7990d76dcac584d1b9f6b19186a576332c996e57a9b374854000b46326b",
+  "full_provenance_sha256_before": "7f11f5fc9ea81cd569293a0737621dce5af30554cad8f6da5a3b48bf9725525f",
+  "full_rollouts_sha256": "a688f4eee444fc9638c33ac4f650c39891378457506480e7f9a5cebf074374b2",
+  "passed": true,
+  "probe_provenance_sha256": "3783d73087e5bb574942b540616d15d17c8a6f3f1813bae6de0d4a45fbd68206",
+  "probe_rollouts_sha256": "6fb98285f4a64a1c84a9937d5bbf249d499f09a4ff2504be119b3a1144ffdcc6",
+  "recovery": {
+    "exact_five_record_match": true,
+    "original_process_peak_reconstructed": false,
+    "prior_job_ids": [
+      "199141",
+      "199143",
+      "199148"
+    ],
+    "probe_provenance_sha256": "3783d73087e5bb574942b540616d15d17c8a6f3f1813bae6de0d4a45fbd68206",
+    "probe_rollouts_sha256": "6fb98285f4a64a1c84a9937d5bbf249d499f09a4ff2504be119b3a1144ffdcc6",
+    "probe_state_id": "screenqa-train-factorized-v1-ranker:63",
+    "reason": "original full rollout completed before a positive-bootstrap provenance could be written",
+    "recovery_code_revision": "859ed3ae3c8a059640e587b8cdef89c2340f426e",
+    "schema": "qwen_rollout_runtime_repair_v1",
+    "source": "deterministic_one_state_h800_replay"
+  },
+  "runtime_measurement": {
+    "accelerator_name": "NVIDIA H800",
+    "actual_attention_implementation": "sdpa",
+    "attention_implementation": "sdpa",
+    "compute_capability": [
+      9,
+      0
+    ],
+    "cuda_runtime_version": "12.1",
+    "device_map": "cuda:0",
+    "device_type": "cuda",
+    "local_files_only": true,
+    "max_pixels": 602112,
+    "min_pixels": 200704,
+    "parameter_dtype": "torch.bfloat16",
+    "peak_allocated_bytes": 16927605760,
+    "peak_reserved_bytes": 17276338176,
+    "requested_dtype": "bfloat16",
+    "system_prompt": "You are a helpful assistant.",
+    "torch_version": "2.4.0+cu121",
+    "transformers_version": "5.4.0"
+  },
+  "schema": "qwen_rollout_runtime_repair_v1",
+  "state_id": "screenqa-train-factorized-v1-ranker:63"
+}

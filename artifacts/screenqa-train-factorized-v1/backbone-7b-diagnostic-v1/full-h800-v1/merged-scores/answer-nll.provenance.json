@@ -1,0 +1,80 @@
+{
+  "code_revision": "bef9d0fc04266bc07e430ddfad0c104aeee4575b",
+  "decisions": 512,
+  "input_shards": [
+    {
+      "config_sha256": "bb18139efe3c77cc064b86a61dfab335ab05076b930aa81a4724e8c9d6e10c19",
+      "decisions": 128,
+      "output_sha256": "b9f72758f297e469e2e25ef48874c3abedd4f8c563e5ece4ee7b7454182a2bef",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-0-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-0-of-4.provenance.json",
+      "provenance_sha256": "b667995bc7a0e9b9874c877059913a148ffb4e9dc8b6aac168054826b6583144",
+      "records": 640,
+      "shard_index": 0
+    },
+    {
+      "config_sha256": "c2e12685c06a837e55b4bc67276f4758cfa66b4380a383027461c2faa3e1a296",
+      "decisions": 128,
+      "output_sha256": "b11fd30e94c3c594ebc46a12f4169bbb709147ec6d8860a7bdf6264b8042a735",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-1-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-1-of-4.provenance.json",
+      "provenance_sha256": "dd3b97b18c642f30a4bf907853e93aeff1319c0762a0011470f6919a51b30eac",
+      "records": 640,
+      "shard_index": 1
+    },
+    {
+      "config_sha256": "644175c34cc3052d3d4931e11d9a4403a961d60a2145efe84472fd42a76f7def",
+      "decisions": 128,
+      "output_sha256": "588b042db5632014a39ea2e2a289b4fbe3cf4baadb794f018c82ab5b5b49ce3d",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-2-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-2-of-4.provenance.json",
+      "provenance_sha256": "eb087e078bf09d6c2c5bff2fefa38b2618b57c144e21004b724313c986248d37",
+      "records": 640,
+      "shard_index": 2
+    },
+    {
+      "config_sha256": "43afd87d6aefab31f5c0f8c3b525734f68583b22cda07bf1ca9369ccba384093",
+      "decisions": 128,
+      "output_sha256": "8461711927bf6ea8c5e52419455aab79bea01351c17dc73a3e98070c21251af1",
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-3-of-4.jsonl",
+      "provenance": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/score-shards/answer-nll-shard-3-of-4.provenance.json",
+      "provenance_sha256": "0d35e25085bd1aadddd874a3523cd1247c5bede877b48ddd712a586cbf723d6c",
+      "records": 640,
+      "shard_index": 3
+    }
+  ],
+  "manifest_sha256": "4af43ac80a1666c174774d1c33383adca625e1ef4fc535ffb74e627f149290d0",
+  "measurement_config": {
+    "accelerator_name": "NVIDIA H800",
+    "actual_attention_implementation": "sdpa",
+    "attention_implementation": "sdpa",
+    "compute_capability": [
+      9,
+      0
+    ],
+    "cuda_runtime_version": "12.1",
+    "device_map": "cuda:0",
+    "device_type": "cuda",
+    "local_files_only": true,
+    "max_pixels": 602112,
+    "min_pixels": 200704,
+    "parameter_dtype": "torch.bfloat16",
+    "requested_dtype": "bfloat16",
+    "system_prompt": "You are a helpful assistant.",
+    "torch_version": "2.4.0+cu121",
+    "transformers_version": "5.4.0"
+  },
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "model_revision": "cc594898137f460bfe9f0759e9844b3ce807cfb5",
+  "output": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/merged-scores/answer-nll.jsonl",
+  "output_sha256": "6c9fcae676d6d9aa5a7e13739b545575c013e61987914c1aaad167bbc6cb76c7",
+  "raw_targets_written": false,
+  "records": 2560,
+  "rollouts_sha256": "33e9330c144f65a148820cbe008fb9b469bdb1e7a1add9301302367dcc02c76a",
+  "schema": "visual_action_answer_nll_merged_v1",
+  "scientific_status": "frozen Qwen-7B mechanism diagnostic on opened ScreenQA ranker development; no protected role and not candidate selection",
+  "score_schema": "visual_action_answer_nll_v1",
+  "shard_count": 4,
+  "sources": 512,
+  "target_rule": "normalized_mode_then_shortest_then_first_index_v1"
+}

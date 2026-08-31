@@ -1,0 +1,31 @@
+{
+  "schema": "qwen7b_runtime_recovery_execution_v1",
+  "job_id": "199179",
+  "prior_jobs": [
+    "199141",
+    "199143",
+    "199148"
+  ],
+  "code_revision": "859ed3ae3c8a059640e587b8cdef89c2340f426e",
+  "data_code_revision": "bef9d0fc04266bc07e430ddfad0c104aeee4575b",
+  "accelerator": "NVIDIA H800",
+  "gpu_count": 4,
+  "queue_wait_seconds": 2,
+  "timing_seconds": {
+    "runtime_replay": 21,
+    "analysis": 1,
+    "total": 26
+  },
+  "runtime_recovery": {
+    "source": "deterministic_one_state_h800_replay",
+    "exact_action_record_match_required": true,
+    "original_process_peak_reconstructed": false,
+    "completion_sha256": "64b258f1759debafd0cf828c73757195e1089b198ec5a7e7621dc96e9aff8701"
+  },
+  "artifacts": {
+    "merged_rollouts_sha256": "33e9330c144f65a148820cbe008fb9b469bdb1e7a1add9301302367dcc02c76a",
+    "merged_scores_sha256": "6c9fcae676d6d9aa5a7e13739b545575c013e61987914c1aaad167bbc6cb76c7",
+    "report_sha256": "7c890f308a2647b3ced9d98979dbee3d26e23fbff406e863a69797a6ab0f571b"
+  },
+  "protected_role_inputs_used": false
+}

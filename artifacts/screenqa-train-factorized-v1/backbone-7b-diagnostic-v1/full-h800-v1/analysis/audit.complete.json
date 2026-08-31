@@ -1,0 +1,12 @@
+{
+  "analysis_code_revision": "859ed3ae3c8a059640e587b8cdef89c2340f426e",
+  "implementation_contract_sha256": "3da107bef0fa8614e6cb088f4e54745cba9d8dcb872b5764c705c12bdf773eb1",
+  "markdown": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/analysis/report.md",
+  "markdown_sha256": "9c141e2676a6ecc568fb317e238cd4a148dd214bb8247b36f3ea4e511e6454fb",
+  "protocol_sha256": "1cd70d11168e12a2855ec01e8a869d89b82c4e87c3d864c566ed7db02bb61474",
+  "report": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/analysis/report.json",
+  "report_sha256": "7c890f308a2647b3ced9d98979dbee3d26e23fbff406e863a69797a6ab0f571b",
+  "schema": "visual_action_proxy_outcome_audit_completion_v1",
+  "scores_sha256": "6c9fcae676d6d9aa5a7e13739b545575c013e61987914c1aaad167bbc6cb76c7",
+  "study_label": "ScreenQA Qwen2.5-VL-7B opened development"
+}

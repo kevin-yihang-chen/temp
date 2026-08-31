@@ -1,0 +1,11 @@
+{
+  "code_revision": "859ed3ae3c8a059640e587b8cdef89c2340f426e",
+  "decision": "strong_backbone_replication",
+  "decision_json": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/decision/decision.json",
+  "decision_json_sha256": "58a6b524b01fec05b27651b63f72c519aa69ac12fa9426b78c4c8bfe2aa5e505",
+  "decision_markdown": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/decision/decision.md",
+  "decision_markdown_sha256": "2646a668a485bf7d91cc472153a45f102635ce584b6ffbac50733db25f39079a",
+  "protocol_sha256": "1cd70d11168e12a2855ec01e8a869d89b82c4e87c3d864c566ed7db02bb61474",
+  "report_sha256": "7c890f308a2647b3ced9d98979dbee3d26e23fbff406e863a69797a6ab0f571b",
+  "schema": "visual_action_backbone_replication_completion_v1"
+}

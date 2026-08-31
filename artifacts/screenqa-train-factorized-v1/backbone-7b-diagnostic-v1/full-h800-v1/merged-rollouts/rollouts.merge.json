@@ -1,0 +1,87 @@
+{
+  "diagnostic": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/merged-rollouts/rollouts.diagnostic.json",
+  "diagnostic_sha256": "4091aabd7cd3146b8ea591c0d9d759a0d6a30d964055b5dd57d88bedc1763225",
+  "invariant_provenance": {
+    "attention_implementation": "sdpa",
+    "candidate_count": 4,
+    "code_revision": "bef9d0fc04266bc07e430ddfad0c104aeee4575b",
+    "dtype": "bfloat16",
+    "generation_seeds": [
+      0
+    ],
+    "local_files_only": true,
+    "manifest_examples_before_sharding": 512,
+    "manifest_limit": null,
+    "manifest_sha256": "4af43ac80a1666c174774d1c33383adca625e1ef4fc535ffb74e627f149290d0",
+    "max_new_tokens": 32,
+    "max_pixels": 602112,
+    "min_pixels": 200704,
+    "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+    "model_revision": "cc594898137f460bfe9f0759e9844b3ce807cfb5",
+    "proposer": "ug-grid",
+    "scorer": "screenqa",
+    "shard_algorithm": "sha256-state-id-v1",
+    "shard_count": 4,
+    "system_prompt": "You are a helpful assistant.",
+    "ug_framework_revision": "13050ee49865e4330519108f42d1ccfccff1aee1",
+    "visual_cost": 1.0,
+    "visual_crop_ratio": 2.0
+  },
+  "manifest": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ranker-manifest-v1/backbone-7b-source512-manifest-v1.jsonl",
+  "manifest_limit": null,
+  "manifest_sha256": "4af43ac80a1666c174774d1c33383adca625e1ef4fc535ffb74e627f149290d0",
+  "merged_records": 2560,
+  "merged_rollouts": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/merged-rollouts/rollouts.jsonl",
+  "merged_rollouts_sha256": "33e9330c144f65a148820cbe008fb9b469bdb1e7a1add9301302367dcc02c76a",
+  "passed": true,
+  "resume_audit_required": true,
+  "selected_states": 512,
+  "shard_algorithm": "sha256-state-id-v1",
+  "shard_count": 4,
+  "source_shards": [
+    {
+      "directory": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00000-of-00004",
+      "provenance_sha256": "94679baacc40a2e67e9f5690146282bba0e91a200b161dce9949ca0506756253",
+      "records": 710,
+      "resume_audit_required": true,
+      "resume_audit_sha256": "7abed00b9320a3b68ee50a4d93358559360b00f1849d713fb4aeecca9a753968",
+      "resumed_from_records": 710,
+      "rollouts_sha256": "42455dd30204ced0ba407c74d5c947c6eba7b164651ba49b3388b5963d664fef",
+      "shard_index": 0,
+      "states": 142
+    },
+    {
+      "directory": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00001-of-00004",
+      "provenance_sha256": "1c40a3bf880e2a1c69c00284439a2dd1aaae67d4c4ad3b25e2fd42fed88ab9d7",
+      "records": 630,
+      "resume_audit_required": true,
+      "resume_audit_sha256": "7885c1fb6261a4b99ce418c143a91933b5614d8aacf891506df02acaf2156554",
+      "resumed_from_records": 630,
+      "rollouts_sha256": "0e7579a9dd8fc87214fe920c470fcd7ce0f7fbe25fea36bebaaa7d46921528ea",
+      "shard_index": 1,
+      "states": 126
+    },
+    {
+      "directory": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00002-of-00004",
+      "provenance_sha256": "c8b832d0fb9c08de95f949764225c05d25be57686e569c8f833ca01b87f28f0d",
+      "records": 635,
+      "resume_audit_required": true,
+      "resume_audit_sha256": "97c1541678abce885bf73b66eeaef44e769b6bdfc790457d1f1f4aa1c9b0506f",
+      "resumed_from_records": 635,
+      "rollouts_sha256": "c59f32f0359f2a1144f2a7c67ba1e34ab57cc0bcb91cc8ce10b883124853ed6c",
+      "shard_index": 2,
+      "states": 127
+    },
+    {
+      "directory": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/rollout-shards/shard-00003-of-00004",
+      "provenance_sha256": "6ef7b7990d76dcac584d1b9f6b19186a576332c996e57a9b374854000b46326b",
+      "records": 585,
+      "resume_audit_required": true,
+      "resume_audit_sha256": "de279dba70caea949086f15b7fadd293caf9d9d4c036151117a4558cab57f1fe",
+      "resumed_from_records": 585,
+      "rollouts_sha256": "a688f4eee444fc9638c33ac4f650c39891378457506480e7f9a5cebf074374b2",
+      "shard_index": 3,
+      "states": 117
+    }
+  ]
+}

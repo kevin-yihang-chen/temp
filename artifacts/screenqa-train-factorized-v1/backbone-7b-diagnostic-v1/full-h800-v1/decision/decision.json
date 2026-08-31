@@ -1,0 +1,36 @@
+{
+  "conditions": {
+    "answer_loss_spearman_ci_low_above_zero": {
+      "passed": true,
+      "summary": "ci_low=0.04467775"
+    },
+    "answer_loss_top_one_gain_ci_low_above_zero": {
+      "passed": true,
+      "summary": "ci_low=0.00390625"
+    },
+    "answer_loss_top_one_gain_exceeds_entropy_and_random": {
+      "passed": true,
+      "summary": "answer=0.01757812, entropy=0.00390625, random=-0.00390625"
+    },
+    "answer_loss_top_one_harm_below_entropy_and_random": {
+      "passed": true,
+      "summary": "answer=0.00390625, entropy=0.01562500, random=0.02197266"
+    }
+  },
+  "decision": "strong_backbone_replication",
+  "inputs": {
+    "code_revision": "859ed3ae3c8a059640e587b8cdef89c2340f426e",
+    "decision_module_sha256": "a69f4b098a2e3a7879728085b5efd1e2d68e90c941f690240a616cd9b0a48486",
+    "protocol": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/ops/backbone-7b-diagnostic-protocol-v1.md",
+    "protocol_sha256": "1cd70d11168e12a2855ec01e8a869d89b82c4e87c3d864c566ed7db02bb61474",
+    "report": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/analysis/report.json",
+    "report_sha256": "7c890f308a2647b3ced9d98979dbee3d26e23fbff406e863a69797a6ab0f571b"
+  },
+  "interpretation": "The frozen Qwen2.5-VL-7B mechanism gate passed. This supports only persistence of the proxy hierarchy across the Qwen 3B/7B scale on opened ScreenQA development sources.",
+  "schema": "visual_action_backbone_replication_decision_v1",
+  "selection": {
+    "call_rate_selected": false,
+    "protected_outcome_used": false,
+    "score_threshold_selected": false
+  }
+}
