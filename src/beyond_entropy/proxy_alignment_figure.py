@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -62,8 +63,10 @@ def _interval(value: Mapping[str, Any], *, context: str) -> Interval:
         ci_low=float(value["ci_low"]),
         ci_high=float(value["ci_high"]),
     )
-    if not result.ci_low <= result.point <= result.ci_high:
-        raise ValueError(f"{context} point must lie inside its confidence interval")
+    if not all(math.isfinite(item) for item in (result.point, result.ci_low, result.ci_high)):
+        raise ValueError(f"{context} contains a non-finite value")
+    if result.ci_low > result.ci_high:
+        raise ValueError(f"{context} confidence interval is reversed")
     return result
 
 

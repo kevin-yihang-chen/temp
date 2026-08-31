@@ -108,3 +108,19 @@ def test_proxy_figure_rejects_hash_and_outcome_leakage(tmp_path: Path) -> None:
         load_audit_figure_data(
             label="Fixture", report=report, expected_sha256=sha256_file(report)
         )
+
+
+def test_proxy_figure_accepts_percentile_interval_excluding_point(tmp_path: Path) -> None:
+    report = tmp_path / "report.json"
+    payload = _report()
+    payload["correlations"]["answer_loss_gap"]["spearman"] = {
+        "point": 0.01,
+        "ci_low": 0.02,
+        "ci_high": 0.04,
+        "valid_resamples": 2000,
+    }
+    _write_report(report, payload)
+    audit = load_audit_figure_data(
+        label="Fixture", report=report, expected_sha256=sha256_file(report)
+    )
+    assert audit.correlation["answer_loss_gap"].point == pytest.approx(0.01)
