@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
 #SBATCH --gres=gpu:rtx_4090:1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=16G
-#SBATCH --time=00:30:00
-#SBATCH --job-name=be-screenqa-smoke-merge
-#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-ranker-smoke-merge-%j.out
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
+#SBATCH --time=01:00:00
+#SBATCH --job-name=be-screenqa-ranker-merge
+#SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-screenqa-ranker-full-merge-%j.out
 #SBATCH --mail-user=yihangc@connect.hku.hk
 #SBATCH --mail-type=ALL
 
@@ -17,7 +17,6 @@ set -euo pipefail
 : "${BE_SCREENQA_EXPECTED_STATES:?missing BE_SCREENQA_EXPECTED_STATES}"
 : "${BE_SCREENQA_RUN_ROOT:?missing BE_SCREENQA_RUN_ROOT}"
 : "${BE_SCREENQA_EXPECTED_CODE_REVISION:?missing BE_SCREENQA_EXPECTED_CODE_REVISION}"
-: "${BE_SCREENQA_SMOKE_LIMIT:?missing BE_SCREENQA_SMOKE_LIMIT}"
 : "${BE_SCREENQA_SHARD_COUNT:?missing BE_SCREENQA_SHARD_COUNT}"
 
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
@@ -27,12 +26,12 @@ output="${output_dir}/rollouts.jsonl"
 
 tracked_status=$(git -C "${repo_dir}" status --porcelain --untracked-files=no)
 if [[ -n "${tracked_status}" ]]; then
-  echo "Tracked worktree must be clean before ScreenQA smoke merge" >&2
+  echo "Tracked worktree must be clean before ScreenQA ranker merge" >&2
   exit 2
 fi
 actual_code_revision=$(git -C "${repo_dir}" rev-parse HEAD)
 if [[ "${actual_code_revision}" != "${BE_SCREENQA_EXPECTED_CODE_REVISION}" ]]; then
-  echo "ScreenQA smoke merge code revision mismatch" >&2
+  echo "ScreenQA ranker merge code revision mismatch" >&2
   exit 2
 fi
 
@@ -50,11 +49,10 @@ export PYTHONPATH="${repo_dir}/src"
   --expected-manifest-sha256 "${BE_SCREENQA_MANIFEST_SHA256}" \
   --run-root "${BE_SCREENQA_RUN_ROOT}" \
   --shard-count "${BE_SCREENQA_SHARD_COUNT}" \
-  --limit "${BE_SCREENQA_SMOKE_LIMIT}" \
   --expected-code-revision "${BE_SCREENQA_EXPECTED_CODE_REVISION}" \
   --expected-scorer screenqa \
   --require-resume-audit \
-  --bootstrap-resamples 500 \
+  --bootstrap-resamples 5000 \
   --bootstrap-seed 20260831 \
   --output "${output}"
 
