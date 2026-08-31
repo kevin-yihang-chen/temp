@@ -154,13 +154,21 @@ Core contrast sentence:
 The phrase **Beyond Entropy** remains useful as a subtitle or empirical finding,
 but it should no longer carry the full novelty claim.
 
-## Evidence still required for a competitive paper
+## Completed direct comparator and evidence still required
 
-The current formal protocol already covers entropy/random/fixed/exhaustive UG
-controls. If its primary test passes, the next evidence gap is a separately
-declared comparator family under the same opened reserve action bank:
+The current formal protocol covers entropy/random/fixed/exhaustive UG controls.
+The separately frozen 688-source reserve comparison against a ToolGate-style
+binary execute proxy is now complete. Signed action value has a positive
+utility point difference of `0.0003826`, but its paired 95% interval
+`[-0.0012354, 0.0019681]` crosses zero, so superiority is not established.
+Because both gates share a proposer that misses 49.27% of helpful states, the
+next evidence gap is proposal quality rather than another threshold on this
+opened bank.
 
-- ToolGate-style binary execute/skip over a separately proposed crop;
+Remaining comparator and generalization evidence includes:
+
+- the completed ToolGate-style binary execute/skip null/negative ablation,
+  reported unchanged rather than tuned;
 - ToolVision-style question-level with/without-tool necessity tiers;
 - Beacon-style mode-adaptiveness and tool-effect diagnostics;
 - MED-style call-gain, call-harm, and schema-only attribution;
@@ -169,8 +177,8 @@ declared comparator family under the same opened reserve action bank:
 - proxy labels based on immediate forced-answer transitions where required;
 - the same source splits and matched call budget;
 - reporting action-selection error, gate error, rescue, and easy-case harm;
-- preferably a second backbone or an independently preregistered reserve/test
-  population.
+- the completed Qwen2.5-VL-7B mechanism replication plus an independently
+  preregistered deployable-policy population.
 
 This comparator must not be inserted into the ongoing one-shot branch or used
 to change its policy. It should be a separately declared follow-up, because the
