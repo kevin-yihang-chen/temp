@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pytest
 
 import beyond_entropy.semantic as semantic
-from beyond_entropy.dataset import group_by_decision
+from beyond_entropy.dataset import group_by_decision, write_jsonl
 from beyond_entropy.qwen_semantic import (
+    extract_qwen_semantic_dataset,
     reshape_merged_visual_tokens,
     semantic_decision_from_records,
     validate_semantic_feature_dataset,
@@ -14,6 +17,127 @@ from beyond_entropy.semantic_training import (
     grouped_kfold_records,
 )
 from beyond_entropy.simulate import simulate_counterfactual_dataset
+
+
+def _install_fake_qwen_extractor(monkeypatch):
+    torch = pytest.importorskip("torch")
+
+    class FakeExtractor:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def encode(self, *, image_path, question, bboxes):
+            return {
+                "question_embedding": torch.arange(8, dtype=torch.float32),
+                "global_visual_embedding": torch.arange(8, dtype=torch.float32),
+                "region_embeddings": torch.arange(
+                    len(bboxes) * 8, dtype=torch.float32
+                ).reshape(len(bboxes), 8),
+                "bboxes": torch.tensor(
+                    [bbox.to_list() for bbox in bboxes], dtype=torch.float32
+                ),
+                "visual_grid_hw": [2, 2],
+            }
+
+    monkeypatch.setattr(
+        "beyond_entropy.qwen_semantic.Qwen25VLSemanticExtractor", FakeExtractor
+    )
+
+
+def _semantic_rollouts(path: Path, *, states: int = 5):
+    records = simulate_counterfactual_dataset(
+        n_states=states,
+        num_candidates=4,
+        questions_per_image=1,
+        seed=71,
+    )
+    write_jsonl(records, path)
+    return records
+
+
+def test_qwen_semantic_checkpoint_interval_batches_atomic_rewrites(
+    tmp_path, monkeypatch
+):
+    _install_fake_qwen_extractor(monkeypatch)
+    import beyond_entropy.qwen_semantic as qwen_semantic
+
+    rollouts = tmp_path / "rollouts.jsonl"
+    _semantic_rollouts(rollouts)
+    output = tmp_path / "features.pt"
+    original_save = qwen_semantic._atomic_torch_save
+    saves: list[int] = []
+
+    def counted_save(payload, destination):
+        saves.append(len(payload["decisions"]))
+        original_save(payload, destination)
+
+    monkeypatch.setattr(qwen_semantic, "_atomic_torch_save", counted_save)
+    result = extract_qwen_semantic_dataset(
+        rollouts_path=rollouts,
+        output_path=output,
+        model_name_or_path="fake",
+        revision="frozen",
+        include_outcomes=False,
+        checkpoint_interval=2,
+    )
+    assert result["metadata"]["checkpoint_interval"] == 2
+    assert saves == [2, 4, 5, 5]
+
+
+def test_qwen_semantic_checkpoint_interval_resumes_from_last_complete_boundary(
+    tmp_path, monkeypatch
+):
+    _install_fake_qwen_extractor(monkeypatch)
+    import beyond_entropy.qwen_semantic as qwen_semantic
+
+    rollouts = tmp_path / "rollouts.jsonl"
+    _semantic_rollouts(rollouts)
+    output = tmp_path / "features.pt"
+    original_save = qwen_semantic._atomic_torch_save
+    save_count = 0
+
+    def interrupted_save(payload, destination):
+        nonlocal save_count
+        save_count += 1
+        original_save(payload, destination)
+        if save_count == 2:
+            raise RuntimeError("simulated interruption after durable checkpoint")
+
+    monkeypatch.setattr(qwen_semantic, "_atomic_torch_save", interrupted_save)
+    with pytest.raises(RuntimeError, match="simulated interruption"):
+        extract_qwen_semantic_dataset(
+            rollouts_path=rollouts,
+            output_path=output,
+            model_name_or_path="fake",
+            revision="frozen",
+            include_outcomes=False,
+            checkpoint_interval=2,
+        )
+    checkpoint = qwen_semantic.load_semantic_feature_dataset(output)
+    assert len(checkpoint["decisions"]) == 4
+
+    monkeypatch.setattr(qwen_semantic, "_atomic_torch_save", original_save)
+    resumed = extract_qwen_semantic_dataset(
+        rollouts_path=rollouts,
+        output_path=output,
+        model_name_or_path="fake",
+        revision="frozen",
+        include_outcomes=False,
+        checkpoint_interval=2,
+        resume=True,
+    )
+    assert len(resumed["decisions"]) == 5
+
+
+def test_qwen_semantic_rejects_nonpositive_checkpoint_interval_before_io(tmp_path):
+    with pytest.raises(ValueError, match="checkpoint_interval"):
+        extract_qwen_semantic_dataset(
+            rollouts_path=tmp_path / "missing.jsonl",
+            output_path=tmp_path / "features.pt",
+            model_name_or_path="fake",
+            revision="frozen",
+            checkpoint_interval=0,
+        )
 
 
 def test_semantic_head_has_a_clear_optional_dependency_boundary():

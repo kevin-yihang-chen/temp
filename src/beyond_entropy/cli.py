@@ -594,6 +594,7 @@ def command_extract_qwen_features(args: argparse.Namespace) -> None:
         local_files_only=not args.allow_download,
         question_feature_mode=args.question_feature_mode,
         include_outcomes=not args.exclude_outcomes,
+        checkpoint_interval=args.checkpoint_interval,
         resume=args.resume,
     )
     print(
@@ -604,6 +605,7 @@ def command_extract_qwen_features(args: argparse.Namespace) -> None:
                 "source_rollouts_sha256": rollouts_sha256,
                 "model_revision": args.model_revision,
                 "outcomes_included": not args.exclude_outcomes,
+                "checkpoint_interval": args.checkpoint_interval,
             },
             indent=2,
         )
@@ -845,6 +847,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--resume",
         action="store_true",
         help="resume a feature checkpoint containing complete decisions",
+    )
+    extract_qwen_features.add_argument(
+        "--checkpoint-interval",
+        type=int,
+        default=1,
+        help=(
+            "atomically rewrite the growing feature checkpoint after this many "
+            "complete decisions (default: 1)"
+        ),
     )
     extract_qwen_features.add_argument(
         "--model",

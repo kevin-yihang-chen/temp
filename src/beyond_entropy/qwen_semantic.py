@@ -446,10 +446,13 @@ def extract_qwen_semantic_dataset(
     local_files_only: bool = True,
     question_feature_mode: str = "input_mean",
     include_outcomes: bool = True,
+    checkpoint_interval: int = 1,
     resume: bool = False,
 ) -> dict[str, Any]:
     """Checkpoint frozen Qwen semantic features for every rollout decision."""
 
+    if checkpoint_interval <= 0:
+        raise ValueError("checkpoint_interval must be positive")
     records_path = Path(rollouts_path).resolve()
     destination = Path(output_path)
     records = read_jsonl(records_path)
@@ -470,6 +473,7 @@ def extract_qwen_semantic_dataset(
         "code_revision": os.environ.get("BE_CODE_REVISION"),
         "question_feature_mode": question_feature_mode,
         "outcomes_included": include_outcomes,
+        "checkpoint_interval": checkpoint_interval,
         "question_feature": (
             "mean frozen Qwen input-token embedding"
             if question_feature_mode == "input_mean"
@@ -501,6 +505,7 @@ def extract_qwen_semantic_dataset(
             "min_pixels",
             "max_pixels",
             "outcomes_included",
+            "checkpoint_interval",
         ):
             if existing_metadata.get(name) != metadata[name]:
                 raise ValueError(f"resume metadata mismatch for {name}")
@@ -559,21 +564,27 @@ def extract_qwen_semantic_dataset(
                     include_outcomes=include_outcomes,
                 )
             )
-            payload = {
-                "format_version": SEMANTIC_FEATURE_FORMAT_VERSION,
-                "metadata": metadata,
-                "decisions": decisions,
-            }
-            _atomic_torch_save(payload, destination)
+            checkpoint_due = (
+                position % checkpoint_interval == 0 or position == len(pending)
+            )
+            if checkpoint_due:
+                payload = {
+                    "format_version": SEMANTIC_FEATURE_FORMAT_VERSION,
+                    "metadata": metadata,
+                    "decisions": decisions,
+                }
+                _atomic_torch_save(payload, destination)
             print(
                 json.dumps(
                     {
-                    "checkpoint": str(destination),
-                    "completed_this_run": position,
-                    "pending_this_run": len(pending) - position,
-                    "total_completed": len(completed) + position,
-                    "total_decisions": len(grouped),
-                    "decision": key,
+                        "checkpoint": str(destination),
+                        "checkpoint_interval": checkpoint_interval,
+                        "checkpoint_written": checkpoint_due,
+                        "completed_this_run": position,
+                        "pending_this_run": len(pending) - position,
+                        "total_completed": len(completed) + position,
+                        "total_decisions": len(grouped),
+                        "decision": key,
                     }
                 ),
                 flush=True,
