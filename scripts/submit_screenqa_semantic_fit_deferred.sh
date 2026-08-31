@@ -47,5 +47,5 @@ if [[ ! "${job_id}" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 printf '%s\n' "${submission}"
-printf 'screenqa_semantic_fit_deferred_job_id=%s dependency=afterok:%s gpu_count=0\n' \
+printf 'screenqa_semantic_fit_deferred_job_id=%s dependency=afterok:%s gpu_count=1 qos_minimum_gres=true\n' \
   "${job_id}" "${feature_job_id}"

@@ -89,5 +89,5 @@ if [[ ! "${job_id}" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 printf '%s\n' "${submission}"
-printf 'screenqa_semantic_fit_job_id=%s feature_job_id=%s gpu_count=0 fit_code_revision=%s\n' \
+printf 'screenqa_semantic_fit_job_id=%s feature_job_id=%s gpu_count=1 qos_minimum_gres=true fit_code_revision=%s\n' \
   "${job_id}" "${feature_job_id}" "${fit_code_revision}"

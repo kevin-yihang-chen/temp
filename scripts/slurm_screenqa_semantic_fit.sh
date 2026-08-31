@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
+#SBATCH --gres=gpu:rtx_4090:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
@@ -93,6 +94,7 @@ fi
 
 export PYTHONPATH="${repo_dir}/src"
 export BE_CODE_REVISION="${BE_SCREENQA_FIT_CODE_REVISION}"
+# The debug QOS requires one GRES even though this sklearn fit has no CUDA path.
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 cd "${repo_dir}"
