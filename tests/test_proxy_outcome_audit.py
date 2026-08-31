@@ -179,14 +179,45 @@ def test_merge_and_audit_proxy_outcomes_are_deterministic(tmp_path: Path) -> Non
         "helpful_decisions": 4,
     }
     assert first["top_one"]["random_expected"]["definition"].startswith("exact")
+    assert first["study"]["label"] == "ScreenQA"
     assert first["disagreements"]["loss_improves_task_falls"]["count"] == 2
     assert (
         first["disagreements"]["task_improves_without_positive_loss_gap"]["count"]
         == 2
     )
-    assert first["outcome_use"]["calibration_opened"] is False
+    assert first["outcome_use"]["calibration_or_formal_inputs_used"] is False
     assert (tmp_path / "audit-1/report.md").is_file()
     assert (tmp_path / "audit-1/audit.complete.json").is_file()
+
+    docvqa = analyze_proxy_outcomes(
+        scores=merged,
+        protocol=protocol,
+        implementation_contract=implementation,
+        output_dir=tmp_path / "audit-docvqa",
+        expected_scores_sha256=sha256_file(merged),
+        expected_protocol_sha256=sha256_file(protocol),
+        expected_implementation_contract_sha256=sha256_file(implementation),
+        expected_decisions=8,
+        expected_sources=2,
+        bootstrap_resamples=40,
+        bootstrap_seed=17,
+        study_label="DocVQA ranker development",
+        scientific_status="opened-bank cross-domain replication",
+        interpretation_boundary="No protected DocVQA or ScreenQA role is an input.",
+        code_revision="test-code",
+    )
+    assert docvqa["study"]["label"] == "DocVQA ranker development"
+    assert docvqa["scientific_status"] == "opened-bank cross-domain replication"
+    assert (tmp_path / "audit-docvqa/report.md").read_text().startswith(
+        "# DocVQA ranker development proxy-to-outcome audit\n"
+    )
+    assert docvqa["outcome_use"] == {
+        "opened_ranker_development_used": True,
+        "candidate_search_reopened": False,
+        "calibration_or_formal_inputs_used": False,
+        "reserve_validation_or_test_inputs_used": False,
+        "protected_role_inputs_used": False,
+    }
 
 
 def test_merge_rejects_tampered_shard_configuration(tmp_path: Path) -> None:

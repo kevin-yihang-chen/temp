@@ -558,11 +558,21 @@ def _render_interval(metric: Mapping[str, Any]) -> str:
 
 
 def render_proxy_audit_markdown(report: Mapping[str, Any]) -> str:
+    study = report.get("study", {})
+    _require(isinstance(study, Mapping), "proxy audit study metadata is malformed")
+    study_label = str(study.get("label", "ScreenQA"))
+    interpretation_boundary = str(
+        study.get(
+            "interpretation_boundary",
+            "This audit measures proxy/outcome alignment on an already opened "
+            "development bank. Its thresholds are descriptive only and cannot "
+            "reopen candidate search or authorize protected-role evaluation.",
+        )
+    )
     lines = [
-        "# ScreenQA proxy-to-outcome audit",
+        f"# {study_label} proxy-to-outcome audit",
         "",
-        "Status: retrospective development-only diagnostic; not a deployment candidate",
-        "and not independent ScreenQA validation.",
+        f"Status: {report['scientific_status']}.",
         "",
         "## Population",
         "",
@@ -629,9 +639,7 @@ def render_proxy_audit_markdown(report: Mapping[str, Any]) -> str:
             "",
             "## Interpretation boundary",
             "",
-            "This audit measures proxy/outcome alignment on an already opened development bank.",
-            "It does not reopen ScreenQA candidate search, calibration, formal, reserve,",
-            "validation, or test roles. Thresholds in the table are descriptive only.",
+            interpretation_boundary,
             "",
         ]
     )
@@ -652,6 +660,9 @@ def analyze_proxy_outcomes(
     bootstrap_resamples: int = 2000,
     bootstrap_seed: int = 20260831,
     bootstrap_confidence: float = BOOTSTRAP_CONFIDENCE,
+    study_label: str = "ScreenQA",
+    scientific_status: str | None = None,
+    interpretation_boundary: str | None = None,
     code_revision: str,
 ) -> dict[str, Any]:
     """Run the frozen descriptive proxy-to-outcome audit."""
@@ -660,6 +671,24 @@ def analyze_proxy_outcomes(
 
     _require(bootstrap_resamples > 0, "bootstrap resamples must be positive")
     _require(0.0 < bootstrap_confidence < 1.0, "invalid bootstrap confidence")
+    study_label = study_label.strip()
+    _require(bool(study_label) and "\n" not in study_label, "invalid study label")
+    if scientific_status is None:
+        scientific_status = (
+            f"retrospective development-only diagnostic on opened {study_label} "
+            "ranker data; not candidate selection or independent validation"
+        )
+    scientific_status = scientific_status.strip().rstrip(".")
+    _require(bool(scientific_status), "empty scientific status")
+    if interpretation_boundary is None:
+        interpretation_boundary = (
+            "This audit measures proxy/outcome alignment on an already opened "
+            f"{study_label} development bank. It does not reopen candidate search "
+            "or use calibration, formal, reserve, validation, or test inputs. "
+            "Thresholds in the table are descriptive only."
+        )
+    interpretation_boundary = interpretation_boundary.strip()
+    _require(bool(interpretation_boundary), "empty interpretation boundary")
     score_path = Path(scores).resolve()
     protocol_path = Path(protocol).resolve()
     implementation_path = Path(implementation_contract).resolve()
@@ -924,10 +953,11 @@ def analyze_proxy_outcomes(
     output_path = Path(output_dir).resolve()
     report = {
         "schema": AUDIT_SCHEMA,
-        "scientific_status": (
-            "retrospective development-only diagnostic on opened ScreenQA ranker data; "
-            "not candidate selection or independent validation"
-        ),
+        "scientific_status": scientific_status,
+        "study": {
+            "label": study_label,
+            "interpretation_boundary": interpretation_boundary,
+        },
         "population": {
             "sources": len(sources),
             "decisions": len(decision_keys),
@@ -991,11 +1021,10 @@ def analyze_proxy_outcomes(
         },
         "outcome_use": {
             "opened_ranker_development_used": True,
-            "screenqa_candidate_search_reopened": False,
-            "calibration_opened": False,
-            "formal_opened": False,
-            "reserve_opened": False,
-            "validation_or_test_opened": False,
+            "candidate_search_reopened": False,
+            "calibration_or_formal_inputs_used": False,
+            "reserve_validation_or_test_inputs_used": False,
+            "protected_role_inputs_used": False,
         },
     }
     report_path = output_path / "report.json"
@@ -1012,6 +1041,7 @@ def analyze_proxy_outcomes(
         "protocol_sha256": protocol_sha256,
         "implementation_contract_sha256": implementation_sha256,
         "analysis_code_revision": code_revision,
+        "study_label": study_label,
     }
     _atomic_write_json(output_path / "audit.complete.json", completion)
     return report

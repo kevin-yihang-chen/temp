@@ -24,6 +24,9 @@ def main() -> None:
     parser.add_argument("--bootstrap-resamples", type=int, default=2000)
     parser.add_argument("--bootstrap-seed", type=int, default=20260831)
     parser.add_argument("--bootstrap-confidence", type=float, default=0.95)
+    parser.add_argument("--study-label", default="ScreenQA")
+    parser.add_argument("--scientific-status")
+    parser.add_argument("--interpretation-boundary")
     parser.add_argument("--code-revision", required=True)
     args = parser.parse_args()
     result = analyze_proxy_outcomes(
@@ -41,6 +44,9 @@ def main() -> None:
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
         bootstrap_confidence=args.bootstrap_confidence,
+        study_label=args.study_label,
+        scientific_status=args.scientific_status,
+        interpretation_boundary=args.interpretation_boundary,
         code_revision=args.code_revision,
     )
     print(json.dumps(result["population"], sort_keys=True))
