@@ -1,7 +1,8 @@
 # Beyond Entropy literature collision and claim repositioning
 
 Date checked: 2026-08-30; refreshed 2026-08-31 after the ScreenQA semantic
-candidate failed and two newer August papers were audited.
+candidate failed and two newer August papers were audited; refreshed again
+2026-09-01 after a targeted full-text audit of the closest crop-routing work.
 
 Scientific status: planning note written while DocVQA factorized-v2 calibration
 rollouts were still being collected and before calibration or formal outcomes
@@ -82,6 +83,21 @@ bank, source-level risk gate, and one-shot outcome protocol remain different,
 but "first model-specific counterfactual crop utility", "first loss-difference
 crop supervision", and "first joint when/where one-shot crop router" are no
 longer defensible.
+
+The 2026-09-01 full-text audit narrows this distinction further.  GapSight
+explicitly probes every offline candidate, chooses the maximum loss-gap crop,
+maps low or negative maxima to `preserve`, filters or down-weights ambiguous
+rows, and reports wrong-to-right rescue and right-to-wrong harm.  On its
+InternVL2.5-8B InfographicVQA subset it reports a 76.5% action rate and 9.9%
+harm among baseline-correct examples.  Therefore neither negative crop
+evidence, adaptive action rate, nor post-hoc rescue/harm reporting is a unique
+claim for us.  The remaining distinction is operational rather than thematic:
+DECAR retains the realized ANLS effect of every fixed action instead of
+collapsing the bank to a proxy-best crop and binary preserve/review label,
+charges execution cost in the value target, and requires source-grouped OOF
+prospective harm control before any held-out endpoint is opened.  The frozen
+`loss_only` variant is the closest in-protocol GapSight-style proxy ablation;
+DECAR must beat it at the identical call count or it does not advance.
 
 **The Illusion of Visual Tool-Use (arXiv:2608.06270)** performs policy-,
 trajectory-, and step-level causal interventions on crop-and-zoom agents.  Its
