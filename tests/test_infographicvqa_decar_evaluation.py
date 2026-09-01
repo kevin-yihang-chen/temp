@@ -207,7 +207,8 @@ def test_decar_oof_worker_and_submitter_freeze_h800_and_notifications() -> None:
     worker = (root / "scripts/slurm_infographicvqa_decar_oof_h800.sh").read_text()
     submitter = (root / "scripts/submit_infographicvqa_decar_oof_h800.sh").read_text()
     assert "#SBATCH --gres=gpu:h800:1" in worker
-    assert "#SBATCH --mem=192G" in worker
+    assert "#SBATCH --cpus-per-task=12" in worker
+    assert "#SBATCH --mem=384G" in worker
     assert "#SBATCH --time=04:00:00" in worker
     assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
     assert "#SBATCH --mail-type=ALL" in worker
