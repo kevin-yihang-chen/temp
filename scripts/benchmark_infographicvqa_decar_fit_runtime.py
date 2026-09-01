@@ -60,6 +60,8 @@ def _timed_fit(
     gc.collect()
     runtime_device = _runtime_device(torch, device)
     if device.startswith("cuda"):
+        torch.cuda.init()
+        torch.cuda.set_device(runtime_device)
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats(runtime_device)
     _synchronize(torch, device)

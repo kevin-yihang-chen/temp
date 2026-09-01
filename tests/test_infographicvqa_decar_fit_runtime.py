@@ -29,14 +29,24 @@ class _Cuda:
     def __init__(self) -> None:
         self.devices: list[_Device] = []
         self.empty_cache_calls = 0
+        self.init_calls = 0
+        self.initialized = False
+
+    def init(self) -> None:
+        self.init_calls += 1
+        self.initialized = True
 
     def empty_cache(self) -> None:
         self.empty_cache_calls += 1
 
     def _record(self, device: _Device) -> None:
+        assert self.initialized
         assert isinstance(device, _Device)
         assert device.value == "cuda:0"
         self.devices.append(device)
+
+    def set_device(self, device: _Device) -> None:
+        self._record(device)
 
     def synchronize(self, device: _Device) -> None:
         self._record(device)
@@ -73,7 +83,8 @@ def test_cuda_runtime_apis_receive_canonical_torch_device() -> None:
     assert peak == 123
     assert accelerator == "NVIDIA H800"
     assert torch.cuda.empty_cache_calls == 2
-    assert len(torch.cuda.devices) == 5
+    assert torch.cuda.init_calls == 1
+    assert len(torch.cuda.devices) == 6
 
 
 def test_cpu_runtime_device_remains_cpu_string() -> None:
