@@ -6,10 +6,15 @@ import io
 import pytest
 
 from beyond_entropy.infographicvqa_decar_manifest import (
+    FULL_IDENTITY_FIELDS,
+    INNER_FOLD_FIELDS,
+    OUTER_FOLD_FIELDS,
     PILOT_IDENTITY_FIELDS,
     PAYLOAD_FIELDS,
     build_pilot_task_manifest,
     decoded_rgb_sha256,
+    materialize_full_task_row,
+    validate_decar_fold_manifests,
 )
 
 
@@ -55,6 +60,27 @@ def _payload(question: str, raw: bytes) -> dict[str, object]:
     return row
 
 
+def _full_identity(
+    source: str, question: str, raw: bytes, *, row_index: int
+) -> dict[str, object]:
+    rgb, width, height = decoded_rgb_sha256(raw)
+    encoded = hashlib.sha256(raw).hexdigest()
+    row: dict[str, object] = {
+        "decoded_rgb_sha256": rgb,
+        "encoded_sha256": encoded,
+        "height": height,
+        "image_path": f"original-{source}.png",
+        "normalized_hostname": "example.org",
+        "question_id": question,
+        "source_id": source,
+        "transport_file": "train.parquet",
+        "transport_row": row_index,
+        "width": width,
+    }
+    assert set(row) == FULL_IDENTITY_FIELDS
+    return row
+
+
 def test_build_pilot_task_manifest_preserves_identity_and_prompt_contract() -> None:
     first_image = _image_bytes((10, 20, 30))
     second_image = _image_bytes((40, 50, 60))
@@ -91,4 +117,93 @@ def test_build_pilot_task_manifest_fails_closed_on_image_mismatch() -> None:
     with pytest.raises(ValueError, match="image identity changed"):
         build_pilot_task_manifest(
             [identity], {("train.parquet", 0): _payload("q-0", changed)}
+        )
+
+
+def test_materialize_full_task_row_excludes_transport_hostname_and_folds() -> None:
+    raw = _image_bytes((10, 20, 30))
+    identity = _full_identity("source-a", "q-0", raw, row_index=0)
+    task, image, stored = materialize_full_task_row(
+        identity, _payload("q-0", raw)
+    )
+    assert task == {
+        "state_id": "infovqa-train:q-0",
+        "question_id": "q-0",
+        "image_id": identity["decoded_rgb_sha256"],
+        "source_id": "source-a",
+        "image_path": f"images/{identity['encoded_sha256']}.img",
+        "question": "What is shown?",
+        "model_prompt": (
+            "What is shown?\n"
+            "Answer the question using a single word or phrase."
+        ),
+        "target": {"answers": ["A label"]},
+    }
+    assert not {
+        "normalized_hostname",
+        "transport_file",
+        "transport_row",
+        "outer_fold",
+        "inner_fold",
+    } & set(task)
+    assert image["decoded_rgb_sha256"] == identity["decoded_rgb_sha256"]
+    assert image["bytes"] == len(raw)
+    assert stored == raw
+
+
+def test_validate_decar_fold_manifests_requires_exact_nested_exclusion() -> None:
+    identities = [
+        _full_identity(
+            f"source-{index}",
+            f"q-{index}",
+            _image_bytes((index, index + 1, index + 2)),
+            row_index=index,
+        )
+        for index in range(5)
+    ]
+    outer_assignments = [0, 1, 2, 0, 1]
+    outer_rows = []
+    for index, fold in enumerate(outer_assignments):
+        row: dict[str, object] = {
+            "image_count": 1,
+            "outer_fold": fold,
+            "question_count": 1,
+            "source_id": f"source-{index}",
+            "tie_sha256": f"outer-{index}",
+        }
+        assert set(row) == OUTER_FOLD_FIELDS
+        outer_rows.append(row)
+    inner_rows = []
+    for outer_test in range(3):
+        for index, held_out in enumerate(outer_assignments):
+            if held_out == outer_test:
+                continue
+            row = {
+                "inner_fold": index % 2,
+                "outer_test_fold": outer_test,
+                "question_count": 1,
+                "source_id": f"source-{index}",
+                "tie_sha256": f"inner-{outer_test}-{index}",
+            }
+            assert set(row) == INNER_FOLD_FIELDS
+            inner_rows.append(row)
+    audit = validate_decar_fold_manifests(
+        identities,
+        outer_rows,
+        inner_rows,
+        n_outer_folds=3,
+        n_inner_folds=2,
+    )
+    assert audit["questions"] == audit["images"] == audit["sources"] == 5
+    assert audit["outer_question_counts"] == [2, 2, 1]
+    assert audit["inner_rows"] == 10
+    assert audit["source_disjoint"] is True
+
+    with pytest.raises(ValueError, match="inner-fold coverage is incomplete"):
+        validate_decar_fold_manifests(
+            identities,
+            outer_rows,
+            inner_rows[:-1],
+            n_outer_folds=3,
+            n_inner_folds=2,
         )
