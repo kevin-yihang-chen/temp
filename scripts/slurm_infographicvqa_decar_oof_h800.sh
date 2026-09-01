@@ -2,7 +2,7 @@
 #SBATCH --partition=q-h800
 #SBATCH --gres=gpu:h800:1
 #SBATCH --cpus-per-task=12
-#SBATCH --mem=384G
+#SBATCH --mem=192G
 #SBATCH --time=04:00:00
 #SBATCH --job-name=be-infovqa-decar-oof
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-infovqa-decar-oof-%j.out
