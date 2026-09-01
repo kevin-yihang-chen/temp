@@ -15,6 +15,10 @@ from beyond_entropy.infographicvqa_decar_evaluation import (
     evaluate_entropy_where_hybrid,
     parse_decar_predictions,
 )
+from beyond_entropy.infographicvqa_relative_where import RELATIVE_WHERE_VARIANTS
+from beyond_entropy.infographicvqa_relative_where_evaluation import (
+    evaluate_relative_where_oof,
+)
 from beyond_entropy.schema import ActionRecord, BBox
 
 
@@ -281,6 +285,108 @@ def test_entropy_oracle_where_factorizes_crop_selection_on_same_states() -> None
     assert point["qualification_rules"]["minimum_calls_and_sources"] is False
 
 
+def test_relative_where_evaluation_reuses_frozen_states_and_bootstrap() -> None:
+    records = [record for index in range(8) for record in _decision(index)]
+    decar_predictions = [_prediction(index) for index in range(8)]
+    indices = np.tile(np.arange(4, dtype=np.int32), (100, 1))
+    formal = evaluate_decar_oof(
+        records,
+        decar_predictions,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+    )
+    hybrid = evaluate_entropy_where_hybrid(
+        records,
+        decar_predictions,
+        formal,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    oracle = evaluate_entropy_oracle_where_factorization(
+        records,
+        decar_predictions,
+        hybrid,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    oracle["decision"] = "where_bottleneck_supported"
+    relative_predictions = []
+    nll_rows = []
+    for index in range(8):
+        scores = (0.0, 1.0, -1.0, -0.5)
+        probabilities = (0.15, 0.55, 0.1, 0.2)
+        relative_predictions.append(
+            {
+                "schema": "infographicvqa_relative_where_oof_prediction_v1",
+                "state_id": f"state-{index:03d}",
+                "replicate_id": "replicate-000",
+                "image_id": f"image-{index:03d}",
+                "source_id": f"source-{index // 2:03d}",
+                "outer_fold": (index // 2) % 5,
+                "variants": {
+                    name: {
+                        "action_scores": list(scores),
+                        "action_probabilities": list(probabilities),
+                        "selected_action_id": "ug-grid-01",
+                        "predicted_margin": 1.0,
+                    }
+                    for name in RELATIVE_WHERE_VARIANTS
+                },
+            }
+        )
+        for action_index, action_id in enumerate(("answer-now", *DECAR_ACTION_IDS)):
+            nll_rows.append(
+                {
+                    "schema": "visual_action_answer_nll_v1",
+                    "state_id": f"state-{index:03d}",
+                    "replicate_id": "replicate-000",
+                    "image_id": f"image-{index:03d}",
+                    "source_id": f"source-{index // 2:03d}",
+                    "action_id": action_id,
+                    "answer_mean_nll": (
+                        1.0
+                        if action_id == "answer-now"
+                        else {
+                            "ug-grid-00": 0.1,
+                            "ug-grid-01": 0.0,
+                            "ug-grid-02": 0.2,
+                            "ug-grid-03": 0.3,
+                        }[action_id]
+                    ),
+                }
+            )
+    result = evaluate_relative_where_oof(
+        records,
+        relative_predictions,
+        decar_predictions,
+        nll_rows,
+        hybrid,
+        oracle,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    assert result["decision"] == "relative_where_train_not_supported"
+    assert result["validation_or_test_inputs_used"] is False
+    assert result["relative_prediction_outcomes_included"] is False
+    point = result["operating_points"][0]
+    assert point["selection_audit"]["matched_call_count"] is True
+    assert (
+        point["policies"]["relative_teacher_entropy"]["teacher_agreement"][
+            "question_balanced"
+        ]
+        == 1.0
+    )
+    assert "old_decar_where" in point["paired_source_utility_differences"]
+    assert point["qualification_rules"]["minimum_calls_and_sources"] is False
+
+
 def test_decar_evaluation_script_freezes_train_only_full_protocol() -> None:
     root = Path(__file__).resolve().parents[1]
     script = (root / "scripts/evaluate_infographicvqa_decar_oof.py").read_text()
@@ -374,6 +480,54 @@ def test_entropy_oracle_where_slurm_contract_hides_gpu_and_notifies() -> None:
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
     assert "-lt 45" in submitter
     assert "-lt 180" in submitter
+    assert "--test-only --export=NONE" in submitter
+    assert "--parsable --export=NONE" in submitter
+    assert "git push" not in submitter
+
+
+def test_relative_where_runners_keep_oof_predictions_outcome_free() -> None:
+    root = Path(__file__).resolve().parents[1]
+    fit_runner = (root / "scripts/fit_infographicvqa_relative_where_oof.py").read_text()
+    eval_runner = (
+        root / "scripts/evaluate_infographicvqa_relative_where_oof.py"
+    ).read_text()
+    assert "EXPECTED_DECISIONS = 23_946" in fit_runner
+    assert "EXPECTED_SOURCES = 2_204" in fit_runner
+    assert "fit_relative_where_oof" in fit_runner
+    assert '"scientific_endpoints_computed": False' in fit_runner
+    assert '"prediction_outcomes_included": False' in fit_runner
+    assert 'mmap_mode="r"' in eval_runner
+    assert '"formal_bootstrap_reused": True' in eval_runner
+    assert '"validation_opened": False' in eval_runner
+    assert '"test_opened": False' in eval_runner
+    assert "download" not in fit_runner.lower()
+    assert "download" not in eval_runner.lower()
+
+
+def test_relative_where_h800_worker_binds_code_quota_and_notifications() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (
+        root / "scripts/slurm_infographicvqa_relative_where_oof_h800.sh"
+    ).read_text()
+    submitter = (
+        root / "scripts/submit_infographicvqa_relative_where_oof_h800.sh"
+    ).read_text()
+    assert "#SBATCH --partition=q-h800" in worker
+    assert "#SBATCH --gres=gpu:h800:1" in worker
+    assert "#SBATCH --cpus-per-task=12" in worker
+    assert "#SBATCH --mem=192G" in worker
+    assert "#SBATCH --time=01:00:00" in worker
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert 'gpu_name}" != "NVIDIA H800"' in worker
+    assert "--epochs 200" in worker
+    assert "relative_prediction_outcomes_included" in worker
+    assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "expected_train_module_sha256" in worker
+    assert "expected_eval_module_sha256" in worker
+    assert "expected_decar_eval_sha256" in worker
+    assert "-lt 60" in submitter
+    assert "-lt 720" in submitter
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter
     assert "git push" not in submitter

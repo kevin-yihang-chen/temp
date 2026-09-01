@@ -740,6 +740,7 @@ def _bootstrap_all_policies(
                 "/decar",
                 "/entropy_when_decar_where",
                 "/entropy_when_task_oracle_where",
+                "/relative_teacher_entropy",
             )
         ):
             prefix = policy_name.rsplit("/", 1)[0]
