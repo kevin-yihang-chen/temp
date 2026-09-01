@@ -37,14 +37,16 @@ protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-
 allocation_result="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-allocation-result-v1.md"
 materialization_result="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-pilot-materialization-result-v1.md"
 materialization_complete="${repo}/artifacts/infographicvqa-train-v1/decar-v1/pilot-manifest-v1/complete.json"
-freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-pilot-implementation-freeze-v1.md"
+freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-pilot-implementation-freeze-v2.md"
+feature_correction="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-feature-implementation-correction-v1.md"
 worker="${repo}/scripts/slurm_infographicvqa_decar_pilot_h800.sh"
 rollout_merger="${repo}/scripts/merge_qwen_rollout_shards.py"
 nll_scorer="${repo}/scripts/score_visual_action_answer_nll.py"
 nll_merger="${repo}/scripts/merge_visual_action_answer_nll.py"
 feature_merger="${repo}/scripts/merge_semantic_feature_shards.py"
 feature_auditor="${repo}/scripts/audit_label_free_semantic_features.py"
-root="${repo}/artifacts/infographicvqa-train-v1/decar-v1/pilot-qwen7b-v1"
+decar_input_auditor="${repo}/scripts/audit_infographicvqa_decar_inputs.py"
+root="${repo}/artifacts/infographicvqa-train-v1/decar-v1/pilot-qwen7b-v2"
 rollout_root="${root}/rollout-shards"
 merged_rollout_dir="${root}/merged-rollouts"
 nll_root="${root}/nll-shards"
@@ -76,6 +78,7 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
 fi
 require_hash "${worker}" "${expected_worker_sha256}" worker
 require_hash "${freeze}" "${expected_freeze_sha256}" implementation-freeze
+require_hash "${feature_correction}" 22a7e9046dcd7e949aee2d725a068f7b9cd0b5a3476130e8e9c50818bf158d46 feature-correction
 require_hash "${manifest}" "${manifest_sha256}" task-manifest
 require_hash "${protocol}" d8651f9c235be4da8883df10a692a5171b9ca902b42bc1864b69008655688342 protocol
 require_hash "${allocation_result}" 3d0948cc6840b008cd4b19408ff002ed0756bb0d9f7f5e6b8cdb6d0af5a4da60 allocation-result
@@ -350,6 +353,39 @@ if [[ "$(jq -r '.decisions' "${label_free_audit}")" -ne 512 \
 fi
 feature_seconds=$(( $(date +%s) - feature_start ))
 merged_feature_sha256=$(sha "${merged_feature_dir}/features-label-free.pt")
+decar_input_audit="${merged_feature_dir}/decar-input-audit.json"
+"${python_bin}" "${decar_input_auditor}" \
+  --rollouts "${merged_rollouts}" \
+  --expected-rollouts-sha256 "${merged_rollouts_sha256}" \
+  --answer-nll "${merged_nll}" \
+  --expected-answer-nll-sha256 "${merged_nll_sha256}" \
+  --features "${merged_feature_dir}/features-label-free.pt" \
+  --expected-features-sha256 "${merged_feature_sha256}" \
+  --expected-decisions 512 --expected-sources 512 \
+  > "${decar_input_audit}.tmp"
+if [[ -e "${decar_input_audit}" ]]; then
+  cmp -s "${decar_input_audit}.tmp" "${decar_input_audit}" || {
+    echo "DECAR joined input audit changed on resume" >&2; exit 2;
+  }
+  rm "${decar_input_audit}.tmp"
+else
+  mv "${decar_input_audit}.tmp" "${decar_input_audit}"
+fi
+if ! jq -e '
+  .passed == true and
+  .decisions == 512 and
+  .sources == 512 and
+  .actions_per_decision == 5 and
+  .scalar_dim == 16 and
+  .generated_token_statistics_complete == true and
+  .label_free_feature_storage == true and
+  .inference_feature_outcomes_included == false and
+  .scientific_endpoints_reported == false
+' "${decar_input_audit}" >/dev/null; then
+  echo "DECAR joined input audit failed" >&2
+  exit 2
+fi
+decar_input_audit_sha256=$(sha "${decar_input_audit}")
 
 for index in 0 1 2 3; do
   shard_name=$(printf 'shard-%05d-of-00004' "${index}")
@@ -380,11 +416,12 @@ jq -n \
   --arg accelerator "NVIDIA H800" --arg manifest_sha256 "${manifest_sha256}" \
   --arg rollouts_sha256 "${merged_rollouts_sha256}" \
   --arg nll_sha256 "${merged_nll_sha256}" --arg features_sha256 "${merged_feature_sha256}" \
+  --arg decar_input_audit_sha256 "${decar_input_audit_sha256}" \
   --argjson queue_wait_seconds "${queue_wait_seconds}" \
   --argjson rollout_seconds "${rollout_seconds}" --argjson nll_seconds "${nll_seconds}" \
   --argjson feature_seconds "${feature_seconds}" \
   --argjson total_seconds "$((job_end_epoch - job_start_epoch))" \
-  '{schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:$accelerator,gpu_count:4,queue_wait_seconds:$queue_wait_seconds,timing_seconds:{rollout_and_resume:$rollout_seconds,teacher_nll_and_resume:$nll_seconds,label_free_features:$feature_seconds,total:$total_seconds},artifacts:{manifest_sha256:$manifest_sha256,merged_rollouts_sha256:$rollouts_sha256,merged_teacher_nll_sha256:$nll_sha256,merged_label_free_features_sha256:$features_sha256},population:{questions:512,sources:512,actions_per_question:5},task_endpoints_used_for_selection:false,validation_or_test_inputs_used:false}' \
+  '{schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:$accelerator,gpu_count:4,queue_wait_seconds:$queue_wait_seconds,timing_seconds:{rollout_and_resume:$rollout_seconds,teacher_nll_and_resume:$nll_seconds,label_free_features:$feature_seconds,total:$total_seconds},artifacts:{manifest_sha256:$manifest_sha256,merged_rollouts_sha256:$rollouts_sha256,merged_teacher_nll_sha256:$nll_sha256,merged_label_free_features_sha256:$features_sha256,decar_input_audit_sha256:$decar_input_audit_sha256},population:{questions:512,sources:512,actions_per_question:5},generated_token_statistics_complete:true,task_endpoints_used_for_selection:false,validation_or_test_inputs_used:false}' \
   > "${execution}.tmp"
 mv "${execution}.tmp" "${execution}"
 echo "DECAR pilot end: $(date --iso-8601=seconds)"

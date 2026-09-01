@@ -19,6 +19,12 @@ def test_decar_pilot_worker_freezes_model_hardware_and_leakage_contracts() -> No
     assert "--question-feature-mode contextual_text_mean" in worker
     assert "--exclude-outcomes" in worker
     assert "raw_targets_written" in worker
+    assert "pilot-qwen7b-v2" in worker
+    assert "audit_infographicvqa_decar_inputs.py" in worker
+    assert "generated_token_statistics_complete == true" in worker
+    assert "scientific_endpoints_reported == false" in worker
+    assert "decar_input_audit_sha256" in worker
+    assert "infographicvqa-decar-feature-implementation-correction-v1.md" in worker
     assert "task_endpoints_used_for_selection:false" in worker
     assert "HF_HUB_OFFLINE=1" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
@@ -26,13 +32,13 @@ def test_decar_pilot_worker_freezes_model_hardware_and_leakage_contracts() -> No
 
 
 def test_decar_pilot_submitter_is_quota_gated_and_does_not_export_environment() -> None:
-    submitter = (
-        ROOT / "scripts/submit_infographicvqa_decar_pilot_h800.sh"
-    ).read_text()
+    submitter = (ROOT / "scripts/submit_infographicvqa_decar_pilot_h800.sh").read_text()
     assert "/usr/local/bin/show-cpu-gpu-quota" in submitter
     assert "-lt 720" in submitter
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter
     assert "--resume" in submitter
+    assert "pilot-qwen7b-v2" in submitter
+    assert "pilot-implementation-freeze-v2.md" in submitter
     assert "git status --porcelain --untracked-files=no" in submitter
     assert "git push" not in submitter

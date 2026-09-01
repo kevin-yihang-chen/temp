@@ -14,8 +14,8 @@ fi
 export PATH=/usr/local/slurm/bin:/usr/local/bin:/usr/bin:/bin
 repo=/userhome/cs3/yihangc/Documents/beyond-entropy
 worker="${repo}/scripts/slurm_infographicvqa_decar_pilot_h800.sh"
-freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-pilot-implementation-freeze-v1.md"
-root="${repo}/artifacts/infographicvqa-train-v1/decar-v1/pilot-qwen7b-v1"
+freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-pilot-implementation-freeze-v2.md"
+root="${repo}/artifacts/infographicvqa-train-v1/decar-v1/pilot-qwen7b-v2"
 cd "${repo}"
 
 revision=$(git rev-parse HEAD)
