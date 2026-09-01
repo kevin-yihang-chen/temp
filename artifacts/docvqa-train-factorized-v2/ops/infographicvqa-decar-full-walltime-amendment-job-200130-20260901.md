@@ -60,3 +60,18 @@ status.  Existing Slurm state-change email remains enabled.
 If Slurm rejects the extension, do not cancel or restart the healthy job.
 Continue until terminal state and use the separately frozen exact-prefix
 recovery path only after an unsuccessful terminal record.
+
+## Controller result
+
+The request was issued after this decision record was committed.  Slurm
+returned:
+
+```text
+Access/permission denied for job 200130
+```
+
+An authoritative follow-up at runtime `04:27:55` confirmed that the job
+remained `RUNNING` with `Restarts=0`, `ExitCode=0:0`, `TimeLimit=08:15:00`, and
+hard end `2026-09-01T19:25:31+08:00`.  No scheduler field was changed.  The
+healthy job therefore continues under its original allocation; timeout
+recovery remains the only permitted fallback.
