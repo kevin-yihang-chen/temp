@@ -43,9 +43,13 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _runtime_device(torch: Any, device: str) -> Any:
+    return torch.device(device) if device.startswith("cuda") else device
+
+
 def _synchronize(torch: Any, device: str) -> None:
     if device.startswith("cuda"):
-        torch.cuda.synchronize(device)
+        torch.cuda.synchronize(_runtime_device(torch, device))
 
 
 def _timed_fit(
@@ -54,16 +58,19 @@ def _timed_fit(
     fit: Callable[[], Any],
 ) -> tuple[float, int]:
     gc.collect()
+    runtime_device = _runtime_device(torch, device)
     if device.startswith("cuda"):
         torch.cuda.empty_cache()
-        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.reset_peak_memory_stats(runtime_device)
     _synchronize(torch, device)
     start = time.monotonic()
     result = fit()
     _synchronize(torch, device)
     seconds = time.monotonic() - start
     peak = (
-        int(torch.cuda.max_memory_allocated(device)) if device.startswith("cuda") else 0
+        int(torch.cuda.max_memory_allocated(runtime_device))
+        if device.startswith("cuda")
+        else 0
     )
     del result
     gc.collect()
@@ -194,7 +201,7 @@ def main() -> None:
     )
     projected_with_reserve = 1.25 * projected_fit_seconds
     accelerator = (
-        torch.cuda.get_device_name(args.device)
+        torch.cuda.get_device_name(_runtime_device(torch, args.device))
         if args.device.startswith("cuda")
         else platform.processor() or "cpu"
     )
