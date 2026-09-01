@@ -1,5 +1,11 @@
 # CV paper scaffold: harm-controlled counterfactual visual acquisition
 
+Historical-route note (2026-09-01): this scaffold remains the authoritative
+record for the opened DocVQA calibration-PASS/formal-interval-FAIL branch.  It
+must not be reused as the result narrative for the unopened InfographicVQA
+DECAR branch.  The prospective, collision-updated DECAR paper plan is in
+`cv-paper-scaffold-infographicvqa-decar-20260901.md`.
+
 Status: updated after the independent DocVQA calibration PASS and the frozen
 formal positive-point/interval-FAIL result. The formal population is now opened
 and may be used only for locked reporting and diagnostics, never for revision
