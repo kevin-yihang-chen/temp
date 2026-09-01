@@ -249,6 +249,7 @@ predeclared generalization axis.
 - `infographicvqa-decar-full-generation-freeze-v1.md`
 - `infographicvqa-decar-oof-evaluation-freeze-v1.md`
 - `literature-collision-repositioning-20260830.md`
+- `gapsight-comparator-feasibility-audit-20260901.md`
 - `infographicvqa-decar-oof-runtime-benchmark-freeze-v1.md`
 
 Historical DocVQA and ScreenQA results may motivate the question and show prior
