@@ -11,6 +11,7 @@ from beyond_entropy.infographicvqa_decar_evaluation import (
     build_decar_outcomes,
     complete_tie_top_keys,
     evaluate_decar_oof,
+    evaluate_entropy_oracle_where_factorization,
     evaluate_entropy_where_hybrid,
     parse_decar_predictions,
 )
@@ -233,6 +234,53 @@ def test_entropy_when_oof_where_hybrid_reuses_formal_identities() -> None:
     assert point["qualification_rules"]["minimum_calls_and_sources"] is False
 
 
+def test_entropy_oracle_where_factorizes_crop_selection_on_same_states() -> None:
+    records = [record for index in range(8) for record in _decision(index)]
+    predictions = [_prediction(index) for index in range(8)]
+    for prediction in predictions:
+        prediction["variants"]["decar"]["selected_action_id"] = "ug-grid-02"
+    indices = np.tile(np.arange(4, dtype=np.int32), (100, 1))
+    formal = evaluate_decar_oof(
+        records,
+        predictions,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+    )
+    hybrid = evaluate_entropy_where_hybrid(
+        records,
+        predictions,
+        formal,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    result = evaluate_entropy_oracle_where_factorization(
+        records,
+        predictions,
+        hybrid,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    assert result["decision"] == "where_bottleneck_not_supported"
+    assert result["outcome_oracle_used"] is True
+    assert result["deployable_method_evidence"] is False
+    assert result["validation_or_test_inputs_used"] is False
+    point = result["operating_points"][0]
+    oracle = point["policies"]["entropy_when_task_oracle_where"]
+    learned = point["policies"]["entropy_when_decar_where"]
+    assert (
+        oracle["question_balanced"]["utility"] > learned["question_balanced"]["utility"]
+    )
+    assert point["qualification_rules"]["exact_arithmetic_consistency"] is True
+    assert point["per_state_regret_identity_passed"] is True
+    assert "entropy_when_decar_where" in point["paired_source_utility_differences"]
+    assert point["qualification_rules"]["minimum_calls_and_sources"] is False
+
+
 def test_decar_evaluation_script_freezes_train_only_full_protocol() -> None:
     root = Path(__file__).resolve().parents[1]
     script = (root / "scripts/evaluate_infographicvqa_decar_oof.py").read_text()
@@ -285,6 +333,49 @@ def test_entropy_where_hybrid_slurm_contract_hides_required_gpu_and_notifies() -
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter
     assert "resource_amendment_sha256" in submitter
+    assert "git push" not in submitter
+
+
+def test_entropy_oracle_where_runner_marks_outcome_oracle_and_keeps_seal() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (
+        root / "scripts/evaluate_infographicvqa_entropy_oracle_where_factorization.py"
+    ).read_text()
+    assert "EXPECTED_DECISIONS" in script
+    assert "EXPECTED_SOURCES" in script
+    assert "EXPECTED_IMAGES" in script
+    assert 'mmap_mode="r"' in script
+    assert '"outcome_oracle_used": True' in script
+    assert '"deployable_method_evidence": False' in script
+    assert '"formal_bootstrap_reused": True' in script
+    assert '"validation_opened": False' in script
+    assert '"test_opened": False' in script
+    assert "download" not in script.lower()
+
+
+def test_entropy_oracle_where_slurm_contract_hides_gpu_and_notifies() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (
+        root / "scripts/slurm_infographicvqa_entropy_oracle_where_factorization.sh"
+    ).read_text()
+    submitter = (
+        root / "scripts/submit_infographicvqa_entropy_oracle_where_factorization.sh"
+    ).read_text()
+    assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --gres=gpu:rtx_4090:1" in worker
+    assert "#SBATCH --cpus-per-task=4" in worker
+    assert "#SBATCH --mem=64G" in worker
+    assert "#SBATCH --time=00:45:00" in worker
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert 'export CUDA_VISIBLE_DEVICES=""' in worker
+    assert "outcome_oracle_used" in worker
+    assert "deployable_method_evidence" in worker
+    assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "-lt 45" in submitter
+    assert "-lt 180" in submitter
+    assert "--test-only --export=NONE" in submitter
+    assert "--parsable --export=NONE" in submitter
     assert "git push" not in submitter
 
 

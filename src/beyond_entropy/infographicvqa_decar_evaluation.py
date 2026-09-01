@@ -14,6 +14,9 @@ DECAR_EVALUATION_SCHEMA = "infographicvqa_decar_oof_evaluation_v1"
 DECAR_HYBRID_EVALUATION_SCHEMA = (
     "infographicvqa_decar_entropy_where_hybrid_evaluation_v1"
 )
+DECAR_ORACLE_WHERE_EVALUATION_SCHEMA = (
+    "infographicvqa_entropy_oracle_where_factorization_evaluation_v1"
+)
 DECAR_BOOTSTRAP_SEED = 20_260_917
 DECAR_BOOTSTRAP_RESAMPLES = 20_000
 DECAR_BOOTSTRAP_CONFIDENCE = 0.95
@@ -732,8 +735,17 @@ def _bootstrap_all_policies(
         }
     paired_differences: dict[str, dict[str, Any]] = {}
     for policy_name in sorted(aggregates):
-        if policy_name.endswith(("/decar", "/entropy_when_decar_where")):
+        if policy_name.endswith(
+            (
+                "/decar",
+                "/entropy_when_decar_where",
+                "/entropy_when_task_oracle_where",
+            )
+        ):
             prefix = policy_name.rsplit("/", 1)[0]
+            oracle_name = f"{prefix}/entropy_when_task_oracle_where"
+            if oracle_name in aggregates and policy_name != oracle_name:
+                continue
             paired_differences[prefix] = {}
             for comparator in sorted(aggregates):
                 if comparator.startswith(prefix + "/") and comparator != policy_name:
@@ -1357,5 +1369,304 @@ def evaluate_entropy_where_hybrid(
                 ]["source_balanced"]["induced_harm"],
             }
         ),
+        "validation_or_test_inputs_used": False,
+    }
+
+
+def evaluate_entropy_oracle_where_factorization(
+    records: Sequence[ActionRecord],
+    prediction_rows: Sequence[Mapping[str, Any]],
+    hybrid_evaluation: Mapping[str, Any],
+    *,
+    bootstrap_indices: Any,
+    expected_decisions: int | None = 23_946,
+    expected_sources: int | None = 2_204,
+    expected_action_disagreements: Mapping[str, int] | None = None,
+    expected_bootstrap_resamples: int = DECAR_BOOTSTRAP_RESAMPLES,
+) -> dict[str, Any]:
+    """Factor entropy-when from crop selection with an outcome-oracle where."""
+
+    outcomes = build_decar_outcomes(
+        records,
+        expected_decisions=expected_decisions,
+        expected_sources=expected_sources,
+    )
+    predictions = parse_decar_predictions(prediction_rows, outcomes)
+    keys = sorted(outcomes)
+    sources = sorted({row.source_id for row in outcomes.values()})
+    hybrid_population = hybrid_evaluation.get("population")
+    hybrid_bootstrap = hybrid_evaluation.get("bootstrap")
+    hybrid_points = hybrid_evaluation.get("operating_points")
+    if (
+        hybrid_evaluation.get("schema") != DECAR_HYBRID_EVALUATION_SCHEMA
+        or hybrid_evaluation.get("decision") != "hybrid_train_not_supported"
+        or hybrid_evaluation.get("selected_operating_point") is not None
+        or hybrid_evaluation.get("validation_or_test_inputs_used") is not False
+        or not isinstance(hybrid_population, Mapping)
+        or hybrid_population.get("decisions") != len(outcomes)
+        or hybrid_population.get("sources") != len(sources)
+        or not isinstance(hybrid_bootstrap, Mapping)
+        or hybrid_bootstrap.get("n_resamples") != expected_bootstrap_resamples
+        or hybrid_bootstrap.get("n_sources") != len(sources)
+        or hybrid_bootstrap.get("same_indices_for_all_policies_and_differences")
+        is not True
+        or tuple(hybrid_evaluation.get("registered_call_rates", ())) != DECAR_CALL_RATES
+        or not isinstance(hybrid_points, list)
+        or len(hybrid_points) != len(DECAR_CALL_RATES)
+    ):
+        raise ValueError("oracle-where frozen hybrid contract failed")
+    if tuple(bootstrap_indices.shape) != (expected_bootstrap_resamples, len(sources)):
+        raise ValueError("oracle-where bootstrap shape changed")
+    if str(bootstrap_indices.dtype) != "int32":
+        raise ValueError("oracle-where bootstrap dtype changed")
+
+    entropy_scores = {key: outcomes[key].baseline.entropy_before for key in keys}
+    variants = {
+        name: {key: predictions[key].variants[name] for key in keys}
+        for name in DECAR_VARIANTS
+    }
+    actions = {
+        name: {key: value.action_id for key, value in values.items()}
+        for name, values in variants.items()
+    }
+    disagreements = {
+        name: sum(actions["decar"][key] != actions[name][key] for key in keys)
+        for name in ("loss_only", "no_harm_head", "task_value_only")
+    }
+    if expected_action_disagreements is not None and disagreements != dict(
+        expected_action_disagreements
+    ):
+        raise ValueError("oracle-where OOF action-family audit changed")
+
+    policy_values: dict[str, dict[DecisionKey, dict[str, float]]] = {}
+    operating: list[dict[str, Any]] = []
+    answer_now = _policy_metrics(outcomes, called_keys=set())
+    for hybrid_point, rate in zip(hybrid_points, DECAR_CALL_RATES, strict=True):
+        if not isinstance(hybrid_point, Mapping):
+            raise ValueError("oracle-where hybrid operating point is invalid")
+        point_name = f"rate-{rate:.3f}"
+        actual_calls = int(hybrid_point.get("actual_calls", -1))
+        selection_audits = hybrid_point.get("selection_audits")
+        if (
+            hybrid_point.get("name") != point_name
+            or _finite(hybrid_point.get("nominal_question_call_rate"), "oracle rate")
+            != rate
+            or actual_calls <= 0
+            or not isinstance(selection_audits, Mapping)
+        ):
+            raise ValueError("oracle-where hybrid operating-point family changed")
+        entropy_calls, entropy_audit = _complete_tie_exact_match(
+            entropy_scores,
+            target_calls=actual_calls,
+        )
+        if len(entropy_calls) != actual_calls or entropy_audit != selection_audits.get(
+            "entropy_one_crop"
+        ):
+            raise ValueError("oracle-where entropy identity audit failed")
+
+        point_values = {
+            "entropy_when_task_oracle_where": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                task_action=True,
+            ),
+            "entropy_when_decar_where": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                action_by_key=actions["decar"],
+            ),
+            "entropy_when_task_value_where": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                action_by_key=actions["task_value_only"],
+            ),
+            "entropy_random": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                random_action=True,
+            ),
+            "entropy_fixed_ug_grid_00": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                action_by_key={key: "ug-grid-00" for key in keys},
+            ),
+            "answer_now": answer_now,
+        }
+        oracle_values = point_values["entropy_when_task_oracle_where"]
+        learned_values = point_values["entropy_when_decar_where"]
+        per_state_consistent = all(
+            math.isclose(
+                oracle_values[key]["utility"] - learned_values[key]["utility"],
+                learned_values[key]["action_selection_regret"],
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            )
+            for key in keys
+        )
+        if not per_state_consistent:
+            raise ValueError("oracle-where per-state regret identity changed")
+        for name, values in point_values.items():
+            policy_values[f"{point_name}/{name}"] = values
+        operating.append(
+            {
+                "name": point_name,
+                "nominal_question_call_rate": rate,
+                "actual_calls": actual_calls,
+                "selection_audit": entropy_audit,
+                "per_state_regret_identity_passed": per_state_consistent,
+            }
+        )
+
+    aggregates = {
+        name: _aggregate_policy(values, outcomes, sources)
+        for name, values in policy_values.items()
+    }
+    bootstrap, paired_differences = _bootstrap_all_policies(
+        aggregates,
+        sources,
+        bootstrap_indices,
+    )
+    public_aggregates = {
+        name: {key: value for key, value in aggregate.items() if key != "source_values"}
+        for name, aggregate in aggregates.items()
+    }
+    policy_names = (
+        "entropy_when_task_oracle_where",
+        "entropy_when_decar_where",
+        "entropy_when_task_value_where",
+        "entropy_random",
+        "entropy_fixed_ug_grid_00",
+        "answer_now",
+    )
+    points: list[dict[str, Any]] = []
+    for registered, hybrid_point in zip(operating, hybrid_points, strict=True):
+        point_name = str(registered["name"])
+        policies = {
+            name: public_aggregates[f"{point_name}/{name}"] for name in policy_names
+        }
+        policy_bootstrap = {
+            name: bootstrap["policies"][f"{point_name}/{name}"] for name in policy_names
+        }
+        for learned_name in (
+            "entropy_when_decar_where",
+            "entropy_when_task_value_where",
+            "entropy_random",
+            "entropy_fixed_ug_grid_00",
+            "answer_now",
+        ):
+            if policies[learned_name] != hybrid_point["policies"][learned_name]:
+                raise ValueError(
+                    f"oracle-where frozen {learned_name} aggregate changed"
+                )
+        oracle = policies["entropy_when_task_oracle_where"]
+        learned = policies["entropy_when_decar_where"]
+        arithmetic_consistent = all(
+            math.isclose(
+                float(oracle[balance][metric]),
+                float(learned[balance][metric])
+                + float(learned[balance]["action_selection_regret"]),
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            )
+            for balance in ("question_balanced", "source_balanced")
+            for metric in ("utility", "anls_gain")
+        ) and all(
+            math.isclose(
+                float(oracle[balance]["call"]),
+                float(learned[balance]["call"]),
+                rel_tol=0.0,
+                abs_tol=1e-15,
+            )
+            for balance in ("question_balanced", "source_balanced")
+        )
+        differences = paired_differences[point_name]
+        primary_interval = policy_bootstrap["entropy_when_task_oracle_where"][
+            "additive"
+        ]["utility"]
+        rules = {
+            "minimum_calls_and_sources": (
+                float(oracle["raw_calls"]) >= 100.0
+                and int(oracle["distinct_called_sources"]) >= 50
+            ),
+            "oracle_source_utility_ci_low_strictly_positive": float(
+                primary_interval["ci_low"]
+            )
+            > 0.0,
+            "paired_above_decar_where_ci_low_strictly_positive": float(
+                differences["entropy_when_decar_where"]["ci_low"]
+            )
+            > 0.0,
+            "paired_above_task_value_where_ci_low_strictly_positive": float(
+                differences["entropy_when_task_value_where"]["ci_low"]
+            )
+            > 0.0,
+            "exact_arithmetic_consistency": arithmetic_consistent,
+            "all_audits_passed": bool(
+                registered["per_state_regret_identity_passed"]
+                and registered["selection_audit"]["matched_call_count"]
+            ),
+        }
+        points.append(
+            {
+                **registered,
+                "policies": policies,
+                "source_bootstrap": policy_bootstrap,
+                "paired_source_utility_differences": differences,
+                "qualification_rules": rules,
+                "qualified": all(rules.values()),
+            }
+        )
+    qualified = [row for row in points if row["qualified"]]
+    selected = (
+        min(
+            qualified,
+            key=lambda row: (
+                -float(
+                    row["policies"]["entropy_when_task_oracle_where"][
+                        "source_balanced"
+                    ]["utility"]
+                ),
+                float(row["nominal_question_call_rate"]),
+            ),
+        )
+        if qualified
+        else None
+    )
+    return {
+        "schema": DECAR_ORACLE_WHERE_EVALUATION_SCHEMA,
+        "scientific_status": "post-hybrid official-train outcome-oracle diagnostic",
+        "population": {
+            "decisions": len(outcomes),
+            "sources": len(sources),
+            "images": len({row.image_id for row in outcomes.values()}),
+        },
+        "lambda_cost": DECAR_LAMBDA_COST,
+        "registered_call_rates": list(DECAR_CALL_RATES),
+        "action_family_audit": {
+            "disagreements_from_decar": disagreements,
+            "passed": expected_action_disagreements is None
+            or disagreements == dict(expected_action_disagreements),
+        },
+        "operating_points": points,
+        "bootstrap": bootstrap["metadata"],
+        "decision": (
+            "where_bottleneck_supported"
+            if selected is not None
+            else "where_bottleneck_not_supported"
+        ),
+        "selected_operating_point": (
+            None
+            if selected is None
+            else {
+                "name": selected["name"],
+                "nominal_question_call_rate": selected["nominal_question_call_rate"],
+                "actual_calls": selected["actual_calls"],
+                "source_balanced_oracle_utility": selected["policies"][
+                    "entropy_when_task_oracle_where"
+                ]["source_balanced"]["utility"],
+            }
+        ),
+        "outcome_oracle_used": True,
+        "deployable_method_evidence": False,
         "validation_or_test_inputs_used": False,
     }
