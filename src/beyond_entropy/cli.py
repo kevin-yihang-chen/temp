@@ -6,7 +6,7 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from .dataset import group_by_decision, read_jsonl, split_by_group, write_jsonl
 from .metrics import (
@@ -43,7 +43,9 @@ from .simulate import simulate_counterfactual_dataset
 def _write_json(value: object, path: str | Path) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    destination.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _evaluate(
@@ -349,7 +351,15 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     examples = [
         example
         for example in manifest_examples
-        if stable_shard_index(example.state.state_id, args.shard_count)
+        if stable_shard_index(
+            (
+                example.state.source_id
+                if args.shard_key == "source_id"
+                else example.state.state_id
+            ),
+            args.shard_count,
+            namespace=args.shard_namespace,
+        )
         == args.shard_index
     ]
     if not examples:
@@ -384,6 +394,12 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             if not isinstance(existing_runtime, dict):
                 raise ValueError("Qwen rollout runtime measurement is malformed")
             previous_runtime_measurement = existing_runtime
+        existing_shard_key = existing_provenance.get("shard_key", "state_id")
+        existing_shard_namespace = existing_provenance.get("shard_namespace", "")
+        if existing_shard_key != args.shard_key:
+            raise ValueError("Qwen rollout checkpoint shard key mismatch")
+        if existing_shard_namespace != args.shard_namespace:
+            raise ValueError("Qwen rollout checkpoint shard namespace mismatch")
     if args.output.exists():
         if not args.resume:
             raise FileExistsError(
@@ -445,7 +461,9 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
     expected_per_state = (args.candidate_count + 1) * len(args.generation_seeds)
     checkpoint_counts: dict[str, int] = {}
     for record in records:
-        checkpoint_counts[record.state_id] = checkpoint_counts.get(record.state_id, 0) + 1
+        checkpoint_counts[record.state_id] = (
+            checkpoint_counts.get(record.state_id, 0) + 1
+        )
     for state_id, count in checkpoint_counts.items():
         if count != expected_per_state:
             raise ValueError(
@@ -459,7 +477,9 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
             f"checkpoint contains states outside the manifest: {sorted(unexpected_states)}"
         )
     pending = [
-        example for example in examples if example.state.state_id not in checkpoint_counts
+        example
+        for example in examples
+        if example.state.state_id not in checkpoint_counts
     ]
     runtime_measurement = previous_runtime_measurement
     if pending:
@@ -534,6 +554,8 @@ def command_collect_qwen(args: argparse.Namespace) -> None:
         "manifest_limit": args.limit,
         "manifest_examples_before_sharding": len(manifest_examples),
         "shard_algorithm": SHARD_ALGORITHM,
+        "shard_key": args.shard_key,
+        "shard_namespace": args.shard_namespace,
         "shard_count": args.shard_count,
         "shard_index": args.shard_index,
         "output": str(args.output.resolve()),
@@ -683,9 +705,7 @@ def command_initialize_semantic_checkpoint(args: argparse.Namespace) -> None:
                 "initialized_decisions": initialization["initialized_decisions"],
                 "target_decisions": initialization["target_decisions"],
                 "source_features_sha256": initialization["source_features_sha256"],
-                "target_rollouts_sha256": result["metadata"][
-                    "source_rollouts_sha256"
-                ],
+                "target_rollouts_sha256": result["metadata"]["source_rollouts_sha256"],
             },
             indent=2,
         )
@@ -699,7 +719,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    simulate = subparsers.add_parser("simulate", help="generate paired synthetic rollouts")
+    simulate = subparsers.add_parser(
+        "simulate", help="generate paired synthetic rollouts"
+    )
     simulate.add_argument("--output", type=Path, required=True)
     simulate.add_argument("--n-states", type=int, default=600)
     simulate.add_argument("--num-candidates", type=int, default=4)
@@ -707,7 +729,9 @@ def build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--seed", type=int, default=7)
     simulate.set_defaults(func=command_simulate)
 
-    diagnose = subparsers.add_parser("diagnose", help="measure entropy/success mismatch")
+    diagnose = subparsers.add_parser(
+        "diagnose", help="measure entropy/success mismatch"
+    )
     diagnose.add_argument("--data", type=Path, required=True)
     diagnose.set_defaults(func=command_diagnose)
 
@@ -717,7 +741,9 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--alpha", type=float, default=1.0)
     train.set_defaults(func=command_train)
 
-    evaluate = subparsers.add_parser("evaluate", help="compare stopping and crop policies")
+    evaluate = subparsers.add_parser(
+        "evaluate", help="compare stopping and crop policies"
+    )
     evaluate.add_argument("--data", type=Path, required=True)
     evaluate.add_argument("--model", type=Path)
     evaluate.add_argument("--output", type=Path)
@@ -779,6 +805,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=0,
         help="zero-based deterministic worker partition to collect",
+    )
+    collect_qwen.add_argument(
+        "--shard-key",
+        choices=("state_id", "source_id"),
+        default="state_id",
+        help="keep every state or every source together in one deterministic shard",
+    )
+    collect_qwen.add_argument(
+        "--shard-namespace",
+        default="",
+        help="optional frozen namespace used to rebalance deterministic shards",
     )
     collect_qwen.add_argument("--output", type=Path, required=True)
     collect_qwen.add_argument(

@@ -15,6 +15,10 @@ def main() -> None:
     parser.add_argument("--expected-manifest-sha256", required=True)
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--shard-count", type=int, required=True)
+    parser.add_argument(
+        "--shard-key", choices=("state_id", "source_id"), default="state_id"
+    )
+    parser.add_argument("--shard-namespace", default="")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--expected-code-revision")
@@ -28,6 +32,8 @@ def main() -> None:
         expected_manifest_sha256=args.expected_manifest_sha256,
         run_root=args.run_root,
         shard_count=args.shard_count,
+        shard_key=args.shard_key,
+        shard_namespace=args.shard_namespace,
         output_path=args.output,
         limit=args.limit,
         expected_code_revision=args.expected_code_revision,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+import pytest
 from PIL import Image
 
 from beyond_entropy.dataset import read_jsonl, write_jsonl
@@ -14,12 +15,12 @@ from beyond_entropy.schema import ActionRecord, BBox
 from beyond_entropy.sharding import SHARD_ALGORITHM, stable_shard_index
 
 
-def _record(state_id: str, action_id: str) -> ActionRecord:
+def _record(state_id: str, action_id: str, source_id: str) -> ActionRecord:
     zoom = action_id != "answer-now"
     return ActionRecord(
         state_id=state_id,
         image_id=f"image-{state_id}",
-        source_id=f"source-{state_id}",
+        source_id=source_id,
         question="Question?",
         original_image="image.png",
         replicate_id="replicate-000",
@@ -37,11 +38,18 @@ def _record(state_id: str, action_id: str) -> ActionRecord:
     )
 
 
-def test_merge_qwen_rollout_shards_proves_exact_state_coverage(tmp_path):
+@pytest.mark.parametrize("shard_key", ["state_id", "source_id"])
+@pytest.mark.parametrize("shard_namespace", ["", "test-balanced-v1"])
+def test_merge_qwen_rollout_shards_proves_exact_state_coverage(
+    tmp_path, shard_key: str, shard_namespace: str
+):
     image = tmp_path / "image.png"
     Image.new("RGB", (4, 4), "white").save(image)
     manifest = tmp_path / "manifest.jsonl"
     states = [f"state-{index:03d}" for index in range(20)]
+    source_by_state = {
+        state_id: f"source-{index // 2:03d}" for index, state_id in enumerate(states)
+    }
     with manifest.open("w", encoding="utf-8") as handle:
         for state_id in states:
             handle.write(
@@ -49,7 +57,7 @@ def test_merge_qwen_rollout_shards_proves_exact_state_coverage(tmp_path):
                     {
                         "state_id": state_id,
                         "image_id": f"image-{state_id}",
-                        "source_id": f"source-{state_id}",
+                        "source_id": source_by_state[state_id],
                         "image_path": str(image),
                         "question": "Question?",
                         "target": {"answers": ["yes"]},
@@ -64,14 +72,22 @@ def test_merge_qwen_rollout_shards_proves_exact_state_coverage(tmp_path):
         shard_states = [
             state_id
             for state_id in states
-            if stable_shard_index(state_id, shard_count) == shard_index
+            if stable_shard_index(
+                source_by_state[state_id] if shard_key == "source_id" else state_id,
+                shard_count,
+                namespace=shard_namespace,
+            )
+            == shard_index
         ]
         shard_dir = run_root / shard_directory_name(shard_index, shard_count)
         shard_dir.mkdir(parents=True)
         records = [
             record
             for state_id in shard_states
-            for record in (_record(state_id, "answer-now"), _record(state_id, "zoom-0"))
+            for record in (
+                _record(state_id, "answer-now", source_by_state[state_id]),
+                _record(state_id, "zoom-0", source_by_state[state_id]),
+            )
         ]
         rollouts = shard_dir / "rollouts.jsonl"
         write_jsonl(records, rollouts)
@@ -81,6 +97,8 @@ def test_merge_qwen_rollout_shards_proves_exact_state_coverage(tmp_path):
             "manifest_limit": None,
             "manifest_examples_before_sharding": len(states),
             "shard_algorithm": SHARD_ALGORITHM,
+            "shard_key": shard_key,
+            "shard_namespace": shard_namespace,
             "shard_count": shard_count,
             "shard_index": shard_index,
             "model": "model",
@@ -127,6 +145,8 @@ def test_merge_qwen_rollout_shards_proves_exact_state_coverage(tmp_path):
         expected_manifest_sha256=manifest_sha256,
         run_root=run_root,
         shard_count=shard_count,
+        shard_key=shard_key,
+        shard_namespace=shard_namespace,
         output_path=output,
         expected_code_revision="revision",
         expected_scorer="screenqa",
@@ -138,4 +158,6 @@ def test_merge_qwen_rollout_shards_proves_exact_state_coverage(tmp_path):
     assert audit["passed"] is True
     assert audit["selected_states"] == len(states)
     assert audit["merged_records"] == len(states) * 2
+    assert audit["shard_key"] == shard_key
+    assert audit["shard_namespace"] == shard_namespace
     assert [record.state_id for record in merged[::2]] == states

@@ -116,14 +116,18 @@ def load_manifest_targets(
                 question = str(value["question"])
                 model_prompt = str(value.get("model_prompt", question))
                 answers = accepted_answers(value["target"])
-                answer, answer_index, answer_votes = canonical_target_answer(value["target"])
+                answer, answer_index, answer_votes = canonical_target_answer(
+                    value["target"]
+                )
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise ValueError(
                     f"invalid answer-likelihood manifest row at {manifest_path}:"
                     f"{line_number}: {exc}"
                 ) from exc
             if not all((state_id, image_id, source_id, question, model_prompt)):
-                raise ValueError("answer-likelihood manifest identifiers must be non-empty")
+                raise ValueError(
+                    "answer-likelihood manifest identifiers must be non-empty"
+                )
             if state_id in targets:
                 raise ValueError(f"duplicate manifest state_id: {state_id}")
             targets[state_id] = ManifestTarget(
@@ -215,10 +219,14 @@ class Qwen25VLAnswerLikelihood:
             import torch.nn.functional as functional  # type: ignore[import-not-found]
             from qwen_vl_utils import process_vision_info  # type: ignore[import-not-found]
         except ImportError as exc:  # pragma: no cover - optional runtime dependency
-            raise RuntimeError("Qwen answer likelihood requires the qwen extra") from exc
+            raise RuntimeError(
+                "Qwen answer likelihood requires the qwen extra"
+            ) from exc
 
         if not request.observations or request.observations[0].kind != "ORIGINAL":
-            raise ValueError("answer likelihood requires ORIGINAL as the first observation")
+            raise ValueError(
+                "answer likelihood requires ORIGINAL as the first observation"
+            )
         messages = self.backend._messages(request.state, request.observations)
         prompt_text = self.backend.processor.apply_chat_template(
             messages,
@@ -227,9 +235,7 @@ class Qwen25VLAnswerLikelihood:
         )
         full_text = prompt_text + request.target_answer
         tokenizer = self.backend.processor.tokenizer
-        prompt_token_ids = tokenizer(
-            prompt_text, add_special_tokens=False
-        ).input_ids
+        prompt_token_ids = tokenizer(prompt_text, add_special_tokens=False).input_ids
         full_token_ids = tokenizer(full_text, add_special_tokens=False).input_ids
         if full_token_ids[: len(prompt_token_ids)] != prompt_token_ids:
             raise ValueError("target answer changes the tokenized prompt prefix")
@@ -371,6 +377,8 @@ def score_rollout_answer_likelihood(
     manifest_limit: int | None = None,
     shard_count: int = 1,
     shard_index: int = 0,
+    shard_key: str = "decision_index",
+    shard_namespace: str = "",
     checkpoint_interval: int = 32,
     resume: bool = False,
     model: str,
@@ -383,6 +391,10 @@ def score_rollout_answer_likelihood(
 
     if shard_count <= 0 or not 0 <= shard_index < shard_count:
         raise ValueError("invalid answer-likelihood shard configuration")
+    if shard_key not in {"decision_index", "source_id"}:
+        raise ValueError(
+            "answer-likelihood shard key must be decision_index or source_id"
+        )
     if checkpoint_interval <= 0:
         raise ValueError("checkpoint_interval must be positive")
     if manifest_limit is not None and manifest_limit <= 0:
@@ -394,9 +406,13 @@ def score_rollout_answer_likelihood(
             json.dumps(measurement_config, allow_nan=False, sort_keys=True)
         )
     except (TypeError, ValueError) as exc:
-        raise ValueError("answer-likelihood measurement configuration is not JSON-safe") from exc
+        raise ValueError(
+            "answer-likelihood measurement configuration is not JSON-safe"
+        ) from exc
     if not isinstance(frozen_measurement_config, dict):
-        raise ValueError("answer-likelihood measurement configuration must be a mapping")
+        raise ValueError(
+            "answer-likelihood measurement configuration must be a mapping"
+        )
     manifest_path = Path(manifest).resolve()
     rollout_path = Path(rollouts).resolve()
     destination = Path(output).resolve()
@@ -414,11 +430,25 @@ def score_rollout_answer_likelihood(
     )
     records = read_jsonl(rollout_path)
     decisions = _ordered_decisions(records)
-    selected = [
-        siblings
-        for position, siblings in enumerate(decisions)
-        if position % shard_count == shard_index
-    ]
+    if shard_key == "source_id":
+        from .sharding import stable_shard_index
+
+        selected = [
+            siblings
+            for siblings in decisions
+            if stable_shard_index(
+                siblings[0].source_id,
+                shard_count,
+                namespace=shard_namespace,
+            )
+            == shard_index
+        ]
+    else:
+        selected = [
+            siblings
+            for position, siblings in enumerate(decisions)
+            if position % shard_count == shard_index
+        ]
     if not selected:
         raise ValueError("answer-likelihood shard contains no decisions")
     if {siblings[0].state_id for siblings in decisions} != set(targets):
@@ -437,6 +467,8 @@ def score_rollout_answer_likelihood(
         "code_revision": code_revision,
         "shard_count": shard_count,
         "shard_index": shard_index,
+        "shard_key": shard_key,
+        "shard_namespace": shard_namespace,
         "scientific_status": scientific_status,
     }
     if manifest_limit is not None:
@@ -498,7 +530,10 @@ def score_rollout_answer_likelihood(
                     "tool_cost": record.tool_cost,
                 }
             )
-        if offset % checkpoint_interval == 0 or offset == len(selected) - completed_decisions:
+        if (
+            offset % checkpoint_interval == 0
+            or offset == len(selected) - completed_decisions
+        ):
             _atomic_write_jsonl(rows, destination)
             print(
                 json.dumps(

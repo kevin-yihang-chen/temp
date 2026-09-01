@@ -9,7 +9,11 @@ from typing import Any, Mapping, Sequence
 
 from .benchmarks import load_manifest
 from .dataset import read_jsonl, write_jsonl
-from .metrics import bootstrap_entropy_diagnostic, diagnostic_to_dict, entropy_diagnostic
+from .metrics import (
+    bootstrap_entropy_diagnostic,
+    diagnostic_to_dict,
+    entropy_diagnostic,
+)
 from .schema import ActionRecord
 from .sharding import SHARD_ALGORITHM, stable_shard_index
 
@@ -72,6 +76,8 @@ def merge_qwen_rollout_shards(
     expected_manifest_sha256: str,
     run_root: Path,
     shard_count: int,
+    shard_key: str = "state_id",
+    shard_namespace: str = "",
     output_path: Path,
     limit: int | None = None,
     expected_code_revision: str | None = None,
@@ -84,6 +90,8 @@ def merge_qwen_rollout_shards(
 
     if shard_count <= 0:
         raise ValueError("shard_count must be positive")
+    if shard_key not in {"state_id", "source_id"}:
+        raise ValueError("rollout shard key must be state_id or source_id")
     if bootstrap_resamples < 0:
         raise ValueError("bootstrap_resamples must be non-negative")
     actual_manifest_sha256 = sha256_file(manifest_path)
@@ -105,17 +113,27 @@ def merge_qwen_rollout_shards(
     expected_state_order = [example.state.state_id for example in examples]
     if len(set(expected_state_order)) != len(expected_state_order):
         raise ValueError("manifest contains duplicate state_id values")
+    source_by_state = {
+        example.state.state_id: example.state.source_id for example in examples
+    }
     expected_by_shard: dict[int, set[str]] = {
         index: {
             state_id
             for state_id in expected_state_order
-            if stable_shard_index(state_id, shard_count) == index
+            if stable_shard_index(
+                source_by_state[state_id] if shard_key == "source_id" else state_id,
+                shard_count,
+                namespace=shard_namespace,
+            )
+            == index
         }
         for index in range(shard_count)
     }
     empty_shards = [index for index, states in expected_by_shard.items() if not states]
     if empty_shards:
-        raise ValueError(f"deterministic partition contains empty shards: {empty_shards}")
+        raise ValueError(
+            f"deterministic partition contains empty shards: {empty_shards}"
+        )
 
     records_by_state: dict[str, list[ActionRecord]] = {}
     shard_audits: list[dict[str, Any]] = []
@@ -127,7 +145,9 @@ def merge_qwen_rollout_shards(
         rollouts_path = shard_dir / "rollouts.jsonl"
         provenance_path = shard_dir / "rollouts.provenance.json"
         if not rollouts_path.is_file() or not provenance_path.is_file():
-            raise FileNotFoundError(f"shard {shard_index} output is incomplete: {shard_dir}")
+            raise FileNotFoundError(
+                f"shard {shard_index} output is incomplete: {shard_dir}"
+            )
         provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
         if not isinstance(provenance, dict):
             raise ValueError(f"invalid shard provenance: {provenance_path}")
@@ -157,9 +177,18 @@ def merge_qwen_rollout_shards(
             raise ValueError(f"shard {shard_index} pre-shard count mismatch")
         if provenance.get("shard_algorithm") != SHARD_ALGORITHM:
             raise ValueError(f"shard {shard_index} algorithm mismatch")
+        recorded_shard_key = provenance.get("shard_key", "state_id")
+        if recorded_shard_key != shard_key:
+            raise ValueError(f"shard {shard_index} key mismatch")
+        recorded_shard_namespace = provenance.get("shard_namespace", "")
+        if recorded_shard_namespace != shard_namespace:
+            raise ValueError(f"shard {shard_index} namespace mismatch")
         if provenance.get("shard_count") != shard_count:
             raise ValueError(f"shard {shard_index} count mismatch")
-        if expected_code_revision is not None and provenance.get("code_revision") != expected_code_revision:
+        if (
+            expected_code_revision is not None
+            and provenance.get("code_revision") != expected_code_revision
+        ):
             raise ValueError(f"shard {shard_index} code revision mismatch")
         if expected_scorer is not None and provenance.get("scorer") != expected_scorer:
             raise ValueError(f"shard {shard_index} scorer mismatch")
@@ -192,7 +221,9 @@ def merge_qwen_rollout_shards(
         for record in records:
             shard_records_by_state[record.state_id].append(record)
         if set(shard_records_by_state) != expected_by_shard[shard_index]:
-            missing = sorted(expected_by_shard[shard_index] - set(shard_records_by_state))
+            missing = sorted(
+                expected_by_shard[shard_index] - set(shard_records_by_state)
+            )
             extra = sorted(set(shard_records_by_state) - expected_by_shard[shard_index])
             raise ValueError(
                 f"shard {shard_index} state coverage mismatch; "
@@ -228,7 +259,9 @@ def merge_qwen_rollout_shards(
         )
 
     if set(records_by_state) != set(expected_state_order):
-        raise ValueError("merged shard set does not exactly cover the selected manifest")
+        raise ValueError(
+            "merged shard set does not exactly cover the selected manifest"
+        )
     merged_records = [
         record
         for state_id in expected_state_order
@@ -259,6 +292,8 @@ def merge_qwen_rollout_shards(
         "diagnostic": str(diagnostic_path.resolve()),
         "diagnostic_sha256": sha256_file(diagnostic_path),
         "shard_algorithm": SHARD_ALGORITHM,
+        "shard_key": shard_key,
+        "shard_namespace": shard_namespace,
         "shard_count": shard_count,
         "resume_audit_required": require_resume_audit,
         "invariant_provenance": invariant_provenance,

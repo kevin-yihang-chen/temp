@@ -17,7 +17,9 @@ from beyond_entropy.proxy_outcome_audit import (
 
 
 def _write_json(path: Path, value: dict[str, object]) -> None:
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -135,7 +137,7 @@ def test_merge_and_audit_proxy_outcomes_are_deterministic(tmp_path: Path) -> Non
     assert merge["schema"] == MERGE_SCHEMA
     assert merge["raw_targets_written"] is False
     assert [entry["shard_index"] for entry in merge["input_shards"]] == [0, 1, 2, 3]
-    assert "target_answer\"" not in merged.read_text(encoding="utf-8")
+    assert 'target_answer"' not in merged.read_text(encoding="utf-8")
 
     protocol = tmp_path / "protocol.md"
     protocol.write_text("# frozen test protocol\n", encoding="utf-8")
@@ -182,8 +184,7 @@ def test_merge_and_audit_proxy_outcomes_are_deterministic(tmp_path: Path) -> Non
     assert first["study"]["label"] == "ScreenQA"
     assert first["disagreements"]["loss_improves_task_falls"]["count"] == 2
     assert (
-        first["disagreements"]["task_improves_without_positive_loss_gap"]["count"]
-        == 2
+        first["disagreements"]["task_improves_without_positive_loss_gap"]["count"] == 2
     )
     assert first["outcome_use"]["calibration_or_formal_inputs_used"] is False
     assert (tmp_path / "audit-1/report.md").is_file()
@@ -208,8 +209,10 @@ def test_merge_and_audit_proxy_outcomes_are_deterministic(tmp_path: Path) -> Non
     )
     assert docvqa["study"]["label"] == "DocVQA ranker development"
     assert docvqa["scientific_status"] == "opened-bank cross-domain replication"
-    assert (tmp_path / "audit-docvqa/report.md").read_text().startswith(
-        "# DocVQA ranker development proxy-to-outcome audit\n"
+    assert (
+        (tmp_path / "audit-docvqa/report.md")
+        .read_text()
+        .startswith("# DocVQA ranker development proxy-to-outcome audit\n")
     )
     assert docvqa["outcome_use"] == {
         "opened_ranker_development_used": True,
@@ -233,6 +236,33 @@ def test_merge_rejects_tampered_shard_configuration(tmp_path: Path) -> None:
         merge_answer_likelihood_shards(shards=shards, output=tmp_path / "merged.jsonl")
 
 
+def test_merge_accepts_and_audits_source_aligned_score_shards(tmp_path: Path) -> None:
+    shards = _score_shards(tmp_path)
+    for shard_index, shard in enumerate(shards):
+        rows = [json.loads(line) for line in shard.read_text().splitlines()]
+        for row in rows:
+            row["source_id"] = f"source-{shard_index}"
+        _write_jsonl(shard, rows)
+        provenance_path = shard.with_suffix(".provenance.json")
+        provenance = json.loads(provenance_path.read_text())
+        provenance["shard_key"] = "source_id"
+        provenance["shard_namespace"] = "test-balanced-v1"
+        provenance["sources"] = 1
+        provenance["output_sha256"] = sha256_file(shard)
+        _write_json(provenance_path, provenance)
+    merged = merge_answer_likelihood_shards(
+        shards=shards,
+        output=tmp_path / "source-aligned.jsonl",
+        expected_decisions=8,
+        expected_records=40,
+        expected_sources=4,
+    )
+    assert merged["shard_key"] == "source_id"
+    assert merged["shard_namespace"] == "test-balanced-v1"
+    assert merged["source_shards_disjoint"] is True
+    assert [entry["sources"] for entry in merged["input_shards"]] == [1, 1, 1, 1]
+
+
 def test_screenqa_proxy_h800_job_contracts() -> None:
     root = Path(__file__).resolve().parents[1]
     benchmark = (root / "scripts/slurm_screenqa_proxy_nll_benchmark.sh").read_text()
@@ -243,9 +273,7 @@ def test_screenqa_proxy_h800_job_contracts() -> None:
         root / "scripts/submit_screenqa_proxy_nll_benchmark_4090.sh"
     ).read_text()
     full = (root / "scripts/slurm_screenqa_proxy_nll_full_4090.sh").read_text()
-    full_submit = (
-        root / "scripts/submit_screenqa_proxy_nll_full_4090.sh"
-    ).read_text()
+    full_submit = (root / "scripts/submit_screenqa_proxy_nll_full_4090.sh").read_text()
     assert "#SBATCH --partition=q-hgpu-small" in benchmark
     assert "#SBATCH --gres=gpu:h800:1" in benchmark
     assert "--shard-count 227" in benchmark
@@ -299,9 +327,7 @@ def test_docvqa_proxy_smoke_contracts() -> None:
 def test_docvqa_proxy_full_contracts() -> None:
     root = Path(__file__).resolve().parents[1]
     worker = (root / "scripts/slurm_docvqa_proxy_nll_full_4090.sh").read_text()
-    submitter = (
-        root / "scripts/submit_docvqa_proxy_nll_full_4090.sh"
-    ).read_text()
+    submitter = (root / "scripts/submit_docvqa_proxy_nll_full_4090.sh").read_text()
     assert "#SBATCH --gres=gpu:rtx_4090:4" in worker
     assert "#SBATCH --cpus-per-task=16" in worker
     assert "#SBATCH --time=04:00:00" in worker
@@ -390,7 +416,9 @@ def _hardware_score_run(tmp_path: Path, gpu_type: str) -> tuple[Path, Path]:
     return score_path, benchmark_path
 
 
-def test_hardware_consistency_audit_applies_frozen_4090_preference(tmp_path: Path) -> None:
+def test_hardware_consistency_audit_applies_frozen_4090_preference(
+    tmp_path: Path,
+) -> None:
     h800_scores, h800_benchmark = _hardware_score_run(tmp_path, "h800")
     rtx_scores, rtx_benchmark = _hardware_score_run(tmp_path, "rtx_4090")
     protocol = tmp_path / "hardware-protocol.md"

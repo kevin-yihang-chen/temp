@@ -12,6 +12,7 @@ from beyond_entropy.answer_likelihood import (
     score_rollout_answer_likelihood,
     sha256_file,
 )
+from beyond_entropy.sharding import stable_shard_index
 
 
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -135,9 +136,12 @@ def test_score_rollout_answer_likelihood_is_atomic_resumable_and_hides_target(
     rows = [json.loads(line) for line in output.read_text().splitlines()]
     assert [row["action_id"] for row in rows] == ["answer-now", "crop-0"]
     assert all(row["answer_mean_nll"] == 0.5 for row in rows)
-    assert json.loads(output.with_suffix(".provenance.json").read_text())[
-        "raw_targets_written"
-    ] is False
+    assert (
+        json.loads(output.with_suffix(".provenance.json").read_text())[
+            "raw_targets_written"
+        ]
+        is False
+    )
 
     seen.clear()
     resumed = score_rollout_answer_likelihood(
@@ -203,7 +207,9 @@ def test_answer_likelihood_rejects_hash_and_partial_checkpoint(tmp_path: Path) -
         )
 
 
-def test_answer_likelihood_manifest_limit_matches_rollout_prefix(tmp_path: Path) -> None:
+def test_answer_likelihood_manifest_limit_matches_rollout_prefix(
+    tmp_path: Path,
+) -> None:
     manifest, rollouts = _fixture(tmp_path)
     rows = [json.loads(line) for line in manifest.read_text().splitlines()]
     rows.append(
@@ -249,13 +255,76 @@ def test_answer_likelihood_manifest_limit_matches_rollout_prefix(tmp_path: Path)
         )
 
 
+def test_answer_likelihood_source_sharding_keeps_sources_indivisible(
+    tmp_path: Path,
+) -> None:
+    manifest, rollouts = _fixture(tmp_path)
+    manifest_template = json.loads(manifest.read_text().strip())
+    rollout_templates = [json.loads(line) for line in rollouts.read_text().splitlines()]
+    manifest_rows: list[dict[str, object]] = []
+    rollout_rows: list[dict[str, object]] = []
+    for index in range(4):
+        state_id = f"state-{index}"
+        source_id = f"source-{index // 2}"
+        manifest_rows.append(
+            {
+                **manifest_template,
+                "state_id": state_id,
+                "image_id": f"image-{index}",
+                "source_id": source_id,
+            }
+        )
+        rollout_rows.extend(
+            {
+                **row,
+                "state_id": state_id,
+                "image_id": f"image-{index}",
+                "source_id": source_id,
+            }
+            for row in rollout_templates
+        )
+    write_jsonl(manifest, manifest_rows)
+    write_jsonl(rollouts, rollout_rows)
+
+    observed_sources: list[set[str]] = []
+    for shard_index in range(2):
+        output = tmp_path / f"source-shard-{shard_index}.jsonl"
+        result = score_rollout_answer_likelihood(
+            manifest=manifest,
+            rollouts=rollouts,
+            output=output,
+            score_request=lambda request: AnswerLikelihoodScore(0.5, 1.0, 2),
+            shard_count=2,
+            shard_index=shard_index,
+            shard_key="source_id",
+            shard_namespace="test-balanced-v3",
+            model="test-model",
+            model_revision="revision",
+            measurement_config={"dtype": "test"},
+            code_revision="code",
+            scientific_status="test",
+        )
+        rows = [json.loads(line) for line in output.read_text().splitlines()]
+        sources = {str(row["source_id"]) for row in rows}
+        assert result["shard_key"] == "source_id"
+        assert result["shard_namespace"] == "test-balanced-v3"
+        assert sources == {
+            source_id
+            for source_id in ("source-0", "source-1")
+            if stable_shard_index(source_id, 2, namespace="test-balanced-v3")
+            == shard_index
+        }
+        observed_sources.append(sources)
+    assert not (observed_sources[0] & observed_sources[1])
+
+
 def test_screenqa_proxy_nll_smoke_slurm_contract() -> None:
     root = Path(__file__).resolve().parents[1]
     worker = (root / "scripts/slurm_screenqa_proxy_nll_smoke.sh").read_text()
     submitter = (root / "scripts/submit_screenqa_proxy_nll_smoke.sh").read_text()
     assert "#SBATCH --gres=gpu:rtx_4090:1" in worker
     assert "#SBATCH --mail-type=ALL" in worker
-    assert "--mail-user=\"${notify_email}\"" in submitter
+    assert '--mail-user="${notify_email}"' in submitter
     assert "--mail-type=ALL" in submitter
     assert "--shard-count 14511" in worker
     assert "--shard-index 0" in worker

@@ -27,7 +27,9 @@ def _existing_runtime_measurement(path: Path) -> dict[str, object] | None:
 def _rewrite_provenance(path: Path, payload: dict[str, object]) -> None:
     temporary = path.with_name(path.name + ".tmp")
     if temporary.exists():
-        raise FileExistsError(f"answer-likelihood provenance staging exists: {temporary}")
+        raise FileExistsError(
+            f"answer-likelihood provenance staging exists: {temporary}"
+        )
     try:
         with temporary.open("x", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, allow_nan=False, indent=2, sort_keys=True))
@@ -51,6 +53,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--manifest-limit", type=int)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument(
+        "--shard-key",
+        choices=("decision_index", "source_id"),
+        default="decision_index",
+    )
+    parser.add_argument("--shard-namespace", default="")
     parser.add_argument("--checkpoint-interval", type=int, default=32)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--model", default="Qwen/Qwen2.5-VL-3B-Instruct")
@@ -62,7 +70,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-pixels", type=int, default=768 * 28 * 28)
     parser.add_argument("--system-prompt", default="You are a helpful assistant.")
     parser.add_argument("--allow-download", action="store_true")
-    parser.add_argument("--code-revision", default=os.environ.get("BE_CODE_REVISION", "unknown"))
+    parser.add_argument(
+        "--code-revision", default=os.environ.get("BE_CODE_REVISION", "unknown")
+    )
     parser.add_argument(
         "--scientific-status",
         default=(
@@ -98,6 +108,8 @@ def main() -> None:
         manifest_limit=args.manifest_limit,
         shard_count=args.shard_count,
         shard_index=args.shard_index,
+        shard_key=args.shard_key,
+        shard_namespace=args.shard_namespace,
         checkpoint_interval=args.checkpoint_interval,
         resume=args.resume,
         model=args.model,

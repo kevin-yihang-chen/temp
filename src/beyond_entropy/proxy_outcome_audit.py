@@ -178,7 +178,9 @@ def _validate_score_row(row: Mapping[str, Any]) -> None:
     before = _finite(row["correct_before"], "correct_before")
     after = _finite(row["correct_after"], "correct_after")
     _require(0.0 <= before <= 1.0 and 0.0 <= after <= 1.0, "invalid correctness")
-    _require(_finite(row["entropy_before"], "entropy_before") >= 0.0, "negative entropy")
+    _require(
+        _finite(row["entropy_before"], "entropy_before") >= 0.0, "negative entropy"
+    )
     _require(_finite(row["entropy_after"], "entropy_after") >= 0.0, "negative entropy")
     _require(_finite(row["tool_cost"], "tool_cost") >= 0.0, "negative tool cost")
 
@@ -256,27 +258,39 @@ def merge_answer_likelihood_shards(
         "model_revision",
         "measurement_config",
         "code_revision",
+        "shard_key",
+        "shard_namespace",
         "shard_count",
         "scientific_status",
     )
     baseline: dict[str, Any] | None = None
     observed_indices: set[int] = set()
+    source_shard_owner: dict[str, int] = {}
     shard_entries: list[dict[str, Any]] = []
     for shard in shard_paths:
         provenance_path = _provenance_path(shard)
         provenance = _read_json(provenance_path)
         rows = _read_jsonl(shard)
-        _require(provenance.get("schema") == SCORE_SCHEMA, "score provenance schema mismatch")
+        _require(
+            provenance.get("schema") == SCORE_SCHEMA, "score provenance schema mismatch"
+        )
         _require(provenance.get("target_rule") == TARGET_RULE, "target rule mismatch")
-        _require(provenance.get("raw_targets_written") is False, "raw target contract failed")
+        _require(
+            provenance.get("raw_targets_written") is False, "raw target contract failed"
+        )
         _require(
             sha256_file(shard) == provenance.get("output_sha256"),
             "score shard SHA-256 mismatch",
         )
-        _require(int(provenance.get("records", -1)) == len(rows), "score record count mismatch")
+        _require(
+            int(provenance.get("records", -1)) == len(rows),
+            "score record count mismatch",
+        )
         shard_count = int(provenance.get("shard_count", -1))
         shard_index = int(provenance.get("shard_index", -1))
-        _require(shard_count == expected_shard_count, "score shard-count contract mismatch")
+        _require(
+            shard_count == expected_shard_count, "score shard-count contract mismatch"
+        )
         _require(0 <= shard_index < expected_shard_count, "invalid score shard index")
         _require(shard_index not in observed_indices, "duplicate score shard index")
         observed_indices.add(shard_index)
@@ -284,7 +298,10 @@ def merge_answer_likelihood_shards(
             baseline = provenance
         else:
             _require(
-                all(provenance.get(name) == baseline.get(name) for name in immutable_names),
+                all(
+                    provenance.get(name) == baseline.get(name)
+                    for name in immutable_names
+                ),
                 "score shard provenance mismatch",
             )
         config_sha256 = str(provenance.get("config_sha256", ""))
@@ -292,7 +309,19 @@ def merge_answer_likelihood_shards(
             all(row.get("config_sha256") == config_sha256 for row in rows),
             "score row configuration hash mismatch",
         )
-        _validate_decisions(rows)
+        shard_decisions = _validate_decisions(rows)
+        shard_sources = {
+            str(siblings[0]["source_id"]) for siblings in shard_decisions.values()
+        }
+        if provenance.get("shard_key") == "source_id":
+            overlap = sorted(set(source_shard_owner) & shard_sources)
+            _require(
+                not overlap,
+                f"source-aligned score shards overlap: {overlap[:3]}",
+            )
+            source_shard_owner.update(
+                {source_id: shard_index for source_id in shard_sources}
+            )
         provenances.append(provenance)
         all_rows.extend(rows)
         shard_entries.append(
@@ -302,18 +331,24 @@ def merge_answer_likelihood_shards(
                 "shard_index": shard_index,
                 "decisions": int(provenance["decisions"]),
                 "records": len(rows),
+                "sources": len(shard_sources),
                 "output_sha256": str(provenance["output_sha256"]),
                 "provenance_sha256": sha256_file(provenance_path),
                 "config_sha256": config_sha256,
             }
         )
-    _require(observed_indices == set(range(expected_shard_count)), "score shard coverage mismatch")
+    _require(
+        observed_indices == set(range(expected_shard_count)),
+        "score shard coverage mismatch",
+    )
     grouped = _validate_decisions(all_rows)
     sources = {str(rows[0]["source_id"]) for rows in grouped.values()}
     if expected_decisions is not None:
         _require(len(grouped) == expected_decisions, "merged decision count mismatch")
     if expected_records is not None:
-        _require(len(all_rows) == expected_records, "merged score record count mismatch")
+        _require(
+            len(all_rows) == expected_records, "merged score record count mismatch"
+        )
     if expected_sources is not None:
         _require(len(sources) == expected_sources, "merged source count mismatch")
     ordered = sorted(all_rows, key=_row_sort_key)
@@ -330,6 +365,9 @@ def merge_answer_likelihood_shards(
         "model_revision": baseline["model_revision"],
         "measurement_config": baseline["measurement_config"],
         "code_revision": baseline["code_revision"],
+        "shard_key": baseline.get("shard_key", "decision_index"),
+        "shard_namespace": baseline.get("shard_namespace", ""),
+        "source_shards_disjoint": baseline.get("shard_key") == "source_id",
         "scientific_status": baseline["scientific_status"],
         "shard_count": expected_shard_count,
         "decisions": len(grouped),
@@ -357,7 +395,10 @@ def _rank_plan(values: Any) -> _RankPlan:
     order = np.argsort(values, kind="mergesort")
     ordered = values[order]
     starts = np.concatenate(
-        (np.asarray([0], dtype=np.int64), np.flatnonzero(ordered[1:] != ordered[:-1]) + 1)
+        (
+            np.asarray([0], dtype=np.int64),
+            np.flatnonzero(ordered[1:] != ordered[:-1]) + 1,
+        )
     )
     ends = np.concatenate((starts[1:], np.asarray([len(values)], dtype=np.int64)))
     group_ids = np.repeat(np.arange(len(starts), dtype=np.int64), ends - starts)
@@ -696,24 +737,37 @@ def analyze_proxy_outcomes(
     protocol_sha256 = sha256_file(protocol_path)
     implementation_sha256 = sha256_file(implementation_path)
     if expected_scores_sha256 is not None:
-        _require(score_sha256 == expected_scores_sha256, "merged score SHA-256 mismatch")
+        _require(
+            score_sha256 == expected_scores_sha256, "merged score SHA-256 mismatch"
+        )
     if expected_protocol_sha256 is not None:
-        _require(protocol_sha256 == expected_protocol_sha256, "audit protocol SHA-256 mismatch")
+        _require(
+            protocol_sha256 == expected_protocol_sha256,
+            "audit protocol SHA-256 mismatch",
+        )
     if expected_implementation_contract_sha256 is not None:
         _require(
             implementation_sha256 == expected_implementation_contract_sha256,
             "audit implementation contract SHA-256 mismatch",
         )
     provenance = _read_json(_provenance_path(score_path))
-    _require(provenance.get("schema") == MERGE_SCHEMA, "merged score provenance mismatch")
-    _require(provenance.get("raw_targets_written") is False, "raw target contract failed")
-    _require(provenance.get("output_sha256") == score_sha256, "merged score hash mismatch")
+    _require(
+        provenance.get("schema") == MERGE_SCHEMA, "merged score provenance mismatch"
+    )
+    _require(
+        provenance.get("raw_targets_written") is False, "raw target contract failed"
+    )
+    _require(
+        provenance.get("output_sha256") == score_sha256, "merged score hash mismatch"
+    )
     rows = _read_jsonl(score_path)
     grouped = _validate_decisions(rows)
     decision_keys = sorted(grouped)
     sources = sorted({str(grouped[key][0]["source_id"]) for key in decision_keys})
     if expected_decisions is not None:
-        _require(len(decision_keys) == expected_decisions, "audit decision count mismatch")
+        _require(
+            len(decision_keys) == expected_decisions, "audit decision count mismatch"
+        )
     if expected_sources is not None:
         _require(len(sources) == expected_sources, "audit source count mismatch")
     source_lookup = {source: index for index, source in enumerate(sources)}
@@ -888,7 +942,9 @@ def analyze_proxy_outcomes(
                     "target_call_rate": target_rate,
                     "calls": calls,
                     "achieved_call_rate": calls / len(decision_keys),
-                    "threshold_inclusive": float(scores_by_decision[ranking[calls - 1]]),
+                    "threshold_inclusive": float(
+                        scores_by_decision[ranking[calls - 1]]
+                    ),
                     "threshold_status": "descriptive_development_only",
                     "metrics": {
                         "mean_policy_utility": _bootstrap_ratio(
@@ -945,10 +1001,14 @@ def analyze_proxy_outcomes(
         call_rate_grid[proxy_name] = grid_rows
 
     loss_falls = [
-        row for row in disagreement_rows if row["loss_gap"] > 0.0 and row["task_gain"] < 0.0
+        row
+        for row in disagreement_rows
+        if row["loss_gap"] > 0.0 and row["task_gain"] < 0.0
     ]
     task_without_loss = [
-        row for row in disagreement_rows if row["task_gain"] > 0.0 and row["loss_gap"] <= 0.0
+        row
+        for row in disagreement_rows
+        if row["task_gain"] > 0.0 and row["loss_gap"] <= 0.0
     ]
     output_path = Path(output_dir).resolve()
     report = {
@@ -991,7 +1051,12 @@ def analyze_proxy_outcomes(
                 "rate_over_zoom_actions": len(loss_falls) / gains.size,
                 "source_count": len({row["source_id"] for row in loss_falls}),
                 "examples": sorted(
-                    loss_falls, key=lambda row: (-float(row["loss_gap"]), row["state_id"], row["action_id"])
+                    loss_falls,
+                    key=lambda row: (
+                        -float(row["loss_gap"]),
+                        row["state_id"],
+                        row["action_id"],
+                    ),
                 )[:25],
             },
             "task_improves_without_positive_loss_gap": {
@@ -1000,7 +1065,11 @@ def analyze_proxy_outcomes(
                 "source_count": len({row["source_id"] for row in task_without_loss}),
                 "examples": sorted(
                     task_without_loss,
-                    key=lambda row: (float(row["loss_gap"]), row["state_id"], row["action_id"]),
+                    key=lambda row: (
+                        float(row["loss_gap"]),
+                        row["state_id"],
+                        row["action_id"],
+                    ),
                 )[:25],
             },
         },
@@ -1070,7 +1139,10 @@ def compare_proxy_nll_hardware(
     protocol_path = Path(protocol).resolve()
     protocol_sha256 = sha256_file(protocol_path)
     if expected_protocol_sha256 is not None:
-        _require(protocol_sha256 == expected_protocol_sha256, "hardware protocol hash mismatch")
+        _require(
+            protocol_sha256 == expected_protocol_sha256,
+            "hardware protocol hash mismatch",
+        )
 
     runs: dict[str, dict[str, Any]] = {}
     for score_value, benchmark_value, expected_hash in (
@@ -1084,19 +1156,34 @@ def compare_proxy_nll_hardware(
             _require(score_sha256 == expected_hash, "hardware score SHA-256 mismatch")
         provenance = _read_json(_provenance_path(score_path))
         benchmark = _read_json(benchmark_path)
-        _require(provenance.get("schema") == SCORE_SCHEMA, "hardware score schema mismatch")
-        _require(provenance.get("output_sha256") == score_sha256, "hardware score hash mismatch")
-        _require(provenance.get("raw_targets_written") is False, "hardware raw-target contract")
-        _require(benchmark.get("output_sha256") == score_sha256, "benchmark/score hash mismatch")
+        _require(
+            provenance.get("schema") == SCORE_SCHEMA, "hardware score schema mismatch"
+        )
+        _require(
+            provenance.get("output_sha256") == score_sha256,
+            "hardware score hash mismatch",
+        )
+        _require(
+            provenance.get("raw_targets_written") is False,
+            "hardware raw-target contract",
+        )
+        _require(
+            benchmark.get("output_sha256") == score_sha256,
+            "benchmark/score hash mismatch",
+        )
         gpu_type = str(benchmark.get("gpu_type", ""))
         _require(gpu_type in {"h800", "rtx_4090"}, "unsupported benchmark GPU type")
         _require(gpu_type not in runs, "duplicate benchmark GPU type")
         rows = _read_jsonl(score_path)
         grouped = _validate_decisions(rows)
         _require(len(grouped) == expected_decisions, "hardware decision count mismatch")
-        _require(len(rows) == expected_decisions * 5, "hardware score record count mismatch")
+        _require(
+            len(rows) == expected_decisions * 5, "hardware score record count mismatch"
+        )
         measurement = provenance.get("measurement_config")
-        _require(isinstance(measurement, Mapping), "hardware measurement config is absent")
+        _require(
+            isinstance(measurement, Mapping), "hardware measurement config is absent"
+        )
         accelerator = str(measurement.get("accelerator_name", ""))
         if gpu_type == "h800":
             _require("H800" in accelerator, "H800 provenance accelerator mismatch")
@@ -1142,10 +1229,15 @@ def compare_proxy_nll_hardware(
         for key, value in second_run["measurement"].items()
         if key not in ignored_measurement
     }
-    _require(first_measurement == second_measurement, "non-hardware numerical contract differs")
+    _require(
+        first_measurement == second_measurement,
+        "non-hardware numerical contract differs",
+    )
 
     keys = sorted(first_run["grouped"])
-    _require(keys == sorted(second_run["grouped"]), "hardware decision identities differ")
+    _require(
+        keys == sorted(second_run["grouped"]), "hardware decision identities differ"
+    )
     gaps: dict[str, list[float]] = {"h800": [], "rtx_4090": []}
     selected: dict[str, list[str]] = {"h800": [], "rtx_4090": []}
     for key in keys:
@@ -1161,7 +1253,10 @@ def compare_proxy_nll_hardware(
             if reference_rows is None:
                 reference_rows = by_action
             else:
-                _require(set(by_action) == set(reference_rows), "hardware action identities differ")
+                _require(
+                    set(by_action) == set(reference_rows),
+                    "hardware action identities differ",
+                )
                 for action_id, row in by_action.items():
                     reference = reference_rows[action_id]
                     for name in (
@@ -1177,7 +1272,10 @@ def compare_proxy_nll_hardware(
                         "entropy_after",
                         "tool_cost",
                     ):
-                        _require(row[name] == reference[name], "hardware score populations differ")
+                        _require(
+                            row[name] == reference[name],
+                            "hardware score populations differ",
+                        )
             answer_nll = _finite(answer["answer_mean_nll"], "hardware ANSWER NLL")
             decision_gaps = [
                 answer_nll - _finite(row["answer_mean_nll"], "hardware ZOOM NLL")
@@ -1212,16 +1310,24 @@ def compare_proxy_nll_hardware(
     rtx_gpu_minutes = _finite(
         rtx_benchmark["projected_four_gpu_gpu_minutes"], "4090 quota projection"
     )
-    h800_eligible = spearman >= 0.99 and sign_agreement >= 0.95 and top_one_agreement >= 0.95
+    h800_eligible = (
+        spearman >= 0.99 and sign_agreement >= 0.95 and top_one_agreement >= 0.95
+    )
     if rtx_wall <= 4.0 * 60.0 * 60.0 and rtx_gpu_minutes <= remaining_gpu_minutes:
         selected_hardware = "rtx_4090"
-        decision_reason = "4090 projection fits four hours and live quota; matches rollout hardware"
+        decision_reason = (
+            "4090 projection fits four hours and live quota; matches rollout hardware"
+        )
     elif h800_eligible:
         selected_hardware = "h800"
-        decision_reason = "4090 fit condition failed and all frozen H800 stability gates passed"
+        decision_reason = (
+            "4090 fit condition failed and all frozen H800 stability gates passed"
+        )
     else:
         selected_hardware = "rtx_4090_resumable"
-        decision_reason = "4090 fit condition failed and H800 stability gates did not all pass"
+        decision_reason = (
+            "4090 fit condition failed and H800 stability gates did not all pass"
+        )
 
     report = {
         "schema": "proxy_nll_hardware_consistency_audit_v1",

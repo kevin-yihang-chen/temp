@@ -19,3 +19,14 @@ def test_stable_sharding_rejects_invalid_contract():
         stable_shard_index("", 2)
     with pytest.raises(ValueError, match="shard_count"):
         stable_shard_index("state", 0)
+
+
+def test_shard_namespace_is_deterministic_and_domain_separated():
+    states = [f"state-{index}" for index in range(32)]
+    first = [stable_shard_index(state, 4, namespace="balanced-v1") for state in states]
+    second = [stable_shard_index(state, 4, namespace="balanced-v1") for state in states]
+    unnamespaced = [stable_shard_index(state, 4) for state in states]
+    assert first == second
+    assert first != unnamespaced
+    with pytest.raises(ValueError, match="NUL"):
+        stable_shard_index("state", 4, namespace="invalid\0namespace")
