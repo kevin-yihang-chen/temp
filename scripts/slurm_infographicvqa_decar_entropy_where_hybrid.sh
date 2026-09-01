@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
+#SBATCH --gres=gpu:rtx_4090:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=00:45:00
@@ -10,8 +11,8 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 6 ]]; then
-  echo "usage: worker REVISION WORKER_SHA RUNNER_SHA MODULE_SHA FREEZE_SHA SUBMIT_EPOCH" >&2
+if [[ "$#" -ne 7 ]]; then
+  echo "usage: worker REVISION WORKER_SHA RUNNER_SHA MODULE_SHA FREEZE_SHA RESOURCE_AMENDMENT_SHA SUBMIT_EPOCH" >&2
   exit 2
 fi
 expected_revision=$1
@@ -19,9 +20,11 @@ expected_worker_sha256=$2
 expected_runner_sha256=$3
 expected_module_sha256=$4
 expected_freeze_sha256=$5
-submit_epoch=$6
+resource_amendment_sha256=$6
+submit_epoch=$7
 for value in "${expected_worker_sha256}" "${expected_runner_sha256}" \
-  "${expected_module_sha256}" "${expected_freeze_sha256}"; do
+  "${expected_module_sha256}" "${expected_freeze_sha256}" \
+  "${resource_amendment_sha256}"; do
   if [[ ! "${value}" =~ ^[0-9a-f]{64}$ ]]; then
     echo "DECAR hybrid received a malformed SHA-256" >&2
     exit 2
@@ -48,6 +51,7 @@ bootstrap_sources="${root}/evaluation-v1/bootstrap-sources.json"
 formal_result="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-result-job-203049-v1.md"
 protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-method-protocol-v1.md"
 freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-entropy-where-hybrid-freeze-v1.md"
+resource_amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-entropy-where-hybrid-resource-amendment-v1.md"
 worker="${repo}/scripts/slurm_infographicvqa_decar_entropy_where_hybrid.sh"
 runner="${repo}/scripts/evaluate_infographicvqa_decar_entropy_where_hybrid.py"
 module="${repo}/src/beyond_entropy/infographicvqa_decar_evaluation.py"
@@ -76,6 +80,7 @@ require_hash "${worker}" "${expected_worker_sha256}" worker
 require_hash "${runner}" "${expected_runner_sha256}" runner
 require_hash "${module}" "${expected_module_sha256}" module
 require_hash "${freeze}" "${expected_freeze_sha256}" freeze
+require_hash "${resource_amendment}" "${resource_amendment_sha256}" resource-amendment
 require_hash "${rollouts}" 9b2313ed122df26f75e8d27326bb695d469f0b1afad0921afb3676c040d3287e rollouts
 require_hash "${predictions}" c8338b1960ca223c892c3f992b0ccc3027d543113f67c82a734eccd7e3699c4b predictions
 require_hash "${oof_complete}" 8de073870fcade5ac111d59de81e9c70dc567c9900e0b223cdebca6a8318f31f OOF-complete
@@ -108,7 +113,7 @@ if [[ "${queue_wait_seconds}" -lt 0 ]]; then
 fi
 echo "DECAR hybrid start: $(date --iso-8601=seconds)"
 echo "Slurm job: ${SLURM_JOB_ID}"
-echo "CPU allocation: ${SLURM_CPUS_PER_TASK:-unknown}; GPU allocation: none"
+echo "CPU allocation: ${SLURM_CPUS_PER_TASK:-unknown}; GPU reserved for QOS admission and hidden from evaluator"
 
 "${python_bin}" "${runner}" \
   --rollouts "${rollouts}" --expected-rollouts-sha256 9b2313ed122df26f75e8d27326bb695d469f0b1afad0921afb3676c040d3287e \
@@ -149,11 +154,12 @@ jq -n \
   --arg decision "${decision}" --arg evaluation_sha256 "$(sha "${evaluation}")" \
   --arg complete_sha256 "$(sha "${complete}")" \
   --arg freeze_sha256 "${expected_freeze_sha256}" \
+  --arg resource_amendment_sha256 "${resource_amendment_sha256}" \
   --argjson queue_wait_seconds "${queue_wait_seconds}" \
   --argjson total_seconds "$((job_end_epoch - job_start_epoch))" '
-  {schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:"CPU",gpu_count:0,
+  {schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:"CPU",gpu_reserved:"NVIDIA RTX 4090",gpu_count:1,
    cpu_count:4,queue_wait_seconds:$queue_wait_seconds,total_seconds:$total_seconds,
-   inputs:{freeze_sha256:$freeze_sha256},
+   inputs:{freeze_sha256:$freeze_sha256,resource_amendment_sha256:$resource_amendment_sha256},
    artifacts:{evaluation_sha256:$evaluation_sha256,complete_sha256:$complete_sha256},
    decision:$decision,credentials_present:false,validation_or_test_inputs_used:false}' > "${execution}.tmp"
 mv "${execution}.tmp" "${execution}"

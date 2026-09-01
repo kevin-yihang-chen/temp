@@ -262,7 +262,7 @@ def test_entropy_where_hybrid_script_reuses_formal_bootstrap_and_seals_eval() ->
     assert "download" not in script.lower()
 
 
-def test_entropy_where_hybrid_slurm_contract_is_cpu_only_and_notifies() -> None:
+def test_entropy_where_hybrid_slurm_contract_hides_required_gpu_and_notifies() -> None:
     root = Path(__file__).resolve().parents[1]
     worker = (
         root / "scripts/slurm_infographicvqa_decar_entropy_where_hybrid.sh"
@@ -271,17 +271,20 @@ def test_entropy_where_hybrid_slurm_contract_is_cpu_only_and_notifies() -> None:
         root / "scripts/submit_infographicvqa_decar_entropy_where_hybrid.sh"
     ).read_text()
     assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --gres=gpu:rtx_4090:1" in worker
     assert "#SBATCH --cpus-per-task=4" in worker
     assert "#SBATCH --mem=64G" in worker
     assert "#SBATCH --time=00:45:00" in worker
-    assert "#SBATCH --gres" not in worker
     assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
     assert "#SBATCH --mail-type=ALL" in worker
     assert 'export CUDA_VISIBLE_DEVICES=""' in worker
+    assert "resource-amendment" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "-lt 45" in submitter
     assert "-lt 180" in submitter
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter
+    assert "resource_amendment_sha256" in submitter
     assert "git push" not in submitter
 
 
