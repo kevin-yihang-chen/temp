@@ -207,6 +207,7 @@ def test_decar_oof_worker_and_submitter_freeze_h800_and_notifications() -> None:
     worker = (root / "scripts/slurm_infographicvqa_decar_oof_h800.sh").read_text()
     submitter = (root / "scripts/submit_infographicvqa_decar_oof_h800.sh").read_text()
     assert "#SBATCH --gres=gpu:h800:1" in worker
+    assert "#SBATCH --mem=192G" in worker
     assert "#SBATCH --time=04:00:00" in worker
     assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
     assert "#SBATCH --mail-type=ALL" in worker
@@ -217,6 +218,8 @@ def test_decar_oof_worker_and_submitter_freeze_h800_and_notifications() -> None:
     assert "scientific_endpoints_used_for_selection == false" in worker
     assert "validation_or_test_inputs_used" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "resource-amendment" in worker
+    assert "resource_amendment_sha256" in submitter
     assert "-lt 240" in submitter
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter

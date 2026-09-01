@@ -2,7 +2,7 @@
 #SBATCH --partition=q-h800
 #SBATCH --gres=gpu:h800:1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=384G
+#SBATCH --mem=192G
 #SBATCH --time=04:00:00
 #SBATCH --job-name=be-infovqa-decar-oof
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-infovqa-decar-oof-%j.out
@@ -11,20 +11,22 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 9 ]]; then
-  echo "usage: worker REVISION WORKER_SHA FREEZE_SHA ROLLOUT_SHA NLL_SHA FEATURE_SHA INPUT_AUDIT_SHA GENERATION_EXECUTION_SHA SUBMIT_EPOCH" >&2
+if [[ "$#" -ne 10 ]]; then
+  echo "usage: worker REVISION WORKER_SHA FREEZE_SHA RESOURCE_AMENDMENT_SHA ROLLOUT_SHA NLL_SHA FEATURE_SHA INPUT_AUDIT_SHA GENERATION_EXECUTION_SHA SUBMIT_EPOCH" >&2
   exit 2
 fi
 expected_revision=$1
 expected_worker_sha256=$2
 expected_freeze_sha256=$3
-rollouts_sha256=$4
-nll_sha256=$5
-features_sha256=$6
-input_audit_sha256=$7
-generation_execution_sha256=$8
-submit_epoch=$9
+resource_amendment_sha256=$4
+rollouts_sha256=$5
+nll_sha256=$6
+features_sha256=$7
+input_audit_sha256=$8
+generation_execution_sha256=$9
+submit_epoch=${10}
 for value in "${expected_worker_sha256}" "${expected_freeze_sha256}" \
+  "${resource_amendment_sha256}" \
   "${rollouts_sha256}" "${nll_sha256}" "${features_sha256}" \
   "${input_audit_sha256}" "${generation_execution_sha256}"; do
   if [[ ! "${value}" =~ ^[0-9a-f]{64}$ ]]; then
@@ -51,6 +53,7 @@ outer_folds="${repo}/artifacts/infographicvqa-train-v1/decar-v1/allocation-v1/ou
 inner_folds="${repo}/artifacts/infographicvqa-train-v1/decar-v1/allocation-v1/inner-folds.jsonl"
 protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-method-protocol-v1.md"
 freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-evaluation-freeze-v1.md"
+resource_amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-resource-amendment-20260901-v1.md"
 worker="${repo}/scripts/slurm_infographicvqa_decar_oof_h800.sh"
 fit_runner="${repo}/scripts/fit_infographicvqa_decar_oof.py"
 evaluation_runner="${repo}/scripts/evaluate_infographicvqa_decar_oof.py"
@@ -78,6 +81,7 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
 fi
 require_hash "${worker}" "${expected_worker_sha256}" worker
 require_hash "${freeze}" "${expected_freeze_sha256}" freeze
+require_hash "${resource_amendment}" "${resource_amendment_sha256}" resource-amendment
 require_hash "${rollouts}" "${rollouts_sha256}" rollouts
 require_hash "${answer_nll}" "${nll_sha256}" answer-nll
 require_hash "${features}" "${features_sha256}" features
@@ -219,7 +223,8 @@ execution="${execution_dir}/job-${SLURM_JOB_ID}.json"
 jq -n \
   --arg schema infographicvqa_decar_oof_execution_v1 \
   --arg job_id "${SLURM_JOB_ID}" --arg code_revision "${expected_revision}" \
-  --arg accelerator "${gpu_name}" --arg generation_execution_sha256 "${generation_execution_sha256}" \
+  --arg accelerator "${gpu_name}" --arg resource_amendment_sha256 "${resource_amendment_sha256}" \
+  --arg generation_execution_sha256 "${generation_execution_sha256}" \
   --arg predictions_sha256 "${predictions_sha256}" --arg fit_audit_sha256 "${fit_audit_sha256}" \
   --arg fit_report_sha256 "${fit_report_sha256}" --arg fit_complete_sha256 "${fit_complete_sha256}" \
   --arg evaluation_sha256 "$(sha "${evaluation_json}")" \
@@ -229,7 +234,8 @@ jq -n \
   --argjson total_seconds "$((job_end_epoch - job_start_epoch))" '
   {schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:$accelerator,gpu_count:1,
    queue_wait_seconds:$queue_wait_seconds,timing_seconds:{fit:$fit_seconds,evaluation:$evaluation_seconds,total:$total_seconds},
-   inputs:{generation_execution_sha256:$generation_execution_sha256},
+   inputs:{resource_amendment_sha256:$resource_amendment_sha256,
+   generation_execution_sha256:$generation_execution_sha256},
    artifacts:{predictions_sha256:$predictions_sha256,fit_audit_sha256:$fit_audit_sha256,
    fit_report_sha256:$fit_report_sha256,fit_complete_sha256:$fit_complete_sha256,
    evaluation_sha256:$evaluation_sha256,evaluation_complete_sha256:$evaluation_complete_sha256},
