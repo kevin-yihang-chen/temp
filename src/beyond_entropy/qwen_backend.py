@@ -11,6 +11,44 @@ from .rollout import AgentState, ModelOutput, VisualObservation
 _PEAK_MEMORY_FIELDS = ("peak_allocated_bytes", "peak_reserved_bytes")
 
 
+def generated_token_statistics(
+    step_logits: Sequence[Any], generated_ids: Any
+) -> tuple[list[float], list[float]]:
+    """Return normalized entropy and selected-token log probability per step."""
+
+    import torch  # type: ignore[import-not-found]
+
+    if (
+        getattr(generated_ids, "ndim", None) != 2
+        or generated_ids.shape[0] != 1
+        or generated_ids.shape[1] != len(step_logits)
+        or not step_logits
+    ):
+        raise ValueError("generated IDs and step logits must be one aligned sequence")
+    entropies: list[float] = []
+    token_log_probabilities: list[float] = []
+    for step_index, logits in enumerate(step_logits):
+        if getattr(logits, "ndim", None) != 2 or logits.shape[0] != 1:
+            raise ValueError("generation step logits must have shape [1, vocabulary]")
+        distribution_logits = logits[0].to(torch.float32)
+        if distribution_logits.shape[0] < 2:
+            raise ValueError("generation vocabulary must contain at least two tokens")
+        log_probabilities = torch.log_softmax(distribution_logits, dim=-1)
+        probabilities = torch.exp(log_probabilities)
+        entropy = -(probabilities * log_probabilities).sum()
+        normalized = entropy / math.log(distribution_logits.shape[-1])
+        token_id = int(generated_ids[0, step_index].item())
+        if token_id < 0 or token_id >= distribution_logits.shape[-1]:
+            raise ValueError("generated token ID is outside the vocabulary")
+        entropies.append(float(normalized.item()))
+        token_log_probabilities.append(float(log_probabilities[token_id].item()))
+    if not all(
+        math.isfinite(value) for value in (*entropies, *token_log_probabilities)
+    ):
+        raise RuntimeError("generation statistics contain non-finite values")
+    return entropies, token_log_probabilities
+
+
 def merge_runtime_measurements(
     previous: Mapping[str, Any] | None,
     current: Mapping[str, Any],
@@ -146,9 +184,7 @@ class Qwen25VLBackend:
             result["peak_allocated_bytes"] = int(
                 torch.cuda.max_memory_allocated(device)
             )
-            result["peak_reserved_bytes"] = int(
-                torch.cuda.max_memory_reserved(device)
-            )
+            result["peak_reserved_bytes"] = int(torch.cuda.max_memory_reserved(device))
         else:
             result["peak_allocated_bytes"] = 0
             result["peak_reserved_bytes"] = 0
@@ -267,16 +303,9 @@ class Qwen25VLBackend:
                 "transformers did not return raw generation logits; "
                 "install the pinned Qwen optional dependencies"
             )
-        token_entropies: list[float] = []
-        for logits in step_logits:
-            distribution_logits = logits[0].to(torch.float32)
-            log_probabilities = torch.log_softmax(distribution_logits, dim=-1)
-            probabilities = torch.exp(log_probabilities)
-            entropy = -(probabilities * log_probabilities).sum()
-            normalized = entropy / math.log(distribution_logits.shape[-1])
-            token_entropies.append(float(normalized.item()))
-        if not token_entropies:
-            raise RuntimeError("Qwen generation returned no token distributions")
+        token_entropies, token_log_probabilities = generated_token_statistics(
+            step_logits, generated_ids
+        )
         entropy = sum(token_entropies) / len(token_entropies)
         return ModelOutput(
             answer=answer,
@@ -294,6 +323,10 @@ class Qwen25VLBackend:
                 "num_observations": len(observations),
                 "generated_tokens": len(token_entropies),
                 "normalized_token_entropies": token_entropies,
+                "generated_token_log_probabilities": token_log_probabilities,
+                "mean_generated_token_log_probability": (
+                    sum(token_log_probabilities) / len(token_log_probabilities)
+                ),
                 "input_text_sha256": hashlib.sha256(
                     state.backend_prompt.encode()
                 ).hexdigest(),
