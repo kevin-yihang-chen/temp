@@ -26,7 +26,7 @@ fi
 
 export PATH=/usr/local/slurm/bin:/usr/local/bin:/usr/bin:/bin
 repo=/userhome/cs3/yihangc/Documents/beyond-entropy
-python_bin=/userhome/cs3/yihangc/anaconda3/bin/python
+python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
 dataset_dir="${repo}/data/infographicvqa/lmms-539088e-train"
 download_manifest="${dataset_dir}/download-manifest.json"
 source_manifest="${repo}/artifacts/infographicvqa-train-v1/source-audit-v1/source-manifest.jsonl"
@@ -79,6 +79,13 @@ export PYTHONPATH="${repo}/src"
 export PYTHONDONTWRITEBYTECODE=1
 unset HF_TOKEN HUGGINGFACE_HUB_TOKEN HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 
+pillow_version=$("${python_bin}" -c 'import PIL; print(PIL.__version__)')
+if [[ "${pillow_version}" != 12.1.1 ]]; then
+  echo "DECAR full materialization requires Pillow 12.1.1" >&2
+  exit 2
+fi
+"${python_bin}" -c 'import pyarrow.parquet'
+
 start_epoch=$(date +%s)
 queue_wait_seconds=$((start_epoch - submit_epoch))
 echo "DECAR full materialization start: $(date --iso-8601=seconds)"
@@ -129,9 +136,10 @@ jq -n \
   --arg report_sha256 "$(sha "${report}")" \
   --arg task_manifest_sha256 "$(sha "${task_manifest}")" \
   --arg image_manifest_sha256 "$(sha "${image_manifest}")" \
+  --arg pillow_version "${pillow_version}" \
   --argjson queue_wait_seconds "${queue_wait_seconds}" \
   --argjson runtime_seconds "$((end_epoch - start_epoch))" \
-  '{schema:$schema,job_id:$job_id,code_revision:$code_revision,queue_wait_seconds:$queue_wait_seconds,runtime_seconds:$runtime_seconds,population:{questions:23946,sources:2204,images:4406},artifacts:{complete_sha256:$complete_sha256,report_sha256:$report_sha256,task_manifest_sha256:$task_manifest_sha256,image_manifest_sha256:$image_manifest_sha256},validation_or_test_inputs_used:false,task_outcomes_computed:false}' \
+  '{schema:$schema,job_id:$job_id,code_revision:$code_revision,pillow_version:$pillow_version,queue_wait_seconds:$queue_wait_seconds,runtime_seconds:$runtime_seconds,population:{questions:23946,sources:2204,images:4406},artifacts:{complete_sha256:$complete_sha256,report_sha256:$report_sha256,task_manifest_sha256:$task_manifest_sha256,image_manifest_sha256:$image_manifest_sha256},validation_or_test_inputs_used:false,task_outcomes_computed:false}' \
   > "${execution}.tmp"
 mv "${execution}.tmp" "${execution}"
 

@@ -29,7 +29,7 @@ changes.
 6974d3a2a157e04935c80a9bd9344bb9c2c88fe4291fb13b321364f9e513b639  src/beyond_entropy/infographicvqa_decar_manifest.py
 7051b2c68a18caab112e519cee708d26f74cac6d3f05b73c53ded20985f4be7f  scripts/materialize_infographicvqa_decar_full.py
 33d1f5213c5864370027f2c1f488a8f0470c72a2ee3a8ee9bcaac0efb2887a0e  tests/test_infographicvqa_decar_manifest.py
-808892a99db7ec4c69e5c29bcd0a1c8c0ed9398f963648030e539ab7bd24fe5f  scripts/slurm_infographicvqa_decar_full_materialize.sh
+1eaa1e329a7de5a55881f4031bdfa02641bbc149fd68c104630bbdf9d4fe75af  scripts/slurm_infographicvqa_decar_full_materialize.sh
 f9b6a86fc547b4cd610a5c90bc04d81c7d42938ad3a3b7daac4c66396d0c4010  scripts/submit_infographicvqa_decar_full_materialize.sh
 ```
 
@@ -69,3 +69,18 @@ job slot, at least 30 remaining GPU-minutes, a successful Slurm admission test,
 and all-state email to `yihangc@connect.hku.hk`.
 
 No credential is exported to the job. No GitHub push is authorized.
+
+## Pre-output environment incident and correction
+
+Initial job `200046` failed closed after five seconds, before publishing an
+output directory. The first train JPEG had the expected encoded SHA-256 and
+dimensions, but its decoded-RGB SHA-256 differed. The worker had selected the
+base Python environment with Pillow `10.4.0`; the frozen source audit and pilot
+used the qwen-vl environment with Pillow `12.1.1`. Replaying the same encoded
+bytes under Pillow `12.1.1` exactly reproduced the registered RGB SHA-256.
+
+The correction binds the worker to the qwen-vl interpreter and fails before
+the scan unless Pillow is exactly `12.1.1` and PyArrow is importable. No source
+identity, row, field, split, expected count, output schema, scientific method,
+or acceptance check changed. The incident exposed no model endpoint and was
+diagnosed only from encoded/decoded image identities.
