@@ -25,13 +25,13 @@ no validation/test input.
 
 ```text
 5729228f02ac5fa316f9a8549acedec0643c14ef555455a8fa61b20b79c260ce  src/beyond_entropy/infographicvqa_decar.py
-6739f053e6897c552ec32f413ee7ffdd7a756b60f033ba396b12286ac8b805c8  src/beyond_entropy/infographicvqa_decar_evaluation.py
+608ec39d15a0f96da4465dfd1331eae5838f534df412991e4d9ec303a5ef6795  src/beyond_entropy/infographicvqa_decar_evaluation.py
 3731934019d99fb28990a7625e2616957cebb9d0c5438d658bb7ef67890aed55  scripts/fit_infographicvqa_decar_oof.py
 995332a67049548c68fe062f381f30f6673f90dd678b15ced7ca9b1db413c231  scripts/evaluate_infographicvqa_decar_oof.py
 a8cd00cea342158f89a449938e825104f38e3456af89eeb5ab4b7fb97a5c8bf6  scripts/slurm_infographicvqa_decar_oof_h800.sh
 87534145c318379c4c4f260d8b54444405bc19541cc4d3ba9c25749710300b1a  scripts/submit_infographicvqa_decar_oof_h800.sh
 f580c2a77a64de52e9802a65f88939fd0507634e3593a79dd2870820d757661e  tests/test_infographicvqa_decar.py
-23ab4848a6c3a9facbbea54468f64fae9ff00060ab256422ec29aacb52922d73  tests/test_infographicvqa_decar_evaluation.py
+4d07b64f8eb86293005d2640d36e3efa50be237f1d460ab5eb45bd59056ce7b8  tests/test_infographicvqa_decar_evaluation.py
 ```
 
 The existing nested-OOF fitter executes all 65 registered deterministic neural
@@ -72,6 +72,13 @@ helpful-state recovery, induced-harm magnitude, harmful-call mass,
 negative-utility call mass, action-selection regret, oracle-stop regret,
 entropy disagreement, and SCGR. Raw calls and distinct called sources are
 also retained.
+
+For every primary point, retain a failure decomposition even when the
+advancement rule fails: action-choice regret, gate false-positive mass and
+negative utility magnitude, gate false-negative mass and missed positive
+utility, source call HHI, top 1/5/10-percent source call concentration, and
+source-utility quantiles. This analysis is descriptive only and cannot alter
+the frozen candidate or advancement rule.
 
 ## Bootstrap and advancement
 

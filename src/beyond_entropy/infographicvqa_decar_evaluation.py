@@ -44,6 +44,9 @@ _ADDITIVE_METRICS = (
     "induced_harm",
     "harmful_call",
     "negative_utility_call",
+    "negative_utility_magnitude",
+    "gate_false_negative",
+    "missed_positive_utility",
     "action_selection_regret",
     "oracle_stop_regret",
     "entropy_disagreement",
@@ -488,6 +491,9 @@ def _decision_metrics(
             for action_id, probability in probabilities.items()
         ),
         "negative_utility_call": negative_utility_call,
+        "negative_utility_magnitude": (max(-utility, 0.0) if called else 0.0),
+        "gate_false_negative": float(not called and outcome.oracle_stop_utility > 0.0),
+        "missed_positive_utility": (outcome.oracle_stop_utility if not called else 0.0),
         "action_selection_regret": (best_crop_gain - gain if called else 0.0),
         "oracle_stop_regret": outcome.oracle_stop_utility - utility,
         "entropy_disagreement": sum(
@@ -584,6 +590,57 @@ def _aggregate_policy(
         "raw_calls": sum(row["call"] for row in values.values()),
         "distinct_called_sources": len(called_sources),
         "source_values": source_values,
+    }
+
+
+def _source_concentration(
+    values: Mapping[DecisionKey, Mapping[str, float]],
+    outcomes: Mapping[DecisionKey, DecarOutcome],
+) -> dict[str, Any]:
+    import numpy as np  # type: ignore[import-not-found]
+
+    calls_by_source: dict[str, float] = defaultdict(float)
+    utility_by_source: dict[str, list[float]] = defaultdict(list)
+    for key, row in values.items():
+        source = outcomes[key].source_id
+        calls_by_source[source] += float(row["call"])
+        utility_by_source[source].append(float(row["utility"]))
+    sources = sorted(utility_by_source)
+    calls = np.asarray(
+        [calls_by_source[source] for source in sources], dtype=np.float64
+    )
+    source_utilities = np.asarray(
+        [
+            sum(utility_by_source[source]) / len(utility_by_source[source])
+            for source in sources
+        ],
+        dtype=np.float64,
+    )
+    total_calls = float(calls.sum())
+    shares = calls / total_calls if total_calls > 0.0 else np.zeros_like(calls)
+    ordered = np.sort(shares)[::-1]
+
+    def top_fraction(fraction: float) -> float:
+        count = max(1, math.ceil(fraction * len(sources)))
+        return float(ordered[:count].sum())
+
+    return {
+        "sources": len(sources),
+        "sources_with_calls": int((calls > 0.0).sum()),
+        "sources_with_negative_mean_utility": int((source_utilities < 0.0).sum()),
+        "call_source_hhi": float((shares**2).sum()),
+        "top_1pct_sources_call_fraction": top_fraction(0.01),
+        "top_5pct_sources_call_fraction": top_fraction(0.05),
+        "top_10pct_sources_call_fraction": top_fraction(0.10),
+        "source_utility_quantiles": {
+            "q00": float(np.quantile(source_utilities, 0.00)),
+            "q10": float(np.quantile(source_utilities, 0.10)),
+            "q25": float(np.quantile(source_utilities, 0.25)),
+            "q50": float(np.quantile(source_utilities, 0.50)),
+            "q75": float(np.quantile(source_utilities, 0.75)),
+            "q90": float(np.quantile(source_utilities, 0.90)),
+            "q100": float(np.quantile(source_utilities, 1.00)),
+        },
     }
 
 
@@ -902,6 +959,23 @@ def evaluate_decar_oof(
             ),
             "all_audits_passed": audit_passed,
         }
+        decomposition_metrics = {
+            "action_choice_regret": "action_selection_regret",
+            "gate_false_positive_mass": "negative_utility_call",
+            "gate_false_positive_loss": "negative_utility_magnitude",
+            "gate_false_negative_mass": "gate_false_negative",
+            "gate_false_negative_loss": "missed_positive_utility",
+        }
+        failure_decomposition = {
+            balance: {
+                name: float(policies["decar"][balance][metric])
+                for name, metric in decomposition_metrics.items()
+            }
+            for balance in ("question_balanced", "source_balanced")
+        }
+        failure_decomposition["source_concentration"] = _source_concentration(
+            policy_values[f"{point_name}/decar"], outcomes
+        )
         points.append(
             {
                 **registered,
@@ -912,6 +986,7 @@ def evaluate_decar_oof(
                 "strongest_feasible_non_oracle_baseline": strongest_baseline,
                 "qualification_rules": rules,
                 "qualified": all(rules.values()),
+                "failure_decomposition": failure_decomposition,
             }
         )
     qualified = [row for row in points if row["qualified"]]

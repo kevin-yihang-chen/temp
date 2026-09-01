@@ -164,6 +164,8 @@ def test_registered_evaluation_reports_paired_metrics_and_costs() -> None:
     assert primary["question_balanced"]["executed_crops"] == pytest.approx(0.25)
     assert primary["question_balanced"]["anls_gain"] == pytest.approx(0.1)
     assert primary["question_balanced"]["utility"] == pytest.approx(0.0875)
+    assert primary["question_balanced"]["baseline_exact_accuracy"] == 0.0
+    assert primary["question_balanced"]["final_exact_accuracy"] == 0.0
     assert primary["question_balanced"]["helpful_call_precision"] == pytest.approx(1.0)
     random = point["policies"]["entropy_random"]["question_balanced"]
     assert random["executed_crops"] == pytest.approx(0.25)
@@ -174,6 +176,15 @@ def test_registered_evaluation_reports_paired_metrics_and_costs() -> None:
         "ci_low"
     ] == pytest.approx(primary["source_balanced"]["utility"])
     assert "task_value_only" in point["paired_source_utility_differences"]
+    decomposition = point["failure_decomposition"]
+    assert decomposition["question_balanced"]["action_choice_regret"] >= 0.0
+    assert decomposition["question_balanced"]["gate_false_positive_mass"] == 0.0
+    assert decomposition["source_concentration"]["sources"] == 4
+    assert (
+        0.0
+        <= decomposition["source_concentration"]["top_10pct_sources_call_fraction"]
+        <= 1.0
+    )
     exhaustive = result["static_references"]["charged_exhaustive_ug"]
     assert exhaustive["question_balanced"]["executed_crops"] == 4.0
 
