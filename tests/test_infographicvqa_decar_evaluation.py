@@ -11,6 +11,7 @@ from beyond_entropy.infographicvqa_decar_evaluation import (
     build_decar_outcomes,
     complete_tie_top_keys,
     evaluate_decar_oof,
+    evaluate_entropy_where_hybrid,
     parse_decar_predictions,
 )
 from beyond_entropy.schema import ActionRecord, BBox
@@ -189,6 +190,49 @@ def test_registered_evaluation_reports_paired_metrics_and_costs() -> None:
     assert exhaustive["question_balanced"]["executed_crops"] == 4.0
 
 
+def test_entropy_when_oof_where_hybrid_reuses_formal_identities() -> None:
+    records = [record for index in range(8) for record in _decision(index)]
+    predictions = [_prediction(index) for index in range(8)]
+    indices = np.tile(np.arange(4, dtype=np.int32), (100, 1))
+    formal = evaluate_decar_oof(
+        records,
+        predictions,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+    )
+    result = evaluate_entropy_where_hybrid(
+        records,
+        predictions,
+        formal,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    assert result["decision"] == "hybrid_train_not_supported"
+    assert result["validation_or_test_inputs_used"] is False
+    assert result["population"] == {"decisions": 8, "sources": 4, "images": 8}
+    point = result["operating_points"][0]
+    assert point["selection_audits"]["matches_formal_identities"] is True
+    assert (
+        point["actual_calls"] == formal["operating_points"][0]["primary_actual_calls"]
+    )
+    primary = point["policies"]["entropy_when_decar_where"]
+    assert (
+        primary["question_balanced"]["executed_crops"]
+        == primary["question_balanced"]["call"]
+    )
+    assert (
+        primary["question_balanced"]["utility"]
+        > point["policies"]["entropy_when_task_value_where"]["question_balanced"][
+            "utility"
+        ]
+    )
+    assert "original_decar" in point["paired_source_utility_differences"]
+    assert point["qualification_rules"]["minimum_calls_and_sources"] is False
+
+
 def test_decar_evaluation_script_freezes_train_only_full_protocol() -> None:
     root = Path(__file__).resolve().parents[1]
     script = (root / "scripts/evaluate_infographicvqa_decar_oof.py").read_text()
@@ -200,6 +244,45 @@ def test_decar_evaluation_script_freezes_train_only_full_protocol() -> None:
     assert "bootstrap-indices.npy" in script
     assert "validation_or_test_inputs_used" in script
     assert "download" not in script.lower()
+
+
+def test_entropy_where_hybrid_script_reuses_formal_bootstrap_and_seals_eval() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (
+        root / "scripts/evaluate_infographicvqa_decar_entropy_where_hybrid.py"
+    ).read_text()
+    assert "EXPECTED_DECISIONS = 23_946" in script
+    assert "EXPECTED_SOURCES = 2_204" in script
+    assert "EXPECTED_IMAGES = 4_406" in script
+    assert '"task_value_only": 17_446' in script
+    assert 'mmap_mode="r"' in script
+    assert '"formal_bootstrap_reused": True' in script
+    assert '"validation_opened": False' in script
+    assert '"test_opened": False' in script
+    assert "download" not in script.lower()
+
+
+def test_entropy_where_hybrid_slurm_contract_is_cpu_only_and_notifies() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (
+        root / "scripts/slurm_infographicvqa_decar_entropy_where_hybrid.sh"
+    ).read_text()
+    submitter = (
+        root / "scripts/submit_infographicvqa_decar_entropy_where_hybrid.sh"
+    ).read_text()
+    assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --cpus-per-task=4" in worker
+    assert "#SBATCH --mem=64G" in worker
+    assert "#SBATCH --time=00:45:00" in worker
+    assert "#SBATCH --gres" not in worker
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert 'export CUDA_VISIBLE_DEVICES=""' in worker
+    assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "-lt 180" in submitter
+    assert "--test-only --export=NONE" in submitter
+    assert "--parsable --export=NONE" in submitter
+    assert "git push" not in submitter
 
 
 def test_decar_oof_worker_and_submitter_freeze_h800_and_notifications() -> None:

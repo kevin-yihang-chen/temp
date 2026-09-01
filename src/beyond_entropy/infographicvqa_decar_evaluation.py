@@ -11,6 +11,9 @@ from .schema import ActionRecord
 
 
 DECAR_EVALUATION_SCHEMA = "infographicvqa_decar_oof_evaluation_v1"
+DECAR_HYBRID_EVALUATION_SCHEMA = (
+    "infographicvqa_decar_entropy_where_hybrid_evaluation_v1"
+)
 DECAR_BOOTSTRAP_SEED = 20_260_917
 DECAR_BOOTSTRAP_RESAMPLES = 20_000
 DECAR_BOOTSTRAP_CONFIDENCE = 0.95
@@ -729,7 +732,7 @@ def _bootstrap_all_policies(
         }
     paired_differences: dict[str, dict[str, Any]] = {}
     for policy_name in sorted(aggregates):
-        if policy_name.endswith("/decar"):
+        if policy_name.endswith(("/decar", "/entropy_when_decar_where")):
             prefix = policy_name.rsplit("/", 1)[0]
             paired_differences[prefix] = {}
             for comparator in sorted(aggregates):
@@ -1043,6 +1046,315 @@ def evaluate_decar_oof(
                 "source_balanced_induced_harm": selected_point["policies"]["decar"][
                     "source_balanced"
                 ]["induced_harm"],
+            }
+        ),
+        "validation_or_test_inputs_used": False,
+    }
+
+
+def evaluate_entropy_where_hybrid(
+    records: Sequence[ActionRecord],
+    prediction_rows: Sequence[Mapping[str, Any]],
+    formal_evaluation: Mapping[str, Any],
+    *,
+    bootstrap_indices: Any,
+    expected_decisions: int | None = 23_946,
+    expected_sources: int | None = 2_204,
+    expected_action_disagreements: Mapping[str, int] | None = None,
+    expected_bootstrap_resamples: int = DECAR_BOOTSTRAP_RESAMPLES,
+) -> dict[str, Any]:
+    """Evaluate the frozen entropy-when, source-OOF-action-where diagnostic."""
+
+    outcomes = build_decar_outcomes(
+        records,
+        expected_decisions=expected_decisions,
+        expected_sources=expected_sources,
+    )
+    predictions = parse_decar_predictions(prediction_rows, outcomes)
+    keys = sorted(outcomes)
+    sources = sorted({row.source_id for row in outcomes.values()})
+    population = formal_evaluation.get("population")
+    formal_bootstrap = formal_evaluation.get("bootstrap")
+    formal_points = formal_evaluation.get("operating_points")
+    if (
+        formal_evaluation.get("schema") != DECAR_EVALUATION_SCHEMA
+        or formal_evaluation.get("decision") != "decar_not_advanced"
+        or formal_evaluation.get("selected_operating_point") is not None
+        or formal_evaluation.get("validation_or_test_inputs_used") is not False
+        or not isinstance(population, Mapping)
+        or population.get("decisions") != len(outcomes)
+        or population.get("sources") != len(sources)
+        or not isinstance(formal_bootstrap, Mapping)
+        or formal_bootstrap.get("n_resamples") != expected_bootstrap_resamples
+        or formal_bootstrap.get("n_sources") != len(sources)
+        or formal_bootstrap.get("same_indices_for_all_policies_and_differences")
+        is not True
+        or tuple(formal_evaluation.get("registered_call_rates", ())) != DECAR_CALL_RATES
+        or not isinstance(formal_points, list)
+        or len(formal_points) != len(DECAR_CALL_RATES)
+    ):
+        raise ValueError("DECAR hybrid formal-evaluation contract failed")
+    if tuple(bootstrap_indices.shape) != (expected_bootstrap_resamples, len(sources)):
+        raise ValueError("DECAR hybrid bootstrap shape changed")
+    if str(bootstrap_indices.dtype) != "int32":
+        raise ValueError("DECAR hybrid bootstrap dtype changed")
+
+    entropy_scores = {key: outcomes[key].baseline.entropy_before for key in keys}
+    variants = {
+        name: {key: predictions[key].variants[name] for key in keys}
+        for name in DECAR_VARIANTS
+    }
+    actions = {
+        name: {key: value.action_id for key, value in values.items()}
+        for name, values in variants.items()
+    }
+    disagreements = {
+        name: sum(actions["decar"][key] != actions[name][key] for key in keys)
+        for name in ("loss_only", "no_harm_head", "task_value_only")
+    }
+    if expected_action_disagreements is not None and disagreements != dict(
+        expected_action_disagreements
+    ):
+        raise ValueError("DECAR hybrid OOF action-family audit changed")
+
+    policy_values: dict[str, dict[DecisionKey, dict[str, float]]] = {}
+    operating: list[dict[str, Any]] = []
+    answer_now = _policy_metrics(outcomes, called_keys=set())
+    for formal_point, rate in zip(formal_points, DECAR_CALL_RATES, strict=True):
+        if not isinstance(formal_point, Mapping):
+            raise ValueError("DECAR hybrid formal operating point is invalid")
+        nominal_calls = math.ceil(rate * len(keys))
+        point_name = f"rate-{rate:.3f}"
+        if (
+            formal_point.get("name") != point_name
+            or formal_point.get("nominal_calls") != nominal_calls
+            or _finite(
+                formal_point.get("nominal_question_call_rate"), "hybrid formal rate"
+            )
+            != rate
+        ):
+            raise ValueError("DECAR hybrid formal operating-point family changed")
+        formal_selection = formal_point.get("selection_audits")
+        if not isinstance(formal_selection, Mapping):
+            raise ValueError("DECAR hybrid formal selection audit is missing")
+
+        primary_scores = {
+            key: value.score
+            for key, value in variants["decar"].items()
+            if value.eligible
+        }
+        original_calls, original_audit = complete_tie_top_keys(
+            primary_scores,
+            target_calls=min(nominal_calls, len(primary_scores)),
+        )
+        actual_calls = len(original_calls)
+        if actual_calls != formal_point.get(
+            "primary_actual_calls"
+        ) or original_audit != formal_selection.get("decar"):
+            raise ValueError("DECAR hybrid original-policy identity audit failed")
+        entropy_calls, entropy_audit = _complete_tie_exact_match(
+            entropy_scores,
+            target_calls=actual_calls,
+        )
+        entropy_ug_calls, entropy_ug_audit = _complete_tie_exact_match(
+            entropy_scores,
+            target_calls=actual_calls // 4,
+        )
+        if entropy_audit != formal_selection.get(
+            "entropy_gate_random_and_fixed"
+        ) or entropy_ug_audit != formal_selection.get("entropy_gated_ug"):
+            raise ValueError("DECAR hybrid entropy identity audit failed")
+
+        point_values = {
+            "entropy_when_decar_where": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                action_by_key=actions["decar"],
+            ),
+            "entropy_when_task_value_where": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                action_by_key=actions["task_value_only"],
+            ),
+            "original_decar": _policy_metrics(
+                outcomes,
+                called_keys=original_calls,
+                action_by_key=actions["decar"],
+            ),
+            "entropy_random": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                random_action=True,
+            ),
+            "entropy_fixed_ug_grid_00": _policy_metrics(
+                outcomes,
+                called_keys=entropy_calls,
+                action_by_key={key: "ug-grid-00" for key in keys},
+            ),
+            "entropy_gated_ug": _policy_metrics(
+                outcomes,
+                called_keys=entropy_ug_calls,
+                entropy_action=True,
+                executions_per_call=4.0,
+            ),
+            "answer_now": answer_now,
+        }
+        for name, values in point_values.items():
+            policy_values[f"{point_name}/{name}"] = values
+        operating.append(
+            {
+                "name": point_name,
+                "nominal_question_call_rate": rate,
+                "nominal_calls": nominal_calls,
+                "actual_calls": actual_calls,
+                "selection_audits": {
+                    "original_decar": original_audit,
+                    "entropy_one_crop": entropy_audit,
+                    "entropy_four_crop": entropy_ug_audit,
+                    "matches_formal_identities": True,
+                },
+            }
+        )
+
+    aggregates = {
+        name: _aggregate_policy(values, outcomes, sources)
+        for name, values in policy_values.items()
+    }
+    bootstrap, paired_differences = _bootstrap_all_policies(
+        aggregates,
+        sources,
+        bootstrap_indices,
+    )
+    public_aggregates = {
+        name: {key: value for key, value in aggregate.items() if key != "source_values"}
+        for name, aggregate in aggregates.items()
+    }
+    policy_names = (
+        "entropy_when_decar_where",
+        "entropy_when_task_value_where",
+        "original_decar",
+        "answer_now",
+        "entropy_random",
+        "entropy_fixed_ug_grid_00",
+        "entropy_gated_ug",
+    )
+    comparator_names = tuple(
+        name for name in policy_names if name != "entropy_when_decar_where"
+    )
+    points: list[dict[str, Any]] = []
+    for registered in operating:
+        point_name = str(registered["name"])
+        policies = {
+            name: public_aggregates[f"{point_name}/{name}"] for name in policy_names
+        }
+        policy_bootstrap = {
+            name: bootstrap["policies"][f"{point_name}/{name}"] for name in policy_names
+        }
+        primary = policies["entropy_when_decar_where"]["source_balanced"]
+        primary_interval = policy_bootstrap["entropy_when_decar_where"]["additive"][
+            "utility"
+        ]
+        rules = {
+            "minimum_calls_and_sources": (
+                float(policies["entropy_when_decar_where"]["raw_calls"]) >= 100.0
+                and int(policies["entropy_when_decar_where"]["distinct_called_sources"])
+                >= 50
+            ),
+            "source_utility_ci_low_strictly_positive": float(primary_interval["ci_low"])
+            > 0.0,
+            "strictly_above_every_feasible_non_oracle_comparator": all(
+                float(primary["utility"])
+                > float(policies[name]["source_balanced"]["utility"])
+                for name in comparator_names
+                if name != "entropy_when_task_value_where"
+            ),
+            "strictly_above_task_value_where_ablation": float(primary["utility"])
+            > float(
+                policies["entropy_when_task_value_where"]["source_balanced"]["utility"]
+            ),
+            "harm_no_greater_than_one_crop_entropy_baselines": all(
+                float(primary[metric])
+                <= float(policies[name]["source_balanced"][metric]) + 1e-15
+                for metric in ("induced_harm", "negative_utility_call")
+                for name in ("entropy_random", "entropy_fixed_ug_grid_00")
+            ),
+            "all_audits_passed": bool(
+                registered["selection_audits"]["matches_formal_identities"]
+            )
+            and all(
+                bool(registered["selection_audits"][name]["matched_call_count"])
+                for name in ("entropy_one_crop", "entropy_four_crop")
+            ),
+        }
+        points.append(
+            {
+                **registered,
+                "policies": policies,
+                "source_bootstrap": policy_bootstrap,
+                "paired_source_utility_differences": paired_differences[point_name],
+                "qualification_rules": rules,
+                "qualified": all(rules.values()),
+                "failure_decomposition": _source_concentration(
+                    policy_values[f"{point_name}/entropy_when_decar_where"], outcomes
+                ),
+            }
+        )
+    qualified = [row for row in points if row["qualified"]]
+    selected = (
+        min(
+            qualified,
+            key=lambda row: (
+                -float(
+                    row["policies"]["entropy_when_decar_where"]["source_balanced"][
+                        "utility"
+                    ]
+                ),
+                float(
+                    row["policies"]["entropy_when_decar_where"]["source_balanced"][
+                        "induced_harm"
+                    ]
+                ),
+                float(row["nominal_question_call_rate"]),
+            ),
+        )
+        if qualified
+        else None
+    )
+    return {
+        "schema": DECAR_HYBRID_EVALUATION_SCHEMA,
+        "scientific_status": "post-DECAR-v1 official-train frozen hybrid diagnostic",
+        "population": {
+            "decisions": len(outcomes),
+            "sources": len(sources),
+            "images": len({row.image_id for row in outcomes.values()}),
+        },
+        "lambda_cost": DECAR_LAMBDA_COST,
+        "registered_call_rates": list(DECAR_CALL_RATES),
+        "action_family_audit": {
+            "disagreements_from_decar": disagreements,
+            "passed": expected_action_disagreements is None
+            or disagreements == dict(expected_action_disagreements),
+        },
+        "operating_points": points,
+        "bootstrap": bootstrap["metadata"],
+        "decision": (
+            "hybrid_train_supported"
+            if selected is not None
+            else "hybrid_train_not_supported"
+        ),
+        "selected_operating_point": (
+            None
+            if selected is None
+            else {
+                "name": selected["name"],
+                "nominal_question_call_rate": selected["nominal_question_call_rate"],
+                "actual_calls": selected["actual_calls"],
+                "source_balanced_utility": selected["policies"][
+                    "entropy_when_decar_where"
+                ]["source_balanced"]["utility"],
+                "source_balanced_induced_harm": selected["policies"][
+                    "entropy_when_decar_where"
+                ]["source_balanced"]["induced_harm"],
             }
         ),
         "validation_or_test_inputs_used": False,
