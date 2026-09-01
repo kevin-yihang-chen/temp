@@ -6,6 +6,7 @@ repo=/userhome/cs3/yihangc/Documents/beyond-entropy
 worker="${repo}/scripts/slurm_infographicvqa_decar_oof_h800.sh"
 freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-evaluation-freeze-v1.md"
 resource_amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-resource-amendment-20260901-v1.md"
+startup_hash_correction="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-startup-hash-correction-job-202915-v1.md"
 root="${repo}/artifacts/infographicvqa-train-v1/decar-v1/full-qwen7b-v1"
 rollouts="${root}/merged-rollouts/rollouts.jsonl"
 answer_nll="${root}/merged-nll/answer-nll.jsonl"
@@ -19,7 +20,8 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "tracked worktree must be clean before DECAR OOF submission" >&2
   exit 2
 fi
-if [[ ! -f "${worker}" || ! -f "${freeze}" || ! -f "${resource_amendment}" ]]; then
+if [[ ! -f "${worker}" || ! -f "${freeze}" || ! -f "${resource_amendment}" \
+  || ! -f "${startup_hash_correction}" ]]; then
   echo "DECAR OOF evaluation freeze is incomplete" >&2
   exit 2
 fi
@@ -52,13 +54,15 @@ revision=$(git rev-parse HEAD)
 worker_sha256=$(sha256sum "${worker}" | awk '{print $1}')
 freeze_sha256=$(sha256sum "${freeze}" | awk '{print $1}')
 resource_amendment_sha256=$(sha256sum "${resource_amendment}" | awk '{print $1}')
+startup_hash_correction_sha256=$(sha256sum "${startup_hash_correction}" | awk '{print $1}')
 rollouts_sha256=$(sha256sum "${rollouts}" | awk '{print $1}')
 nll_sha256=$(sha256sum "${answer_nll}" | awk '{print $1}')
 features_sha256=$(sha256sum "${features}" | awk '{print $1}')
 input_audit_sha256=$(sha256sum "${input_audit}" | awk '{print $1}')
 generation_execution_sha256=$(sha256sum "${generation_execution}" | awk '{print $1}')
 submit_epoch=$(date +%s)
-args=("${revision}" "${worker_sha256}" "${freeze_sha256}" "${resource_amendment_sha256}" "${rollouts_sha256}" \
+args=("${revision}" "${worker_sha256}" "${freeze_sha256}" "${resource_amendment_sha256}" \
+  "${startup_hash_correction_sha256}" "${rollouts_sha256}" \
   "${nll_sha256}" "${features_sha256}" "${input_audit_sha256}" \
   "${generation_execution_sha256}" "${submit_epoch}")
 /usr/local/slurm/bin/sbatch --test-only --export=NONE "${worker}" "${args[@]}" >/dev/null

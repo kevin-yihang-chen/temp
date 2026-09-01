@@ -220,7 +220,14 @@ def test_decar_oof_worker_and_submitter_freeze_h800_and_notifications() -> None:
     assert "validation_or_test_inputs_used" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
     assert "resource-amendment" in worker
+    assert "startup-hash-correction" in worker
+    assert "7f0f23e65d155e728b592a96b5d5a463d67cfed9742977532535e6a232b0837a" in worker
+    assert (
+        "7f0f23e65d155e728b592a96b5d5a463d67cfed9742977532535e6b8cdb6d0af5a4da60"
+        not in worker
+    )
     assert "resource_amendment_sha256" in submitter
+    assert "startup_hash_correction_sha256" in submitter
     assert "-lt 240" in submitter
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter

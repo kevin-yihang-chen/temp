@@ -11,22 +11,23 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 10 ]]; then
-  echo "usage: worker REVISION WORKER_SHA FREEZE_SHA RESOURCE_AMENDMENT_SHA ROLLOUT_SHA NLL_SHA FEATURE_SHA INPUT_AUDIT_SHA GENERATION_EXECUTION_SHA SUBMIT_EPOCH" >&2
+if [[ "$#" -ne 11 ]]; then
+  echo "usage: worker REVISION WORKER_SHA FREEZE_SHA RESOURCE_AMENDMENT_SHA STARTUP_HASH_CORRECTION_SHA ROLLOUT_SHA NLL_SHA FEATURE_SHA INPUT_AUDIT_SHA GENERATION_EXECUTION_SHA SUBMIT_EPOCH" >&2
   exit 2
 fi
 expected_revision=$1
 expected_worker_sha256=$2
 expected_freeze_sha256=$3
 resource_amendment_sha256=$4
-rollouts_sha256=$5
-nll_sha256=$6
-features_sha256=$7
-input_audit_sha256=$8
-generation_execution_sha256=$9
-submit_epoch=${10}
+startup_hash_correction_sha256=$5
+rollouts_sha256=$6
+nll_sha256=$7
+features_sha256=$8
+input_audit_sha256=$9
+generation_execution_sha256=${10}
+submit_epoch=${11}
 for value in "${expected_worker_sha256}" "${expected_freeze_sha256}" \
-  "${resource_amendment_sha256}" \
+  "${resource_amendment_sha256}" "${startup_hash_correction_sha256}" \
   "${rollouts_sha256}" "${nll_sha256}" "${features_sha256}" \
   "${input_audit_sha256}" "${generation_execution_sha256}"; do
   if [[ ! "${value}" =~ ^[0-9a-f]{64}$ ]]; then
@@ -54,6 +55,7 @@ inner_folds="${repo}/artifacts/infographicvqa-train-v1/decar-v1/allocation-v1/in
 protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-method-protocol-v1.md"
 freeze="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-evaluation-freeze-v1.md"
 resource_amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-resource-amendment-20260901-v1.md"
+startup_hash_correction="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-decar-oof-startup-hash-correction-job-202915-v1.md"
 worker="${repo}/scripts/slurm_infographicvqa_decar_oof_h800.sh"
 fit_runner="${repo}/scripts/fit_infographicvqa_decar_oof.py"
 evaluation_runner="${repo}/scripts/evaluate_infographicvqa_decar_oof.py"
@@ -82,12 +84,13 @@ fi
 require_hash "${worker}" "${expected_worker_sha256}" worker
 require_hash "${freeze}" "${expected_freeze_sha256}" freeze
 require_hash "${resource_amendment}" "${resource_amendment_sha256}" resource-amendment
+require_hash "${startup_hash_correction}" "${startup_hash_correction_sha256}" startup-hash-correction
 require_hash "${rollouts}" "${rollouts_sha256}" rollouts
 require_hash "${answer_nll}" "${nll_sha256}" answer-nll
 require_hash "${features}" "${features_sha256}" features
 require_hash "${input_audit}" "${input_audit_sha256}" input-audit
 require_hash "${image_manifest}" 0916a6b5a32e15c4f5b3bf920e1ecd4f304aeb97ae186e0e3e846391e2304203 image-manifest
-require_hash "${outer_folds}" 7f0f23e65d155e728b592a96b5d5a463d67cfed9742977532535e6b8cdb6d0af5a4da60 outer-folds
+require_hash "${outer_folds}" 7f0f23e65d155e728b592a96b5d5a463d67cfed9742977532535e6a232b0837a outer-folds
 require_hash "${inner_folds}" 8b4977776841794185eedd8cbbfdb8e23ec2c44cc0be9931cc2e672b232f344c inner-folds
 require_hash "${protocol}" d8651f9c235be4da8883df10a692a5171b9ca902b42bc1864b69008655688342 protocol
 mapfile -t generation_executions < <(find "${generation_execution_dir}" -maxdepth 1 -type f -name 'job-*.json' -print | sort)
@@ -169,7 +172,7 @@ fit_start=$(date +%s)
   --answer-nll "${answer_nll}" --expected-answer-nll-sha256 "${nll_sha256}" \
   --features "${features}" --expected-features-sha256 "${features_sha256}" \
   --image-manifest "${image_manifest}" --expected-image-manifest-sha256 0916a6b5a32e15c4f5b3bf920e1ecd4f304aeb97ae186e0e3e846391e2304203 \
-  --outer-folds "${outer_folds}" --expected-outer-folds-sha256 7f0f23e65d155e728b592a96b5d5a463d67cfed9742977532535e6b8cdb6d0af5a4da60 \
+  --outer-folds "${outer_folds}" --expected-outer-folds-sha256 7f0f23e65d155e728b592a96b5d5a463d67cfed9742977532535e6a232b0837a \
   --inner-folds "${inner_folds}" --expected-inner-folds-sha256 8b4977776841794185eedd8cbbfdb8e23ec2c44cc0be9931cc2e672b232f344c \
   --protocol "${protocol}" --expected-protocol-sha256 d8651f9c235be4da8883df10a692a5171b9ca902b42bc1864b69008655688342 \
   --device cuda:0 --epochs 200 --output-dir "${fit_dir}"
@@ -224,6 +227,7 @@ jq -n \
   --arg schema infographicvqa_decar_oof_execution_v1 \
   --arg job_id "${SLURM_JOB_ID}" --arg code_revision "${expected_revision}" \
   --arg accelerator "${gpu_name}" --arg resource_amendment_sha256 "${resource_amendment_sha256}" \
+  --arg startup_hash_correction_sha256 "${startup_hash_correction_sha256}" \
   --arg generation_execution_sha256 "${generation_execution_sha256}" \
   --arg predictions_sha256 "${predictions_sha256}" --arg fit_audit_sha256 "${fit_audit_sha256}" \
   --arg fit_report_sha256 "${fit_report_sha256}" --arg fit_complete_sha256 "${fit_complete_sha256}" \
@@ -235,6 +239,7 @@ jq -n \
   {schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:$accelerator,gpu_count:1,
    queue_wait_seconds:$queue_wait_seconds,timing_seconds:{fit:$fit_seconds,evaluation:$evaluation_seconds,total:$total_seconds},
    inputs:{resource_amendment_sha256:$resource_amendment_sha256,
+   startup_hash_correction_sha256:$startup_hash_correction_sha256,
    generation_execution_sha256:$generation_execution_sha256},
    artifacts:{predictions_sha256:$predictions_sha256,fit_audit_sha256:$fit_audit_sha256,
    fit_report_sha256:$fit_report_sha256,fit_complete_sha256:$fit_complete_sha256,
