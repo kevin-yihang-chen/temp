@@ -114,5 +114,8 @@ automatically. No GitHub push is authorized.
 - Focused evaluator regression: 5 passed.
 - Complete repository regression: 426 passed, 22 skipped.
 - Focused mypy: no issues in the evaluator module and runner.
+- A synthetic 2,204-source, 39-policy, 21-metric bootstrap stress test took
+  1.877 seconds for 1,000 shared resamples on the login CPU, projecting about
+  38 seconds for the frozen 20,000 resamples; it used no task endpoint.
 - Python compilation, Black formatting, shell syntax, and whitespace checks
   passed.
