@@ -405,8 +405,9 @@
   不加载模型权重的条件下，可以把 official train 转成真实 verl multimodal row，并
   证明 paired agent 的两臂只改变视觉 observation，正确导出 signed credit 与 token
   roles。
-- 代码状态：基于 commit `5ee833f89ad6b72e1558addb3893f200a03e0c22` 的本地 stage；
-  本项完成后记录不可变 implementation commit。没有 push GitHub。
+- 实现 commit：`b212dc844a25afff228c31eb47b16cd63007fc97`。该 commit 包含范围纠偏后的
+  official-train converter、paired overlay、token-local adapter、四臂冻结配置与
+  model-load preflight；没有 push GitHub。
 - 数据：`ReFocus/ReFocus_Data` Apache-2.0 revision
   `6af42739216fd58047121bb51dba683277cfdfe3`；三个 official-train shard 的完整
   SHA-256 再次匹配 pin。Metadata pass 只读 structural/question/answer 列，selected
