@@ -38,3 +38,28 @@ def test_attention_where_evaluator_is_train_only_and_reuses_formal_bootstrap() -
     assert '"test_opened": False' in content
     assert '"validation_or_test_inputs_used": False' in content
     assert "download" not in content.lower()
+
+
+def test_attention_where_evaluation_worker_binds_feature_job_and_notifies() -> None:
+    worker = (
+        ROOT / "scripts/slurm_infographicvqa_attention_where_evaluation.sh"
+    ).read_text()
+    submitter = (
+        ROOT / "scripts/submit_infographicvqa_attention_where_evaluation.sh"
+    ).read_text()
+    assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --gres=gpu:rtx_4090:1" in worker
+    assert "#SBATCH --cpus-per-task=4" in worker
+    assert "#SBATCH --mem=64G" in worker
+    assert "#SBATCH --time=00:45:00" in worker
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert 'feature_execution="${attention_root}/execution/job-203257.json"' in worker
+    assert 'export CUDA_VISIBLE_DEVICES=""' in worker
+    assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "validation_or_test_inputs_used:false" in worker
+    assert "-lt 45" in submitter
+    assert "-lt 180" in submitter
+    assert "sbatch --test-only --export=NONE" in submitter
+    assert "sbatch --parsable --export=NONE" in submitter
+    assert "git push" not in submitter
