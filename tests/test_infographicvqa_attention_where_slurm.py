@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_attention_where_worker_binds_resources_and_email() -> None:
     content = (ROOT / "scripts/slurm_infographicvqa_attention_where_h800.sh").read_text()
+    assert "#SBATCH --partition=q-hgpu-small" in content
     assert "#SBATCH --gres=gpu:h800:4" in content
     assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in content
     assert "#SBATCH --mail-type=ALL" in content

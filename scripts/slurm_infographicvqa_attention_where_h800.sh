@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --partition=q-h800
+#SBATCH --partition=q-hgpu-small
 #SBATCH --gres=gpu:h800:4
 #SBATCH --cpus-per-task=24
 #SBATCH --mem=256G
