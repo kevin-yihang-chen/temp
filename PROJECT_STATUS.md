@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 22:00（Asia/Hong_Kong）
+更新时间：2026-09-02 23:04（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -25,9 +25,10 @@ outcome-only comparator，不再把 pixel、thought 或内部实现与 VTool 的
 matched controls 下改善任务分数、cost-adjusted utility 和 harmful-call rate。
 
 当前工程 gate 已前进：官方 Apache-2.0 ReFocus train、token-local adapter 的真实
-autograd、隔离 runtime、单行 Qwen processor、paired fake-server，以及单卡 H800
-vLLM 模型加载/真实首轮 generation 均已通过。尚未完成真实 paired tool rollout 或
-任何 optimizer step。因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未开始”。
+autograd、隔离 runtime、单行及完整 72 行 Qwen processor、paired fake-server、单卡
+H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-config gate 均已
+通过。尚未完成真实 paired tool rollout 或任何 optimizer step。因此当前不是“新方法
+已成功/失败”，而是“关键性能实验已经具备提交条件但尚未开始”。
 
 ## 已完成的证据链
 
@@ -92,6 +93,14 @@ vLLM 模型加载/真实首轮 generation 均已通过。尚未完成真实 pair
     BF16 权重约占 7.16 GiB，完整 engine load `64.05s`，966-token 视觉 prompt 生成
     12 tokens 用时 `19.21s`。报告 SHA-256 `1a67365b...009a`。首轮为 direct answer，
     因此本项不验证真实 tool/paired branch，也不是性能证据。
+18. G1 最终 preflight 已通过。完整 72 行 paired train 经冻结 `RLHFDataset` 与 Qwen
+    processor 后全部满足契约：64 个 structural groups，prompt tokens 为 min 438、
+    median 931、p95 1,657、max 1,914，小于 4,096；无 protected split、无权重加载，
+    报告 SHA-256 `e468c367...c1ed`。Shuffled control 在 batch 少于两个 valid tool
+    pairs 时 action loss 置零并计数；PPO mini-batch 已按 upstream prompt-count 语义从
+    32 修正为 8。Hydra signed dry-run v9 的 59 项冻结配置检查全部为真，launch
+    manifest SHA-256 `dff12612...3da`，resolved config SHA-256
+    `5a5d354d...7b3b`。这只授权首次 4×H800、2-step signed G1，不是性能结果。
 
 ## 当前最佳结果与解释边界
 
@@ -114,7 +123,7 @@ vLLM 模型加载/真实首轮 generation 均已通过。尚未完成真实 pair
 | 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
-| 真实 paired rollout 与最多 2-step optimizer smoke | 未运行 |
+| 真实 paired rollout 与最多 2-step optimizer smoke | 完整 preflight 通过；待提交 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -126,9 +135,11 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-2026-09-02 21:58 HKT，Job `205784` 已以 `COMPLETED`、`ExitCode=0:0` 结束，当前
-没有运行或排队的 Slurm job。该任务为 1×H800、运行 2分14秒、零 restart；计算状态
-邮件按 `--mail-type=ALL` 配置。当前修改只保留在本地，未 push GitHub。
+截至 2026-09-02 23:04 HKT，本轮尚未提交新 Slurm job；上一项 Job `205784` 已以
+`COMPLETED`、`ExitCode=0:0` 结束。首次 paired-signed G1 worker 已冻结为 4×H800、
+48 CPU、384 GiB、2 小时上限、2 optimizer steps，并配置
+`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。当前修改只保留在本地，未
+push GitHub；提交前仍需本地 commit、工作树 clean 与实时 quota/queue 检查。
 
 同日 21:59 HKT 的 live quota 为 GPU 222,000 分钟总额、42,321 已用、
 179,679 剩余（2,994.65 GPU-hours，19.06% 已用）；association 上限为 4 GPU、
@@ -165,16 +176,16 @@ generalization 四个实质台阶。现在不能承诺日期。
 - 旧 Refocus_Chart derivative 不再是训练数据；正式输入改为已固定 revision/hash 的
   Apache-2.0 official ReFocus train。Refocus test 与 original ChartQA test 已因 metadata
   暴露失去 sealed 资格，formal 必须使用从未打开的独立 benchmark/split。
-- 隔离环境、真实 processor、fake paired generation 与单卡 vLLM load/generation
-  已通过；但该首轮直接回答，没有验证真实 tool/paired branch。Optimizer、Ray 多进程、
-  checkpoint/resume 与 action-credit metrics 仍未经过 GPU smoke。
+- 隔离环境、完整数据 processor、fake paired generation、单卡 vLLM load/generation
+  与 Hydra 配置解析已通过；但首轮仍是直接回答，没有验证真实 tool/paired branch。
+  Optimizer、Ray 多进程、checkpoint/resume 与 action-credit metrics 仍未经过 GPU smoke。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。单卡 model-load/generation gate 已通过；下一步只审计 pinned
-upstream 的实际训练入口，生成唯一 4×H800、最多 2-step paired-signed launch，并先做
-Hydra config dry-run。若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结
-stop rule，就关闭或修复可明确定位的实现问题；只有它们通过，才以同一 revision 运行
-zero/shuffled/outcome-only controls，不事后改 prompt、seed 或指标。
+不再做 VTool 等价性审计。完整数据与 Hydra gate 已通过；下一步只在本地提交当前
+revision，实时复核 quota/queue/disk 后提交唯一 4×H800、最多 2-step paired-signed G1。
+若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
+只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
+zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。

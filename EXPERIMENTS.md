@@ -484,3 +484,52 @@
 - 下一步：核对 pinned upstream 的唯一训练入口，冻结 4×H800、最多 2-step 的
   paired-signed launch 并先做 Hydra dry-run；只有真实 call/pair/optimizer gate 通过，
   才运行同 revision 的 matched controls。
+
+## E-20260902-15：Paired-signed G1 最终运行时与入口预检
+
+- 假设：在不提交 GPU、不执行 optimizer step、不读取 protected split 的前提下，
+  可以把完整 frozen train 输入、真实 Hydra 配置、训练资源和 action-credit 控制变量
+  绑定为一个 fail-closed 入口，从而安全授权第一次 paired-signed G1。
+- 范围：VTool 只作为 pinned RL 运行底座与 outcome-only comparator；没有继续审计
+  pixel、thought 或内部实现等价性。核心问题仍是 signed action credit 相对
+  paired-zero、paired-shuffled 与 outcome-only 的因果增益。
+- 运行时数据审计：72 行 paired train 全部经过 frozen `RLHFDataset`、Qwen fast
+  processor 与真实 image tensor 路径；64 个 structural groups，row ID 唯一，1 image/
+  row、0 video，metadata 仅含 structural fields。Prompt tokens 为 min 438、median 931、
+  p95 1,657、max 1,914，小于冻结上限 4,096；dataset 与 row manifest SHA-256 均精确
+  匹配配置。报告 SHA-256
+  `e468c36719ee3e303ff84a98f6feac1b88ebee9f0fb2731be2a129204671c1ed`。
+- Action-credit 修正：协议规定 batch 少于两个 valid tool pairs 时 shuffled action loss
+  全部置零并计入 `action_credit/shuffled_batch_skipped`；此前单 tool batch 会错误保留
+  自身 credit，现已修复并由真实 autograd smoke 覆盖。Signed action gradient 非零，
+  zero/shuffled-skip 为零，observation/padding 为零；报告 SHA-256
+  `3fa21b9e5343348cf4619066c08b08049b63fe96fa11a9151d3723fd5238d99b`。
+- Batch 修正：upstream 的 `actor_ppo_mini_batch_size` 单位是 prompt count，随后乘
+  rollout `n` 再按 world size 切分。原值 32 会形成错误语义；现冻结为 train batch 8、
+  `n=4`、4 GPUs、mini-batch 8，即每卡 8 trajectories 且每个 optimizer step 只有一个
+  完整 local mini-batch。该修正发生在任何 G1 结果产生之前。
+- Scorer/资源：四臂共用本地确定性 ChartQA relaxed scorer，不调用外部 LLM judge。
+  Signed worker 仅允许 4×H800、48 CPU、384 GiB、2 小时、2 optimizer steps；step 2
+  保存唯一 resumable checkpoint，rollout steps 1/2 必须同时存在。状态邮件冻结为
+  `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。
+- Hydra 事件：首个结构化 dry-run 在解析新字段 `rollout.limit_images` 时因 Hydra struct
+  要求 `+` 前缀而失败；修正 override 后没有改变科学配置。最终 v9 对 59 个关键值逐项
+  检查，全部为真，decision 为
+  `vtool_action_credit_g1_hydra_dry_run_passed`。Launch manifest SHA-256
+  `dff12612518927291f28ef356508961128b127657417b7b355b7394edf8263da`；resolved config
+  SHA-256 `5a5d354d69058a5f931d1f0a6d15bbb5c459c7e1f024e791cf582cf0b5387b3b`。
+- 安全边界：launcher 绑定 code revision/worktree、数据/模型/runtime/protocol/preflight
+  hashes；execute 要求 clean repo、Slurm allocation 与恰好 4 张可见 H800。Worker 要求
+  至少 32 GiB persistent free space，临时 Ray 数据写 `/dev/shm`；不会读取 validation/
+  test/reserve，也不会把 credential 传入训练环境。
+- 验证：完整仓库 `514 passed, 34 skipped`；skip 均为 base env 缺少可选 Torch/资源
+  项，隔离训练环境的真实 Torch gradient smoke 另行通过全部 8 项检查。10-file mypy
+  （忽略第三方无 stub imports）、Python compileall、Black in-process、shell/JSON syntax、
+  隔离环境 `pip check` 与 `git diff --check` 全部通过。
+- 资源：本项只有 CPU validation/hash 与 Hydra config rendering；无 GPU、无 Slurm、
+  无 optimizer step，因此没有新的计算状态邮件。磁盘清理未执行。
+- 结果：`paired_signed_g1_ready_for_final_regression_and_submission`。这仍是工程授权，
+  不是方法成功或性能证据。
+- 下一步：完成全量回归、本地 commit（不 push GitHub）、实时复核 quota/queue/disk，
+  然后只提交 paired-signed G1。真实 tool-call rate 低于 1%、pair mismatch 非零、judge
+  failure 非零或训练/checkpoint 不稳定时按冻结规则停止；通过后才运行三组 controls。

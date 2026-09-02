@@ -96,6 +96,35 @@ def test_zero_and_shuffled_controls_change_only_action_credit() -> None:
     assert shuffled.advantages[1][4:] == zero.advantages[1][4:]
 
 
+@pytest.mark.parametrize(
+    "trajectories",
+    [(_no_tool("direct-only"),), (_tool("single-tool", 0.95),)],
+)
+def test_shuffled_control_skips_action_loss_with_fewer_than_two_tool_pairs(
+    trajectories: tuple[ActionCreditTrajectory, ...],
+) -> None:
+    prepared = prepare_action_credit_batch(
+        trajectories=trajectories,
+        outcome_advantages=(0.25,),
+        response_length=8,
+        mode="shuffled",
+    )
+    assert prepared.applied_action_credits == (0.0,)
+    assert prepared.donor_trajectory_ids == (None,)
+
+
+def test_runtime_reports_shuffled_batch_skip() -> None:
+    data = _runtime_batch()
+    keep = [0]
+    data.batch = {key: value[keep] for key, value in data.batch.items()}
+    data.non_tensor_batch = {
+        key: [value[index] for index in keep]
+        for key, value in data.non_tensor_batch.items()
+    }
+    _, metrics = inject_token_local_action_credit(data, mode="shuffled")
+    assert metrics["action_credit/shuffled_batch_skipped"] == 1.0
+
+
 def test_trajectory_contract_rejects_unpaired_tool_and_credited_direct_answer() -> None:
     with pytest.raises(ValueError, match="valid counterfactual pair"):
         ActionCreditTrajectory("bad-tool", 2, 1, 3, 0.5, False)
@@ -189,6 +218,8 @@ def test_paired_vtool_overlay_freezes_same_prefix_and_union_mask_contract() -> N
     assert "[0] * len(observation_ids)" in source
     assert "action_cost=1.0" in source
     assert "action_cost=0.0" in source
+    assert "def compute_score(" in source
+    assert 'return {"score": score, "acc": score}' in source
     assert "SUCCESS_OBSERVATION" not in source
     assert "FAILURE_OBSERVATION" not in source
 
@@ -235,9 +266,39 @@ def test_g1_config_freezes_matched_controls_and_stop_rules() -> None:
     assert config["training"]["validation_before_train"] is False
     assert config["training"]["test_frequency_steps"] == -1
     assert config["training"]["total_optimizer_steps"] == 2
+    assert config["training"]["actor_ppo_mini_batch_size"] == 8
+    assert config["training"]["actor_ppo_micro_batch_size_per_gpu"] == 1
+    assert config["training"]["actor_use_dynamic_batching"] is False
+    assert config["training"]["actor_learning_rate"] == pytest.approx(1e-6)
+    assert config["training"]["actor_ppo_epochs"] == 1
+    assert config["training"]["actor_use_kl_loss"] is False
+    assert config["training"]["actor_fsdp_strategy"] == "fsdp2"
+    assert config["training"]["actor_shuffle"] is False
+    assert config["training"]["data_shuffle"] is True
+    assert config["training"]["grpo_normalize_outcome_advantage_by_std"] is True
+    assert config["training"]["trainer_resume_mode"] == "disable"
+    assert config["training"]["save_frequency_steps"] == 2
+    assert config["training"]["max_actor_checkpoints_to_keep"] == 1
+    assert config["training"]["rollout_max_num_seqs"] == 16
+    assert config["training"]["rollout_limit_images"] == 2
+    assert (
+        config["training"]["actor_ppo_mini_batch_size"]
+        * config["training"]["rollout_n"]
+        // config["resources"]["gpu_count"]
+        == config["training"]["data_train_batch_size"]
+    )
     assert config["resources"]["gpu_count"] == 4
     assert config["resources"]["slurm_mail_type"] == "ALL"
     assert config["stop_rules"]["tool_call_rate_below"] == pytest.approx(0.01)
+    assert config["preflight"]["action_gradient_report_sha256"] == (
+        "3fa21b9e5343348cf4619066c08b08049b63fe96fa11a9151d3723fd5238d99b"
+    )
+    assert config["preflight"]["full_train_runtime_audit_report_sha256"] == (
+        "e468c36719ee3e303ff84a98f6feac1b88ebee9f0fb2731be2a129204671c1ed"
+    )
+    assert config["preflight"]["model_load_report_sha256"] == (
+        "1a67365b1fc1fbf76ad84c7954cdeeeb73f1fd1eeb52dd7d94971dd06469009a"
+    )
 
 
 def test_model_load_slurm_contract_binds_runtime_model_data_and_notifications() -> None:

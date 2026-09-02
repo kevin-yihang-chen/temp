@@ -166,6 +166,8 @@ def _credits_for_mode(
     tool_indices = [
         index for index, item in enumerate(trajectories) if item.tool_attempted
     ]
+    if len(tool_indices) < 2:
+        return (tuple(0.0 for _ in trajectories), tuple(None for _ in trajectories))
     assignments = cyclically_derange_action_credits(
         [trajectories[index].trajectory_id for index in tool_indices],
         [trajectories[index].action_credit for index in tool_indices],
@@ -347,6 +349,7 @@ def inject_token_local_action_credit(
         prepared.donor_trajectory_ids
     )
     tool_count = sum(item.tool_attempted for item in trajectories)
+    shuffled_batch_skipped = mode == "shuffled" and tool_count < 2
     metrics = {
         "action_credit/tool_trajectory_count": float(tool_count),
         "action_credit/tool_trajectory_rate": float(tool_count / len(trajectories)),
@@ -357,6 +360,7 @@ def inject_token_local_action_credit(
             sum(abs(value) for value in prepared.applied_action_credits)
             / len(trajectories)
         ),
+        "action_credit/shuffled_batch_skipped": float(shuffled_batch_skipped),
     }
     return data, metrics
 

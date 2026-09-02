@@ -80,6 +80,10 @@ def main() -> int:
 
     signed_advantages, signed_gradient = gradient_for_mode(torch, "signed")
     zero_advantages, zero_gradient = gradient_for_mode(torch, "zero")
+    shuffled_data, shuffled_metrics = inject_token_local_action_credit(
+        build_batch(torch), mode="shuffled"
+    )
+    shuffled_advantages = shuffled_data.batch["advantages"][0].detach().cpu().tolist()
     checks = {
         "signed_action_gradient_nonzero": all(
             abs(value) > 0.0 for value in signed_gradient[:2]
@@ -96,12 +100,20 @@ def main() -> int:
         "padding_gradient_zero": signed_gradient[7] == 0.0,
         "answer_advantage_control_matched": signed_advantages[4:7]
         == zero_advantages[4:7],
+        "single_tool_shuffled_action_loss_skipped": shuffled_advantages[:2]
+        == [0.0, 0.0],
+        "single_tool_shuffled_skip_reported": shuffled_metrics[
+            "action_credit/shuffled_batch_skipped"
+        ]
+        == 1.0,
     }
     report = {
         "schema": "vtool_action_credit_gradient_smoke_v1",
         "torch_version": torch.__version__,
         "signed_advantages": signed_advantages,
         "zero_advantages": zero_advantages,
+        "single_tool_shuffled_advantages": shuffled_advantages,
+        "single_tool_shuffled_metrics": shuffled_metrics,
         "signed_logit_gradients": signed_gradient,
         "zero_logit_gradients": zero_gradient,
         "checks": checks,

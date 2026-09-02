@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 22:00（Asia/Hong_Kong）
+更新时间：2026-09-02 23:04（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -105,9 +105,9 @@ G0 后已做范围纠偏：VTool 只作为 Apache-2.0 的可运行 RL 骨架和 
 comparator，不再审计 thought、pixel 或内部实现是否与 VTool 等价；该问题与 H5 的
 成败无直接关系。训练数据改为固定 revision/hash 的 Apache-2.0 official ReFocus train。
 token-local autograd、隔离 runtime import、official-train converter/processor、paired
-agent fake-server contract 与单卡 H800 vLLM model-load/真实首轮 generation 均已通过。
-尚未获得真实 paired tool rollout 或 optimizer step，因此 H5 仍停在 G1 前，不是处于
-训练中。
+agent fake-server contract、单卡 H800 vLLM model-load/真实首轮 generation、72 行完整
+运行时数据审计与最终 Hydra resolved-config gate 均已通过。尚未获得真实 paired tool
+rollout 或 optimizer step，因此 H5 仍停在“G1 已可提交”，不是处于训练中。
 
 ### 顶会约束
 
@@ -156,8 +156,12 @@ agent fake-server contract 与单卡 H800 vLLM model-load/真实首轮 generatio
 5. outcome-only、paired-zero、paired-shuffled、paired-signed 四组配置，以及 task score、
    cost-adjusted utility、harmful-call rate 和 tool-call-rate stop rule 已在
    `configs/vtool_action_credit_g1_v1.json` 冻结。
-6. 单卡 H800 model-load/单条 generation smoke（Job `205784`）已通过；下一步只实现、
-   dry-run 并提交 4×H800、最多 2 optimizer-step 的 paired-signed G1。只有实际
+6. 单卡 H800 model-load/单条 generation smoke（Job `205784`）已通过；72 行 frozen
+   train 已全部经过真实 `RLHFDataset` 与 Qwen processor，prompt 最大 1,914 tokens，
+   row/data/provenance 全部匹配。最终 Hydra dry-run v9 的 59 项 scientific/resource
+   contract 全部通过。
+7. 下一步提交唯一 4×H800、最多 2 optimizer-step 的 paired-signed G1。只有实际
    tool-call rate、pair validity 与训练稳定性通过冻结 stop rules，才以同一 revision
-   顺序运行 zero/shuffled/outcome-only controls。
-7. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+   顺序运行 zero/shuffled/outcome-only controls；失败则按预注册规则停止，不调整
+   prompt、seed、temperature 或阈值追结果。
+8. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

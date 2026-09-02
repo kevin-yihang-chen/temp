@@ -57,6 +57,20 @@ def local_chartqa_score(response: str, ground_truth: object) -> float:
     )
 
 
+def compute_score(
+    data_source: str,
+    solution_str: str,
+    ground_truth: object,
+    extra_info: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> dict[str, float]:
+    """Deterministic reward function shared by paired and outcome-only arms."""
+
+    del data_source, extra_info, kwargs
+    score = local_chartqa_score(solution_str, ground_truth)
+    return {"score": score, "acc": score}
+
+
 class CounterfactualCreditVToolAgentLoop(VToolAgentLoop):
     """Return the factual rollout while scoring a matched no-op continuation."""
 
