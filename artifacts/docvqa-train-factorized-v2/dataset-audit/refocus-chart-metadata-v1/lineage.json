@@ -1,0 +1,58 @@
+{
+  "chartqa_train_png_blobs": 18317,
+  "chartqa_train_png_stems_sha256": "46af28751e0696a0e8a2094cb77f2385354c1cc842b61dcf8fd285107cc930f6",
+  "chartqa_train_unique_png_stems": 18317,
+  "decision": "all_refocus_train_row_ids_match_pinned_chartqa_train_png_stems",
+  "interpretation": "row-ID membership supports original ChartQA train lineage; it does not prove pixel equality or establish a license for the derivative",
+  "matched_unique_row_ids": 14344,
+  "missing_row_id_sha256": [],
+  "missing_unique_row_ids": 0,
+  "network_scope": "non-recursive ancestor trees plus recursive ChartQA Dataset/train/png; no validation/test subtree contents",
+  "pixel_identity_checked": false,
+  "protected_split_contents_accessed": false,
+  "refocus_row_ids_sha256": "3cee88a523242094be18eda7e49a1475c9df1b3a5b60c94b5c39b6118ce9e444",
+  "refocus_train_duplicate_row_id_rows": 0,
+  "refocus_train_manifest_sha256": "a034f7fd1d3492950faa0d079a6b2da58e86742bee3ed3696a8c657b0c19677f",
+  "refocus_train_rows": 14344,
+  "refocus_train_unique_row_ids": 14344,
+  "repository": "vis-nlp/ChartQA",
+  "requests": [
+    {
+      "etag": "W/\"2c392ea6509a178cea7f90f77cdc21de960e245aa2919c07205d661841abafe8\"",
+      "last_modified": "Tue, 18 Aug 2026 22:55:08 GMT",
+      "url": "https://api.github.com/repos/vis-nlp/ChartQA/git/trees/044eabfc306abfe9340c5741f0093aefc5973d06"
+    },
+    {
+      "etag": "W/\"44261294e1837874b0e3824517e06ebee3ce97e6849f3a108d078a58494d3570\"",
+      "last_modified": "Tue, 18 Aug 2026 22:55:08 GMT",
+      "url": "https://api.github.com/repos/vis-nlp/ChartQA/git/trees/0a4076a03da688e572a70af7eeac9681455deceb"
+    },
+    {
+      "etag": "W/\"855c483aa868726953d81a950aa986ba24d736e5a05189d5a47ef4bb124a9188\"",
+      "last_modified": "Tue, 18 Aug 2026 22:55:08 GMT",
+      "url": "https://api.github.com/repos/vis-nlp/ChartQA/git/trees/1caf945c1d48b91c0a571e4dad18dbaadc7673fc"
+    },
+    {
+      "etag": "W/\"6dc4e4bece3be13f94b45b6393829a562a65d14dc1da9c2aa3a3e958664e7903\"",
+      "last_modified": "Tue, 18 Aug 2026 22:55:08 GMT",
+      "url": "https://api.github.com/repos/vis-nlp/ChartQA/git/trees/1869eec4dabbe2dc9d582809fb80f5c1d70a9af9?recursive=1"
+    }
+  ],
+  "resolved_train_tree_path": [
+    {
+      "component": "ChartQA Dataset",
+      "tree_sha": "0a4076a03da688e572a70af7eeac9681455deceb"
+    },
+    {
+      "component": "train",
+      "tree_sha": "1caf945c1d48b91c0a571e4dad18dbaadc7673fc"
+    },
+    {
+      "component": "png",
+      "tree_sha": "1869eec4dabbe2dc9d582809fb80f5c1d70a9af9"
+    }
+  ],
+  "root_tree_sha": "044eabfc306abfe9340c5741f0093aefc5973d06",
+  "schema": "refocus_chart_train_lineage_audit_v1",
+  "train_png_tree_sha": "1869eec4dabbe2dc9d582809fb80f5c1d70a9af9"
+}
