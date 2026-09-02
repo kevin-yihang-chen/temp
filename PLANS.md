@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 18:19（Asia/Hong_Kong）
+更新时间：2026-09-02 19:15（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -100,6 +100,12 @@ dependency-free core 已实现 action/answer/observation/padding masks、pair pr
 token-local advantage、序列化与 deterministic derangement。实现 commit 为
 `56b990c767973a8a23060d63293db8657254b35d`；尚未集成上游或获得训练结果。
 
+G0 后的数据/环境 gate 已完成一次可复现审计：Refocus train 14,344 个 unique row IDs
+全部匹配 pinned original ChartQA train tree，published vLLM 0.17 image digest 也已固定；
+但 derivative dataset license、pixel identity 与本集群 runtime 尚未解决。Refocus test
+metadata 误访问和 original ChartQA protected-split path-ID 暴露已登记，相关 split 不再
+具备 sealed 资格。因此 H5 当前停在 G1 前，而不是处于训练中。
+
 ### 顶会约束
 
 所有后续候选仍必须满足：
@@ -138,12 +144,15 @@ token-local advantage、序列化与 deterministic derangement。实现 commit �
 1. Answer-conditioned candidate 已因文献碰撞关闭；VTool upstream 静态审计已完成。
 2. Matched-control action-credit protocol 与 G0 synthetic implementation/tests 已完成；
    这只证明 arithmetic/schema，不是方法有效性证据。
-3. 下一步只获取 Refocus_Chart public train metadata，审计 row/image/source identity，
-   冻结 train-only split manifest；禁止使用 FP8 脚本默认的 `test.parquet`。
-4. 同时确定 upstream vLLM `0.17.0` recipe 的权威 container/image digest，完成
-   import-only audit。数据/环境 amendment、baseline 和最多 2-step smoke 合同全部
-   冻结后，才允许 4×H800 G1。
-5. 2026-09-02 18:19 HKT Slurm 队列为空；实时剩余 GPU quota 为 179,656 分钟
-   （2,994.3 GPU-hours），账户上限 4 GPU/4 H800。算力允许有界 matched-control，
-   但 protocol 与 synthetic gate 通过并不自动授权烧 GPU。
-6. 保持 validation/test/reserve 封存；本地修改不 push GitHub。
+3. Train metadata 与 original-train row lineage 已固定；下一步先取得 Refocus derivative
+   的明确许可，或从 original ChartQA 和可审计代码再生成，不能以 public access 代替
+   license evidence。
+4. 对最终获准的 train bytes 建 pixel hash/group manifest，再冻结 source-grouped
+   train/curve-eval split；Refocus test 与 original ChartQA test 不再作为 sealed evidence。
+5. vLLM `0.17.0` published image 已固定为 immutable digest，但当前没有可执行 OCI/SIF
+   runtime，home 仅余约 50 GiB。先解决 runtime/scratch 与 model/judge digests，再做
+   import-only；不得直接展开 14.36 GB compressed image。
+6. 数据/环境 amendment、baseline 和最多 2-step smoke 合同全部冻结后，才允许
+   4×H800 G1。2026-09-02 19:15 HKT 队列为空；实时剩余 GPU quota 为 179,663 分钟
+   （2,994.4 GPU-hours），账户上限 4 GPU/4 H800。
+7. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

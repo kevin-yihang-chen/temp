@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 18:19（Asia/Hong_Kong）
+更新时间：2026-09-02 19:15（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -17,6 +17,12 @@ classifier 或 threshold 没有科学价值。
 下一步已转为机制不同的视觉工具 RL action-local credit feasibility，而不是给旧
 gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无训练趋势或正式
 方法结果，不能据此提高项目成功概率。
+
+最新 train/data/runtime 审计把风险进一步具体化：Refocus train 的 14,344 个 row ID
+全部属于固定 original ChartQA train tree，这是正向 lineage 证据；但 hosted derivative
+没有明确 dataset license，尚未做 pixel hash，本集群也没有可直接运行 pinned vLLM
+镜像的 runtime。因而当前不是“实验已证明新方法失败”，而是“核心 empirical gate
+尚未开始，且 exact H5 路线通过 G2 的概率低于不通过概率”。
 
 ## 已完成的证据链
 
@@ -58,6 +64,15 @@ gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无�
     篡改、token-local advantage 与 shuffled no-self-donor；完整仓库共收集 509 项，
     479 passed、30 项依赖/资源相关预期 skip。该证据只支持实现定义一致，不支持
     方法性能。
+12. Refocus train-only metadata/lineage 与 vLLM environment audit 已在 commit
+    `91a5cb438c9503dee5f0337d5bc118bcfef482bb` 固定。14,344/14,344 unique row IDs
+    命中 original ChartQA train PNG stems，missing=0；corrected report 明确
+    `test_accessed=false`。但 derivative license、pixel identity 与 cluster runtime
+    均未通过，决定码为
+    `g1_not_authorized_pending_dataset_license_pixel_identity_and_runtime`。
+13. 审计期间曾误读 Refocus test 的非图像 metadata/ground truth，并随后一次性枚举
+    original ChartQA val/test PNG path IDs。事件已透明登记和隔离；这些 split 永久不能
+    再作为本项目 sealed formal evidence。没有拟合、方法选择、GPU 或结果使用。
 
 ## 当前最佳结果与解释边界
 
@@ -75,8 +90,9 @@ gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无�
 
 | 里程碑 | 当前状态 |
 | --- | --- |
-| 严格数据/无泄漏/强基线基础设施 | 已完成 |
+| 严格数据/无泄漏/强基线基础设施 | 既有数据完成；Refocus train audit 通过，test 已污染并隔离 |
 | Action-credit protocol 与 synthetic G0 | 已完成；尚未 upstream 集成 |
+| Refocus 数据许可、pixel identity 与可执行 runtime | 未通过；G1 不授权 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -88,12 +104,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-2026-09-02 18:19 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
+2026-09-02 19:15 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
 Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件已按全状态合同
 配置。当前修改只保留在本地，未 push GitHub。
 
-同日 18:19 HKT 的 live quota 为 GPU 222,000 分钟总额、42,344 已用、
-179,656 剩余（2,994.3 GPU-hours，19.07% 已用）；association 上限为 4 GPU、
+同日 19:15 HKT 的 live quota 为 GPU 222,000 分钟总额、42,337 已用、
+179,663 剩余（2,994.4 GPU-hours，19.07% 已用）；association 上限为 4 GPU、
 4 H800、48 CPU。算力足以支持一次有界 3B matched-control RL 研究，但科学 gate、
 依赖与训练稳定性仍是主要风险。
 
@@ -124,14 +140,21 @@ Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件�
   matched-budget improvement，该硬转向也会失败。
 - Upstream FP8 3B script 默认把 `test.parquet` 同时作为 train/val；直接运行会造成
   明确测试泄漏。必须只用 official train 派生开发 split，并关闭 train-time test。
+- Refocus_Chart hosted derivative 没有明确 license；original-train row lineage 不能
+  替代许可或 pixel equality。Refocus test 与 original ChartQA test 已因 metadata
+  暴露失去 sealed 资格，formal 必须使用从未打开的独立 benchmark/split。
+- Pinned `verlai/verl@sha256:4c43...b7cb6` 镜像约 14.36 GB compressed，但 home
+  filesystem 已用 95%、仅余约 50 GiB，且集群未配置现成 OCI runtime；未经空间与
+  runtime 方案不能盲目展开。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不立即提交新 GPU 任务。Protocol 与 G0 已通过；下一步是 public Refocus_Chart train
-metadata/identity audit 和 upstream vLLM 0.17 权威 image/digest 的 import-only audit，
-然后冻结 train-only split 与最多 2-step G1 smoke amendment。只有 baseline、pair
-validity、judge fail-closed、checkpoint/resume、显存与 call-rate gate 全通过，才允许
-短程 matched-control training。目标仍是三大会 main conference，不设置降低投稿
-档位的完成出口。
+不立即提交新 GPU 任务。Train metadata/row lineage 与权威 vLLM image digest 已完成，
+但 G1 被 derivative license、pixel identity 和 cluster runtime 三个明确条件挡住。
+下一步先取得许可或从 original ChartQA 可审计再生成，再在 train-only bytes 上做 pixel
+group manifest，并把 immutable image 放到有足够空间且可执行的 runtime 做 import-only
+检查。只有这些条件与 baseline、pair validity、judge fail-closed、checkpoint/resume、
+显存和 call-rate gate 全通过，才允许最多 2-step G1。目标仍是三大会 main conference，
+不设置降低投稿档位的完成出口。

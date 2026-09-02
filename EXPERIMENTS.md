@@ -319,3 +319,51 @@
 - 下一步：只审计 public Refocus_Chart train metadata/source identity 和 vLLM 0.17
   权威 image/digest，冻结 train-only/data/environment amendment；明确禁止 FP8 script
   默认 `test.parquet`。G1 前不提交 GPU。
+
+## E-20260902-11：Refocus train lineage、license 与 vLLM runtime gate
+
+- 假设：在不下载 image columns、不加载模型且不碰 protected split 内容的条件下，
+  可以确认 Refocus official train 的 schema/row lineage，并固定可复现 vLLM 0.17
+  image identity，从而决定是否授权 G1。
+- 实现 commit：`91a5cb438c9503dee5f0337d5bc118bcfef482bb`。Core/script/test
+  SHA-256 分别为
+  `71ad6776c0987ae79367b653b113b35f6435198f5180076c89eed6af6fbf55b9`、
+  `353957c559b409a470527b015e863b33aecde368f01e7bae8a3708bfb59cda48`、
+  `0bda624479a3f0cb9af9c07ade9c59e4782785f22c14c81f60a1df8f42fdc383`、
+  `af4d71f16c61a56f3faa0853e51b62acba0faf8b385d3312ea55d6f7fc04a489`。
+- 数据：`VTOOL/Refocus_Chart` revision
+  `00f10ecc5b25d94fd66e14c3671af9fb0f088989`；train LFS digest
+  `d7972ca232aa9c0646af387f7dffb987528b99b3d9693ccd58bbef0463f2d4e1`。
+  Corrected runner 只做 train HTTP range read，并明确记录 LFS digest 未由全文件重新
+  哈希；report `test_accessed=false`。
+- Train 结果：14,344 rows/unique IDs，0 duplicate IDs；10,806 structural groups，
+  3,538 duplicate-group rows，最大 group 59；exact question/Q+A/prompt duplicate rows
+  分别为 141/23/141。Manifest SHA-256
+  `a034f7fd1d3492950faa0d079a6b2da58e86742bee3ed3696a8c657b0c19677f`。
+- Lineage：对 pinned original ChartQA root tree
+  `044eabfc306abfe9340c5741f0093aefc5973d06` 只逐级遍历 train/png；18,317 original
+  train PNG stems 中命中全部 14,344 Refocus IDs，missing=0。Lineage report SHA-256
+  `15189ebb6128900c684ffc3cd7b07838a802a4eba88a42353b3ddb3b9dca0f6c`。
+- Incident：初版 runner 曾访问 Refocus test 的非图像 metadata、question 与 ground
+  truth；随后 one-off 命令还枚举 original ChartQA val/test PNG path IDs。没有读取
+  test pixels、拟合、方法选择、GPU 或结果使用；报告已 quarantine，两个 test split
+  不再作为 sealed formal。事件审计 SHA-256
+  `51ce2bfe23dd09ca71c6184b9714330b348b6823dd611f836d92002a8382794a`。
+- License：Refocus hosted dataset repository 无 card/license；VTool code 的 Apache-2.0
+  不能自动覆盖 dataset，original ChartQA 的 GPL-3.0 也不能补写派生发布条款。因此
+  full train download/training 未授权。
+- Environment：官方 `verlai/verl:vllm017.latest` 已解析为 immutable linux/amd64
+  digest `sha256:4c43bbf17e90284b1102008399240b25406e8d34fea178d86272231b333b7cb6`，
+  compressed 14,356,458,058 bytes；但本地无 vLLM/Ray、容器工具或可执行 bundle，
+  Slurm `JobContainerType=(null)`，model/judge path 不存在，home 仅余约 50 GiB。
+- 命令：`scripts/audit_refocus_chart_metadata.py`；
+  `scripts/audit_refocus_chart_lineage.py`；`python -m pytest -ra`；`python -m mypy ...`；
+  `python -m compileall -q ...`；Black 24.8.0 in-process check；`git diff --check`。
+- 验证：新 audit tests 10 项通过；完整仓库 519 项中 489 passed、30 个依赖/资源
+  related expected skip；mypy 4 files、compileall、Black in-process 与 diff check
+  全部通过。无随机 seed、模型 outcome、GPU、Slurm 或邮件事件。
+- 结果：
+  `g1_not_authorized_pending_dataset_license_pixel_identity_and_runtime`。这不是 H5 的
+  性能负结果；它证明当前直接训练会缺少许可、pixel certificate 与可复现 runtime。
+- 下一步：先许可或 original-data regeneration，再做 train pixel grouping；同时在
+  有足够 scratch 的位置建立 pinned runtime，完成 import-only 后才冻结 G1 amendment。
