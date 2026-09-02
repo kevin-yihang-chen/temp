@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 13:16（Asia/Hong_Kong）
+更新时间：2026-09-02 17:25（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -16,77 +16,87 @@
 
 当前尚未达到上述标准。
 
-## 当前核心问题
+## 当前核心判断
 
-InfographicVQA 的 raw-attention action 在相同 entropy call set 上显著优于四个
-deployable where 基线，但所有 call rate 的净 utility 仍为负。现有证据指向
-因子化瓶颈：`where` 已有信号，`whether/when to call` 仍不足。
+InfographicVQA 上，raw attention 的 `where` 信号真实存在，但在相同 entropy
+call set 上仍不能产生正净 utility。ViCrop 与 LASER 两个冻结文献 attention
+候选也全部失败，且没有显著优于 raw attention。固定 raw action 后的
+privileged stopping ceiling 很大，但 attention max/margin 与单一低容量
+signed-value OOF stop 都无法利用它。
 
-## 正在验证的假设
+因此，当前失败不是“没有任何有用 crop”，而是现有 outcome-free representation
+无法以足够精度预测哪些状态值得调用。Fixed four-box attention-localization、
+entropy/simple-confidence stopping 与当前线性 signed-value stop 家族现已关闭。
+
+## 已完成的关键假设
 
 ### H1：文献 attention 方法能进一步改善 where
 
-- 候选：固定 ViCrop Qwen 相对 attention 与 LASER contrastive all-head bank。
-- 最小实验：完整 official-train outcome-free 特征抽取、合并、审计；随后用冻结
-  entropy call set 和 97.5% Bonferroni 区间评价。
-- 任务：Slurm `203273`，两张 H800，四个 source-disjoint 分片，两轮执行。
-- 决策：只有正 utility、校正区间和所有强基线条款同时通过才允许 calibration。
+- 候选：固定 ViCrop Qwen relative attention 与 LASER contrastive all-head bank。
+- 特征 Job：`203273`；评估 Job：`203340`。
+- 结果：`literature_attention_where_train_not_supported`。两个候选在五个注册
+  call rate 的 utility 均为负，Bonferroni-corrected 97.5% lower endpoint 均不
+  大于零，也未显著优于 raw attention。
+- 结论：关闭对 attention layer/head/ratio 与 fixed four-box attention scorer
+  的继续搜索；不进入 calibration。
 
 ### H2：固定 raw-attention action 后，主要剩余 headroom 来自 stopping
 
-- 最小实验：保持 raw action 不变，比较 entropy stop、attention max、attention
-  margin 与 privileged realized-utility stop ceiling。
-- 任务：Slurm `203290`，20,000 次 whole-source bootstrap。
-- 目的：量化 fixed-action stop ceiling，并判断简单 outcome-free confidence 是否
-  已能改善 entropy；该实验是 post-hoc 诊断，不可直接产生正式候选。
-- 结果：诊断已完成。固定 raw action 的 unrestricted privileged stop ceiling
-  为 `+0.021318`，95% CI `[0.018447, 0.024444]`；但 attention max/margin
-  在所有注册调用率均差于 entropy。因此 stopping headroom 明显，简单
-  attention confidence 无法利用它。
+- Job `203290` 的 unrestricted privileged fixed-action stop ceiling 为
+  `+0.021318`，95% CI `[0.018447, 0.024444]`。
+- Attention max/margin 在所有注册调用率均差于 entropy。
+- 结论：stopping headroom 存在，但简单 attention confidence 不可用。
 
 ### H3：固定 raw action 的 signed net value 可在 source-held-out 条件下学习
 
-- 候选：一个预先固定的 L2 logistic head，仅为 raw-attention 已选动作
-  预测 `delta_success - 0.05 > 0`；样本权重按绝对 net utility，每个
-  source 总权重相等。
-- 固定设置：`C=0.01`，5 个 whole-source OOF folds，seed `20260918`，无
-  特征/模型/正则化搜索；在 0.5/1/2/5/10% 相同 pooled call budget 比较
-  entropy stopping，20,000 次 whole-source bootstrap。
-- 解释：这是 opened official-train 上的 exploratory OOF 候选。只有在预先
-  固定的决策条款下通过，才能冻结到独立 calibration；不可事后选择
-  有利 call rate。
-- 实现：commit `0683526`；真实输入 smoke 已通过，无模型拟合或策略
-  指标计算。唯一主检验点为 2%（479 calls）。
-- 任务：Slurm `203330`，13:06 已开始，4 CPU / 64 GiB，RTX 4090 预留
-  但对 evaluator 隐藏，45 分钟时限。
-- 结果：`fixed_action_signed_stop_train_not_supported`。2% primary 的
-  utility 为 `-0.000063`，95% CI `[-0.000739, 0.000655]`；相对 entropy
-  改善 `+0.000522`，paired CI `[-0.000304, 0.001444]`。Positive-net
-  precision 从 `16.08%` 升至 `18.79%`，但另两个主条款失败。
+- Job `203330` 在唯一 2% primary 上得到
+  `fixed_action_signed_stop_train_not_supported`。
+- Candidate utility `-0.000063`，95% CI `[-0.000739, 0.000655]`；相对 entropy
+  改善 `+0.000522`，paired CI `[-0.000304, 0.001444]`。
+- 结论：存在弱排序信号，但不允许在已打开 outcomes 上继续搜索 C、特征、权重、
+  seed、call rate 或 classifier family。
 
-## 决策树
+## 下一主假设与路线选择
 
-1. Fixed-action privileged ceiling 已证实明显，max/margin 已证实无增益；
-   因此进入低容量、whole-source OOF 的 fixed-action signed-value stop 模型。
-   只预测“是否执行已固定动作”，不再同时学习四动作排序。
-2. H3 已在唯一 primary 上失败：停止该线性 signed-value stop 模型族，
-   不在当前 train outcomes 上继续搜索 C、特征、权重、seed、call rate
-   或 classifier family。
-3. 若简单 confidence 已稳定优于 entropy：优先冻结无训练或单调小模型，减少
-   多重比较与过拟合风险。
-4. 若 ViCrop/LASER where-only 通过：先做独立 calibration；stop 模型作为后续
-   消融而非改变已通过的主候选。
-5. 若所有 where-only 候选失败且 stop ceiling 明显：主路线切换为“显式分离
-   stop 与 where 的反事实工具价值学习”；否则转向“强基线下的瓶颈审计与风险
-   控制”包装，并评估其是否具备顶会新颖性。
+### H4：需要新的 pre-action 信息来源，而不是现有特征上的局部调参
+
+下一方法候选必须同时满足：
+
+1. 引入可解释的新信息来源或 action proposer，而不是 attention 层/head、阈值、
+   线性 head 或 call rate 的变体；
+2. 明确分离 `whether/when` 与 `where`，并对每个具体 action 的 signed rescue/harm
+   保留完整 sibling supervision；
+3. 在任何结果读取前冻结唯一候选、调用成本、source split、primary endpoint、
+   强基线与停止规则；
+4. 先做小规模真实输入 smoke 和成本审计，再决定是否值得 GPU 完整运行；
+5. official-train 只作 exploratory/source-OOF screen；validation/test/reserve 继续
+   封存，只有严格 train gate 通过才允许新 calibration 协议。
+
+候选方向优先级：
+
+1. 具有新观测语义的显式 counterfactual stop/where representation；
+2. 能突破固定四格 action-bank 限制的 proposer，但必须对额外推理/视觉获取付费；
+3. 若没有候选能在冻结 OOF gate 上给出正 utility，则停止正方法叙事，转为完整
+   sibling bank、prospective risk 与跨域失败机制的 empirical audit 路线，并重新
+   审计它是否达到顶会新颖性。
+
+## 止损规则
+
+- 不再运行 attention layer/head/ratio、entropy threshold、call-rate、随机种子或
+  线性 classifier-family sweep。
+- 不用 validation/test 帮助选路线，不把 privileged oracle 当部署结果。
+- 下一候选必须先写 protocol，再实现，再 smoke；没有能区分科学假设的新信息时
+  不提交 GPU job。
+- 若下一次“机制上不同”的冻结 OOF 候选仍不能获得正 utility 或显著强于
+  entropy/raw-attention，正方法路线关闭，不再用算力追逐局部变体。
 
 ## 紧接着的行动
 
-1. 将 Job `203330` 的负结果与弱排序信号写入不可变审计；不对 H3
-   调参或开放 calibration。
-2. 持续监控 `203273` checkpoint、吞吐、磁盘与 8 小时时限；完成后自动合并审计。
-3. 提交 literature Bonferroni evaluator，绑定 feature job 的旧 commit 与当前
-   evaluator commit。
-4. Literature 结果决定下一主路线：若其 where-only 也失败，停止在
-   当前 action/stop 特征上局部调参，转向新 action space/proposer 或论文级瓶颈
-   审计重新定位。
+1. 已将 Jobs `203273`/`203340` 的完整负结果、哈希与路线关闭规则写入不可变审计。
+2. 同步 `PROJECT_STATUS.md` 与 `EXPERIMENTS.md`；保持 validation/test/reserve
+   封存。
+3. H4 候选矩阵已完成；唯一优先候选是复用 baseline generation 的
+   answer-conditioned evidence consistency。先做 outcome-free feature/cost/literature
+   feasibility audit，不拟合、不读 endpoints。
+4. 只有 feasibility audit 通过才冻结单一 source-OOF protocol；当前 Slurm 队列
+   为空，在 protocol 和真实输入 smoke 完成前不烧 GPU。

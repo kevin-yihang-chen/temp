@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 13:16（Asia/Hong_Kong）
+更新时间：2026-09-02 17:25（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -81,12 +81,19 @@
 - 命令：`scripts/submit_infographicvqa_literature_attention_h800.sh`。
 - 环境/资源：Job `203273`，2×H800，16 CPU，192 GiB，8 小时，两轮 shards，
   离线 cache，全状态邮件，支持 resume。
-- 当前状态：RUNNING；12:47 快照为 wave 1，墙钟 52 分钟。
+- 结果：COMPLETED；23,946 decisions / 2,204 sources / 4,406 images，四个
+  source-disjoint shards 完整，所有特征 outcome-free，validation/test 未读。
+  Merged feature SHA-256
+  `ffec54e5c48ee9711bccde13a53f9ee4c9e6b85a2453eadcbe8ddde3236bec02`；
+  feature audit SHA-256
+  `53775f83b9a0231c0104b1b0fe69fedab6d1ffbeecaf0c28d5696c7bd0bfca9b`。
+- 执行：2026-09-02 11:56:03--17:00:07 HKT；exit `0:0`；extraction
+  18,121 秒、merge 78 秒、零 restart。
 - 日志：`slurm-infovqa-lit-attn-203273.out` 与
-  `literature-attention-where-v1/feature-shards/shard-{0,1}/attention.log`。
+  `literature-attention-where-v1/feature-shards/shard-{0,1,2,3}/attention.log`。
 - 失败前例：Job `203270` 在模型加载前因 shard-2 输入哈希抄写错误失败，无科学
   输出；commit `940ee86` 修复并加入回归测试。
-- 下一步：完成四 shards、merge/no-leak audit，再提交 97.5% Bonferroni gate。
+- 下一步：已提交冻结 97.5% Bonferroni evaluator（见 E-20260902-07）。
 
 ## E-20260902-05：Fixed-action stop-factorization 诊断
 
@@ -176,3 +183,48 @@
 - 解释/下一步：存在弱排序信号，但净 utility 和统计证据不足。按
   冻结协议停止此模型族；不事后改 C、特征、权重、seed、classifier
   family 或 primary call rate。等待 literature where 强基线决定下一主路线。
+
+## E-20260902-07：ViCrop/LASER literature-attention where gate
+
+- 假设：文献 ViCrop relative attention 或 LASER contrastive attention 能在相同
+  entropy call set 上产生正 utility，并在 multiplicity correction 后至少不劣于
+  raw attention 与其他注册 where comparator。
+- 协议 SHA-256：
+  `a86c4327a5e7ea8f5787b95883240149835e52a603266715900b5fddf8d682b1`；
+  blind audit SHA-256：
+  `1731fe8cf14568bb92ec8878477fa1f47dbb102f06953e84490afaa356cd7993`。
+- Commit：evaluator revision `96508310366e5327c80094c3016a67561ec882c9`；
+  feature revision `940ee8603f8b84bb7e107be4ecbd21cf9698d2b8`；model revision
+  `cc594898137f460bfe9f0759e9844b3ce807cfb5`。
+- 数据：E-20260902-04 的完整 outcome-free features；复用 20,000 次 frozen
+  whole-source bootstrap、2,204 sources、seed `20260917`；validation/test/reserve
+  未打开。
+- 配置：ViCrop 与 LASER 两个注册候选；call rates 0.5/1/2/5/10%；相同 entropy
+  state identities；`lambda=0.05`；raw attention 作为第五个 deployable
+  comparator；Bonferroni-corrected central 97.5% intervals。
+- 命令：`scripts/submit_infographicvqa_literature_attention_evaluation.sh`。
+- 环境/资源：Job `203340`；CPU evaluator，RTX 4090 仅预留并隐藏，4 CPU，
+  64 GiB；runtime `00:09:45`，exit `0:0`，零 restart，全状态邮件。
+- 结果：`literature_attention_where_train_not_supported`。LASER 在
+  0.5/1/2/5/10% 的 utility 分别为 `-0.000039/-0.000082/-0.000476/
+  -0.000373/-0.002808`；ViCrop 分别为 `-0.000067/-0.000194/-0.000653/
+  -0.000833/-0.002981`。所有 corrected lower endpoints 不大于零；所有点
+  `qualified=false`。LASER 在 5% 显著超过四个旧 where baseline，但对 raw
+  attention 的 paired 97.5% CI `[-0.002145, 0.002075]` 跨零。
+- Localization：LASER 全状态 exact NLL-teacher / task-oracle agreement / helpful
+  rescue 为 `33.60% / 24.14% / 72.15%`；ViCrop 为
+  `33.18% / 20.28% / 70.00%`。ENCORE layer-0/1 entropy 与 helpful-state
+  Spearman 仅 `0.0177/-0.0144`。
+- 产物：evaluation SHA-256
+  `560b47edfa6cf2465d40e4138a4e5b5133898a2437af864a6bd32f1599d264ee`；
+  decision SHA-256
+  `0e6c092e05d7a26da61ba77a54cba76f674599ab4f5e9b486740f027b9d58b91`；
+  complete SHA-256
+  `10c1f24c69c4deef611f1b3a74dc46fe05d9e1c2497af01639235a8026a3d61f`；
+  execution SHA-256
+  `f1f4a222f11db0dfb61e7c7aaa4a3d9fb44ed7590249b45b805170d080dffc6d`。
+- 日志/审计：`slurm-infovqa-lit-attn-eval-203340.out`；
+  `infographicvqa-literature-attention-where-result-job-203340-v1.md`。
+- 结论/下一步：关闭当前 attention-localization/simple-confidence family；不调
+  layer、head、ratio、threshold、call rate 或旧 classifier family。下一步必须
+  引入新的 pre-action 信息来源/action proposer，或转为论文级 empirical audit。
