@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 18:19（Asia/Hong_Kong）
+更新时间：2026-09-02 21:46（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -367,3 +367,89 @@
   性能负结果；它证明当前直接训练会缺少许可、pixel certificate 与可复现 runtime。
 - 下一步：先许可或 original-data regeneration，再做 train pixel grouping；同时在
   有足够 scratch 的位置建立 pinned runtime，完成 import-only 后才冻结 G1 amendment。
+
+## E-20260902-12：范围纠偏与 action-credit pre-GPU integration
+
+- 范围纠偏：E-11 之后继续要求与 VTool 的 pixel、thought 或内部实现等价属于研究
+  scope drift；这些条件不检验 H5，也不是论文贡献。VTool 此后只作为 Apache-2.0
+  可运行 RL 骨架与 outcome-only comparator，不再进行 equivalence 审计。
+- 数据：唯一训练来源改为 Apache-2.0 `ReFocus/ReFocus_Data` official train，revision
+  `6af42739216fd58047121bb51dba683277cfdfe3`；三个 shard 的 SHA-256 固定在
+  `configs/refocus_official_train_v1.json`。旧 derivative metadata 对照仅作一次性转换
+  证据；不读取 ReFocus test、ChartQA validation/test 或 reserve。
+- 实现：新增 upstream-shaped token-local adapter、paired agent overlay 与 pinned
+  upstream 两文件最小 patch。原 outcome advantage 只进入 answer tokens，signed
+  counterfactual credit 只进入 action tokens，observation/padding 为零；upstream
+  answer-only mask、pair mismatch 或 scorer failure 均 fail closed。
+- Scorer：冻结为本地确定性的 ChartQA relaxed match 与 answer extractor，取消外部
+  LLM judge，避免 timeout/服务差异进入 credit。
+- 环境：隔离 conda env `beyond-entropy-vtool-g1`；Python 3.10、torch `2.9.0+cu128`、
+  transformers `4.57.6`、vLLM `0.12.0`、Ray `2.58.0`、TensorDict `0.10.0`；editable
+  `verl` 指向 pinned runtime worktree。`pip check` 无 broken requirements。
+- 验证：真实 PyTorch autograd smoke 中 signed arm 的 action-token gradients 非零，
+  zero control 严格为零，observation/padding gradients 为零，answer gradients 在两组
+  相同。environment audit 的 required imports、versions、pinned commit、最小 patch 和
+  import origin 全部通过；reference clone 保持 clean。
+- 资源：没有 Slurm job、GPU model load、rollout 或 optimizer step，因此没有计算状态
+  邮件事件。修改均保留本地，未 push GitHub。
+- 结果：`vtool_action_credit_g1_import_gate_passed`，但这只是 pre-GPU engineering
+  evidence，不是方法成功。G1 仍需 official-train converter 单行 smoke、paired agent
+  fake-server contract 和 model-load/显存 preflight。
+- 下一步：只完成上述与核心假设直接相关的三个 preflight，再冻结 outcome-only、
+  paired-zero、paired-shuffled、paired-signed 配置并决定是否提交最多 2-step G1；不再
+  为 VTool 等价性投入时间或算力。
+
+## E-20260902-13：Official-train converter 与 paired-agent contract
+
+- 假设：在不读取 protected split、不使用 teacher thought/edited image/focus box、
+  不加载模型权重的条件下，可以把 official train 转成真实 verl multimodal row，并
+  证明 paired agent 的两臂只改变视觉 observation，正确导出 signed credit 与 token
+  roles。
+- 代码状态：基于 commit `5ee833f89ad6b72e1558addb3893f200a03e0c22` 的本地 stage；
+  本项完成后记录不可变 implementation commit。没有 push GitHub。
+- 数据：`ReFocus/ReFocus_Data` Apache-2.0 revision
+  `6af42739216fd58047121bb51dba683277cfdfe3`；三个 official-train shard 的完整
+  SHA-256 再次匹配 pin。Metadata pass 只读 structural/question/answer 列，selected
+  image pass 只读原始 `image`；policy input 明确排除 answer、thoughts、edited image
+  与 `focus_areas_bbox`。
+- Split/配置：seed `refocus-official-g1-group-split-20260902-v1`；全 train 为 14,344
+  rows/10,806 groups。冻结 64 train groups/72 rows 与 32 curve-eval groups/33 rows，
+  group overlap=0。Paired/outcome-only 两份数据除 `agent_name` 外逐字段相同；train
+  shared-content SHA-256 `06263c1e...566c27e`，curve-eval
+  `15fd8ae6...23ffd93a`。四臂、seed、两步资源和 stop rules 固定在
+  `configs/vtool_action_credit_g1_v1.json`。
+- 数据产物：paired train/curve SHA-256 为 `3a5be076...ced46` /
+  `28a2cd3f...b8a60`；outcome-only 为 `617924ee...44d1` /
+  `cac6ae74...f6d67`；row manifests 在两 family 完全相同。
+- 真实 processor smoke：单行 dataset SHA-256 `0de5b142...66199`；pinned
+  Transformers `4.57.6` fast Qwen processor 解码 1 张原图、0 video、966 prompt
+  tokens，pixel tensor shape `[2320,1176]`；所有 9 项合同通过，不加载权重。
+- Paired fake-server：rescue/harm/tool-failure/direct credit 分别为
+  `+0.95/-1.05/-0.05/0`；tool trajectories response mask 固定为
+  `[1,1,0,0,1,1]`。两 continuation 的 prompt IDs、sampling config 与 seed 相同，
+  factual success 只改变第二张图；observation token mismatch 与缺失 trajectory
+  identity 均 fail closed。报告 SHA-256 `8dedebf8...72564`。
+- 诊断事件：converter 首次直接调用因主包未在 `PYTHONPATH` 而在 import 前失败，
+  以 `PYTHONPATH=src` 修正；无数据输出或科学选择变化。Fake smoke 首版在
+  `asyncio.run` 关闭真实 thread-pool executor 时挂起；栈显示 case 已完成、worker
+  线程空闲。改用只用于 fake decode 的 inline resolved Future 后稳定退出；不是 agent
+  rollout 或 vLLM 死锁。随后一项 harm fixture 的预期 answer IDs 断言写错，修正测试
+  fixture 后得到冻结的 `-1.05`。
+- 验证：清除无关 equivalence tests 并加入 model/runtime/data/config binding contract
+  后，完整仓库 `507 passed, 33 skipped`；skip 均为 base env 可选 Torch/资源项；
+  mypy 11 files、compileall、Black in-process、JSON/shell
+  syntax、`pip check` 与
+  `git diff --check` 通过。隔离 runtime import gate 复验通过，环境报告 SHA-256
+  `fb90ce60...94718`。
+- 静态检查事件：扩大 mypy 覆盖后，首次发现 import origin、credit mode、PIL pixel
+  与 dataclass kwargs 的局部类型歧义；逐项收紧类型后，目标测试与 10-file mypy
+  通过。改动不改变 paired rollout 数值；复跑 fake-server/environment 报告后 SHA-256
+  分别仍为 `8dedebf8...72564` 与 `fb90ce60...94718`。
+- 环境/资源：CPU processor/fake-server；无模型权重、GPU、Slurm 或邮件事件。实时
+  GPU quota 222,000 总分钟、42,327 已用、179,673 剩余（2,994.55 GPU-hours）；
+  本轮实时查询时队列为空。
+- 结果：`refocus_g1_dataset_and_paired_agent_contract_passed`。这是 pre-GPU correctness
+  evidence，不是方法性能证据。G1 仍未授权。
+- 下一步：提交已绑定 code/data/model/runtime、1×H800、30 分钟上限、
+  `--mail-type=ALL` 的 vLLM model-load/单条 first-turn generation smoke；通过后才允许
+  4×H800、最多 2-step G1。

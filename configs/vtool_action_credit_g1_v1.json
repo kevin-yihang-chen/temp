@@ -1,0 +1,161 @@
+{
+  "arms": {
+    "paired_shuffled_credit": {
+      "action_credit": {
+        "beta": 1.0,
+        "enabled": true,
+        "mode": "shuffled"
+      },
+      "agent_name": "counterfactual_credit_vtool_agent",
+      "dataset_family": "paired"
+    },
+    "paired_signed_credit": {
+      "action_credit": {
+        "beta": 1.0,
+        "enabled": true,
+        "mode": "signed"
+      },
+      "agent_name": "counterfactual_credit_vtool_agent",
+      "dataset_family": "paired"
+    },
+    "paired_zero_credit": {
+      "action_credit": {
+        "beta": 1.0,
+        "enabled": true,
+        "mode": "zero"
+      },
+      "agent_name": "counterfactual_credit_vtool_agent",
+      "dataset_family": "paired"
+    },
+    "upstream_outcome_only": {
+      "action_credit": {
+        "beta": 0.0,
+        "enabled": false,
+        "mode": "zero"
+      },
+      "agent_name": "vtool_agent",
+      "dataset_family": "outcome_only"
+    }
+  },
+  "controls": {
+    "exact_compute_controls": [
+      "paired_zero_credit",
+      "paired_shuffled_credit"
+    ],
+    "step_matched_control": "upstream_outcome_only",
+    "separate_compute_matched_control_required_after_g1": true
+  },
+  "data": {
+    "curve_eval": {
+      "outcome_only_path": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-g1-outcome-only-v1/g1_curve_eval.parquet",
+      "outcome_only_sha256": "cac6ae74e4a0e78ea7c4be4553ed4716ccb1d1ef78d18386b0815a7ccf1f6d67",
+      "paired_path": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-g1-paired-v2/g1_curve_eval.parquet",
+      "paired_sha256": "28a2cd3fb0fdd70f01a1f200627122d40135fda97c5a51d950e669f809fb8a60",
+      "row_id_manifest_sha256": "3ed4c39efa56af9cca5093de891a3c0554755ce054ac90be4ea8ed4a6217ed5c",
+      "rows": 33,
+      "structural_groups": 32
+    },
+    "group_split_seed": "refocus-official-g1-group-split-20260902-v1",
+    "official_dataset": "ReFocus/ReFocus_Data",
+    "official_license": "apache-2.0",
+    "official_revision": "6af42739216fd58047121bb51dba683277cfdfe3",
+    "protected_split_contents_accessed": false,
+    "train": {
+      "outcome_only_path": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-g1-outcome-only-v1/g1_train.parquet",
+      "outcome_only_sha256": "617924ee2f17d756fb421e7926b2e00f6b74a00e4cd17bab2d4aea14dfa644d1",
+      "paired_path": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-g1-paired-v2/g1_train.parquet",
+      "paired_sha256": "3a5be076df0df4d1aadf6841fbec40cb265387c43989eab0a46ed092ec9ced46",
+      "row_id_manifest_sha256": "0e59bb2a44a2668d68a0d81530b6b536d52eabbfeac0be9c9d50ba6b238f7fc8",
+      "rows": 72,
+      "structural_groups": 64
+    },
+    "train_curve_structural_overlap": 0
+  },
+  "frozen_before_g1_results": true,
+  "method": {
+    "action_credit_beta": 1.0,
+    "action_cost_lambda": 0.05,
+    "answer_advantage": "upstream_grpo_outcome_advantage",
+    "observation_and_padding_advantage": 0.0,
+    "primary_action_credit": "raw_signed_unscaled",
+    "system_prompt_sha256": "1227f44972dd2cd93fb469fb286c3d79f50507af61198983940681fa68867edb"
+  },
+  "model": {
+    "hf_id": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "local_snapshot": "/userhome/cs3/yihangc/Data/hf_cache/hub/models--Qwen--Qwen2.5-VL-3B-Instruct/snapshots/66285546d2b821cf421d4f5eb2576359d3770cd3",
+    "revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+    "weight_blob_sha256": [
+      "41a8895c164b4d32bae6b302f4603fcbc1797f32dafa45c7e9bcda23c6755df8",
+      "365531ff8752420e89dee707b79d021fb2d6e25abafe486f080555a4fe6972e4"
+    ]
+  },
+  "preflight": {
+    "fake_server_report": "artifacts/docvqa-train-factorized-v2/paired-agent-smoke/vtool-g1-fake-server-v1/report.json",
+    "fake_server_report_sha256": "8dedebf8ef3329098712c8120068a355dcadfaa7a4545080150219f7dc772564",
+    "environment_report": "artifacts/docvqa-train-factorized-v2/environment-audit/vtool-action-credit-g1-v1/report.json",
+    "environment_report_sha256": "fb90ce60dadef332e376d7dbdcad8b7af21167b4f232c9ae3df534fe4e594718",
+    "model_load_required": true,
+    "one_row_dataset_sha256": "0de5b1421c765724e77432f2d176e33c2af6d6bc27652ca4e9d5393306e66199",
+    "outcome_only_converter_report_sha256": "a84133ef46c985f1587dff2a235fc6805d43bcf37aab0dc6550d9233233a24bc",
+    "paired_converter_report_sha256": "6789a8181265a39d7eb08b5a1c5b1c2c34f881d20a6ae5ee68b68b0205a84041",
+    "processor_report": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-g1-one-row-v1/runtime-smoke.json",
+    "processor_report_sha256": "01768781977a5a35ff90faf5457cb1f723361abce7ea2e38f9e770a0ccd5ab19"
+  },
+  "protocol": {
+    "g1_amendment_sha256": "bd1e778f6e0c36df431deb88ac5f6f4195834caeadc023d9788dc3312279a983",
+    "method_protocol_sha256": "5b85bc7381e8028f2ae07f423c2f7b165ebd3a8f28fafb4ceac1bf6043b5b1e0"
+  },
+  "resources": {
+    "gpu_count": 4,
+    "gpu_type": "H800",
+    "max_optimizer_steps": 2,
+    "max_walltime_minutes": 120,
+    "notification_email": "yihangc@connect.hku.hk",
+    "slurm_mail_type": "ALL"
+  },
+  "runtime": {
+    "environment": "/userhome/cs3/yihangc/anaconda3/envs/beyond-entropy-vtool-g1",
+    "patch_sha256": "9451c85857d4aa305e300e91d2d3a7fd8e76d6ad4db6109e40f8fc7a00d0aad1",
+    "upstream_commit": "d2aa28353ec10c7f91b39f502925003a81d6982d",
+    "worktree": "/userhome/cs3/yihangc/Documents/runtime/vtool-action-credit-g1"
+  },
+  "schema": "vtool_action_credit_g1_config_v1",
+  "seeds": {
+    "actor_data_loader": 20260902,
+    "dataset_shuffle": 20260902,
+    "global": 20260902,
+    "rollout_seed_derivation": "sha256_trajectory_identity_v1"
+  },
+  "stop_rules": {
+    "checkpoint_resume_identity_mismatch": "stop",
+    "gpu_count_above_4": "stop",
+    "judge_failure_count_above_0": "stop",
+    "pair_mismatch_count_above_0": "stop",
+    "tool_call_rate_below": 0.01
+  },
+  "training": {
+    "actor_dtype": "bfloat16",
+    "actor_ppo_micro_batch_size_per_gpu": 1,
+    "actor_ppo_mini_batch_size": 32,
+    "data_max_prompt_length": 4096,
+    "data_max_response_length": 1024,
+    "data_train_batch_size": 8,
+    "logger": [
+      "console"
+    ],
+    "ref_log_prob_micro_batch_size_per_gpu": 1,
+    "rollout_agent_workers": 4,
+    "rollout_gpu_memory_utilization": 0.5,
+    "rollout_log_prob_micro_batch_size_per_gpu": 1,
+    "rollout_max_num_batched_tokens": 8192,
+    "rollout_n": 4,
+    "rollout_temperature": 0.7,
+    "rollout_tensor_model_parallel_size": 1,
+    "rollout_top_k": -1,
+    "rollout_top_p": 0.9,
+    "save_frequency_steps": 1,
+    "test_frequency_steps": -1,
+    "total_optimizer_steps": 2,
+    "validation_before_train": false
+  }
+}

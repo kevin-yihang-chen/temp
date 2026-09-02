@@ -4,6 +4,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 
@@ -28,6 +29,39 @@ def canonical_sha256(value: object) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_local_pinned_shard(
+    shard_root: Path, shard: Mapping[str, Any]
+) -> tuple[Path, str]:
+    root = shard_root.resolve(strict=True)
+    path = (root / str(shard["path"])).resolve(strict=True)
+    if not path.is_relative_to(root):
+        raise ValueError(f"official train shard escapes local root: {path}")
+    expected_size = int(shard["size_bytes"])
+    actual_size = path.stat().st_size
+    if actual_size != expected_size:
+        raise ValueError(
+            f"official train shard size mismatch for {path}: "
+            f"{actual_size} != {expected_size}"
+        )
+    actual_sha256 = sha256_file(path)
+    expected_sha256 = str(shard["lfs_sha256"])
+    _require_hex_digest("official train shard lfs_sha256", expected_sha256, length=64)
+    if actual_sha256 != expected_sha256:
+        raise ValueError(
+            f"official train shard SHA-256 mismatch for {path}: "
+            f"{actual_sha256} != {expected_sha256}"
+        )
+    return path, actual_sha256
 
 
 def _require_mapping(name: str, value: object) -> Mapping[str, Any]:
@@ -106,6 +140,47 @@ class RefocusRowManifest:
 
     def to_dict(self) -> dict[str, Any]:
         return {"schema": ROW_SCHEMA, **asdict(self)}
+
+
+def normalize_official_bbox_columns(
+    labels: object,
+    bbox_columns: object,
+    *,
+    field_name: str,
+) -> dict[str, dict[str, Any]]:
+    """Convert the official Arrow columnar bbox representation to VTool JSON.
+
+    Hugging Face stores each bbox mapping as four parallel coordinate arrays,
+    whereas VTool serializes the same values under their axis-label keys.
+    """
+
+    if not isinstance(labels, Sequence) or isinstance(labels, (str, bytes)):
+        raise ValueError(f"{field_name} labels must be a sequence")
+    normalized_labels = [str(label) for label in labels]
+    if len(normalized_labels) != len(set(normalized_labels)):
+        raise ValueError(f"{field_name} labels must be unique")
+    columns = _require_mapping(field_name, bbox_columns)
+    coordinate_names = ("x1", "y1", "x2", "y2")
+    if set(columns) != set(coordinate_names):
+        raise ValueError(f"{field_name} must contain exactly {list(coordinate_names)}")
+    coordinate_columns: dict[str, Sequence[Any]] = {}
+    for coordinate_name in coordinate_names:
+        values = columns[coordinate_name]
+        if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+            raise ValueError(f"{field_name}.{coordinate_name} must be a sequence")
+        if len(values) != len(normalized_labels):
+            raise ValueError(
+                f"{field_name}.{coordinate_name} length {len(values)} does not "
+                f"match labels length {len(normalized_labels)}"
+            )
+        coordinate_columns[coordinate_name] = values
+    return {
+        label: {
+            coordinate_name: coordinate_columns[coordinate_name][index]
+            for coordinate_name in coordinate_names
+        }
+        for index, label in enumerate(normalized_labels)
+    }
 
 
 def build_row_manifest(

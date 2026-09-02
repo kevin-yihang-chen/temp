@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 19:15（Asia/Hong_Kong）
+更新时间：2026-09-02 21:46（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -18,11 +18,16 @@ classifier 或 threshold 没有科学价值。
 gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无训练趋势或正式
 方法结果，不能据此提高项目成功概率。
 
-最新 train/data/runtime 审计把风险进一步具体化：Refocus train 的 14,344 个 row ID
-全部属于固定 original ChartQA train tree，这是正向 lineage 证据；但 hosted derivative
-没有明确 dataset license，尚未做 pixel hash，本集群也没有可直接运行 pinned vLLM
-镜像的 runtime。因而当前不是“实验已证明新方法失败”，而是“核心 empirical gate
-尚未开始，且 exact H5 路线通过 G2 的概率低于不通过概率”。
+2026-09-02 已做范围纠偏：VTool 只保留为 Apache-2.0 的可运行 RL 骨架和
+outcome-only comparator，不再把 pixel、thought 或内部实现与 VTool 的一致性当作研究
+问题。此前继续做等价性审计属于范围漂移；它既不验证 H5，也不构成论文贡献。唯一
+核心 empirical question 是：same-prefix signed action credit 能否在冻结的强基线与
+matched controls 下改善任务分数、cost-adjusted utility 和 harmful-call rate。
+
+当前 pre-GPU 工程 gate 已前进：官方 Apache-2.0 ReFocus train 已固定，token-local
+adapter 的真实 autograd、隔离 runtime import/version/worktree、单行真实 Qwen processor
+和 paired agent fake-server contract 均已通过。尚未完成 H800 vLLM 模型加载或任何
+optimizer step。因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未开始”。
 
 ## 已完成的证据链
 
@@ -55,24 +60,33 @@ gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无�
    `answer_conditioned_evidence_candidate_rejected_before_experiment`。没有模型拟合、
    新 outcome 或 GPU job。
 10. VTool-R1 `training-v2` 已只读浅克隆并固定到
-    `d2aa28353ec10c7f91b39f502925003a81d6982d`。静态 gate 支持 action-credit 可实现，
-    但确认 tool/action tokens 当前被 mask，必须新增 token-local credit 通路；同时
-    vLLM Docker/package 版本冲突尚未解决。没有安装环境、训练或提交 job。
+    `d2aa28353ec10c7f91b39f502925003a81d6982d`。静态 gate 确认 upstream 默认把
+    tool/action tokens mask 掉；本项目已通过最小 patch 和独立 adapter 新增
+    token-local credit 通路。VTool 到此只承担底座/对照职责，不再继续等价性审计。
 11. Same-prefix action-credit protocol v1 与 dependency-free G0 core 已在 commit
     `56b990c767973a8a23060d63293db8657254b35d` 冻结。17 项新测试覆盖 exhaustive
     token roles、arm-specific cost、swap antisymmetry、完整 provenance、序列化防
     篡改、token-local advantage 与 shuffled no-self-donor；完整仓库共收集 509 项，
     479 passed、30 项依赖/资源相关预期 skip。该证据只支持实现定义一致，不支持
     方法性能。
-12. Refocus train-only metadata/lineage 与 vLLM environment audit 已在 commit
-    `91a5cb438c9503dee5f0337d5bc118bcfef482bb` 固定。14,344/14,344 unique row IDs
-    命中 original ChartQA train PNG stems，missing=0；corrected report 明确
-    `test_accessed=false`。但 derivative license、pixel identity 与 cluster runtime
-    均未通过，决定码为
-    `g1_not_authorized_pending_dataset_license_pixel_identity_and_runtime`。
+12. 官方 `ReFocus/ReFocus_Data` train 的 Apache-2.0 license、revision 与三个 shard
+    SHA-256 已固定；旧 derivative 的 metadata 对照只作为一次性转换证据。无需也不会
+    再证明它与 VTool 的 pixel/thought 一致。正式训练输入只允许 official train。
 13. 审计期间曾误读 Refocus test 的非图像 metadata/ground truth，并随后一次性枚举
     original ChartQA val/test PNG path IDs。事件已透明登记和隔离；这些 split 永久不能
     再作为本项目 sealed formal evidence。没有拟合、方法选择、GPU 或结果使用。
+14. 新增 upstream-shaped adapter 和 paired agent overlay；PyTorch autograd smoke
+    证明 signed credit 对 action tokens 产生非零梯度，zero control 为零，observation/
+    padding 梯度为零。隔离环境通过所需 imports、版本、pinned commit 与最小 patch
+    检查。该证据仍不代表真实 rollout 或性能通过。
+15. Official-train converter 重新验证三个 shard 的完整 SHA-256，只读取 train；policy
+    输入排除 answer、thoughts、edited image 和 teacher focus boxes。冻结 64 个 train
+    structural groups（72 rows）与 32 个 curve-eval groups（33 rows），交集为 0。
+    Paired 与 outcome-only Parquet 除 `agent_name` 外逐字段相同。
+16. 单行真实 Qwen processor smoke 通过：1 张原图、966 prompt tokens、无 focus-area
+    泄漏。Paired fake-server contract 通过：rescue `+0.95`、harm `-1.05`、失败/无收益
+    `-0.05`、direct `0`；shared prefix/seed、image-only delta、union mask 和 fail-closed
+    均验证。四组 G1 配置已在 `configs/vtool_action_credit_g1_v1.json` 冻结。
 
 ## 当前最佳结果与解释边界
 
@@ -91,8 +105,10 @@ gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无�
 | 里程碑 | 当前状态 |
 | --- | --- |
 | 严格数据/无泄漏/强基线基础设施 | 既有数据完成；Refocus train audit 通过，test 已污染并隔离 |
-| Action-credit protocol 与 synthetic G0 | 已完成；尚未 upstream 集成 |
-| Refocus 数据许可、pixel identity 与可执行 runtime | 未通过；G1 不授权 |
+| Action-credit protocol、synthetic G0 与 upstream adapter | pre-GPU contract 已完成；尚无 optimizer step |
+| 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
+| 真实 converter 与 paired fake-server | 已通过 |
+| 单卡 H800 vLLM model-load/generation preflight | 待运行；G1 暂不授权 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -104,12 +120,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-2026-09-02 19:15 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
+2026-09-02 20:41 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
 Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件已按全状态合同
 配置。当前修改只保留在本地，未 push GitHub。
 
-同日 19:15 HKT 的 live quota 为 GPU 222,000 分钟总额、42,337 已用、
-179,663 剩余（2,994.4 GPU-hours，19.07% 已用）；association 上限为 4 GPU、
+同日 20:41 HKT 的 live quota 为 GPU 222,000 分钟总额、42,330 已用、
+179,670 剩余（2,994.5 GPU-hours，19.07% 已用）；association 上限为 4 GPU、
 4 H800、48 CPU。算力足以支持一次有界 3B matched-control RL 研究，但科学 gate、
 依赖与训练稳定性仍是主要风险。
 
@@ -140,21 +156,19 @@ Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件�
   matched-budget improvement，该硬转向也会失败。
 - Upstream FP8 3B script 默认把 `test.parquet` 同时作为 train/val；直接运行会造成
   明确测试泄漏。必须只用 official train 派生开发 split，并关闭 train-time test。
-- Refocus_Chart hosted derivative 没有明确 license；original-train row lineage 不能
-  替代许可或 pixel equality。Refocus test 与 original ChartQA test 已因 metadata
+- 旧 Refocus_Chart derivative 不再是训练数据；正式输入改为已固定 revision/hash 的
+  Apache-2.0 official ReFocus train。Refocus test 与 original ChartQA test 已因 metadata
   暴露失去 sealed 资格，formal 必须使用从未打开的独立 benchmark/split。
-- Pinned `verlai/verl@sha256:4c43...b7cb6` 镜像约 14.36 GB compressed，但 home
-  filesystem 已用 95%、仅余约 50 GiB，且集群未配置现成 OCI runtime；未经空间与
-  runtime 方案不能盲目展开。
+- 隔离 VTool 环境、真实 processor 和 fake paired generation 已通过；但 vLLM 模型
+  权重加载、显存、真实 generation、checkpoint/resume 与吞吐仍未经过 GPU smoke，
+  不能把 CPU/fake-server 成功等同于训练可行。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不立即提交新 GPU 任务。Train metadata/row lineage 与权威 vLLM image digest 已完成，
-但 G1 被 derivative license、pixel identity 和 cluster runtime 三个明确条件挡住。
-下一步先取得许可或从 original ChartQA 可审计再生成，再在 train-only bytes 上做 pixel
-group manifest，并把 immutable image 放到有足够空间且可执行的 runtime 做 import-only
-检查。只有这些条件与 baseline、pair validity、judge fail-closed、checkpoint/resume、
-显存和 call-rate gate 全通过，才允许最多 2-step G1。目标仍是三大会 main conference，
-不设置降低投稿档位的完成出口。
+不再做 VTool 等价性审计。Converter、fake-server 与 matched-control config 已完成；
+下一步是已绑定一条 official-train 样本、pinned model/runtime 和全状态邮件的 1×H800
+vLLM model-load/generation smoke。只有它通过，才允许最多 2-step 的 4×H800 G1。G1
+只回答实现与早期学习信号是否成立；若 signed 不能在 matched controls 下改善冻结
+指标，就关闭 H5，而不是继续追 VTool 一致性。

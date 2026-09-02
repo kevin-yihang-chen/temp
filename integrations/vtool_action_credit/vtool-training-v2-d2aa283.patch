@@ -1,0 +1,38 @@
+diff --git a/verl/experimental/agent_loop/agent_loop.py b/verl/experimental/agent_loop/agent_loop.py
+index d86199a..0f815ad 100644
+--- a/verl/experimental/agent_loop/agent_loop.py
++++ b/verl/experimental/agent_loop/agent_loop.py
+@@ -569 +569,7 @@ class AgentLoopWorker:
+-            output: AgentLoopOutput = await agent_loop.run(sampling_params, **kwargs)
++            # The counterfactual-credit overlay derives deterministic, distinct
++            # rollout/continuation seeds from this already-existing identity.
++            output: AgentLoopOutput = await agent_loop.run(
++                sampling_params,
++                _trajectory_info=trajectory,
++                **kwargs,
++            )
+diff --git a/verl/trainer/ppo/ray_trainer.py b/verl/trainer/ppo/ray_trainer.py
+index e178ffc..34beb5d 100644
+--- a/verl/trainer/ppo/ray_trainer.py
++++ b/verl/trainer/ppo/ray_trainer.py
+@@ -1494,0 +1495,20 @@ class RayPPOTrainer:
++                        action_credit_config = self.config.algorithm.get(
++                            "action_credit", {}
++                        )
++                        if action_credit_config.get("enabled", False):
++                            if str(self.config.algorithm.adv_estimator) != "grpo":
++                                raise ValueError(
++                                    "counterfactual action credit requires GRPO"
++                                )
++                            from beyond_entropy.vtool_action_credit import (
++                                inject_token_local_action_credit,
++                            )
++
++                            batch, action_credit_metrics = (
++                                inject_token_local_action_credit(
++                                    batch,
++                                    mode=str(action_credit_config.mode),
++                                    beta=float(action_credit_config.beta),
++                                )
++                            )
++                            metrics.update(action_credit_metrics)

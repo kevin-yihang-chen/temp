@@ -1,0 +1,23 @@
+{
+  "dataset": "ReFocus/ReFocus_Data",
+  "license": "apache-2.0",
+  "revision": "6af42739216fd58047121bb51dba683277cfdfe3",
+  "schema": "refocus_official_train_pin_v1",
+  "train_shards": [
+    {
+      "lfs_sha256": "19286c0e115b148dfde298b8c82dc7698ed31b072cb4f1eb3c1de6c50a934d3b",
+      "path": "data/train-00000-of-00003.parquet",
+      "size_bytes": 469299406
+    },
+    {
+      "lfs_sha256": "3006cd7ebd6f0eca954ceb5614cb97f31b4f60f05cf88ceaa2c8436a7e150334",
+      "path": "data/train-00001-of-00003.parquet",
+      "size_bytes": 339958514
+    },
+    {
+      "lfs_sha256": "5f382a8796e8d6da03dd45308b8c305c29a7681fbf1710dd6390568e7e91e821",
+      "path": "data/train-00002-of-00003.parquet",
+      "size_bytes": 331155329
+    }
+  ]
+}
