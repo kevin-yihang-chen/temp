@@ -29,13 +29,16 @@ fi
 
 export PATH=/usr/local/slurm/bin:/usr/local/bin:/usr/bin:/bin
 repo=/userhome/cs3/yihangc/Documents/beyond-entropy
+runtime=/userhome/cs3/yihangc/Documents/runtime/vtool-action-credit-g1
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/beyond-entropy-vtool-g1/bin/python
 worker="${repo}/scripts/slurm_vtool_action_credit_g1_h800.sh"
 launcher="${repo}/scripts/run_vtool_action_credit_g1.py"
 config="${repo}/configs/vtool_action_credit_g1_v1.json"
 audit_script="${repo}/scripts/audit_refocus_g1_runtime_dataset.py"
+analyzer="${repo}/scripts/analyze_vtool_action_credit_g1.py"
 jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq
 output_dir="${repo}/artifacts/docvqa-train-factorized-v2/g1-runs/paired-signed-v1/job-${SLURM_JOB_ID}"
+analysis_report="${output_dir}/rollout-analysis.json"
 status_dir="${repo}/artifacts/docvqa-train-factorized-v2/g1-execution-status"
 status_file="${status_dir}/paired-signed-job-${SLURM_JOB_ID}.json"
 worker_start_epoch=$(date +%s)
@@ -45,8 +48,12 @@ write_worker_status() {
   trap - EXIT
   mkdir -p "${status_dir}"
   local decision=failed
+  local scientific_decision=not_available
   if [[ "${exit_code}" -eq 0 ]]; then
     decision=completed
+  fi
+  if [[ -s "${analysis_report}" ]]; then
+    scientific_decision=$("${jq_bin}" -er '.decision' "${analysis_report}" 2>/dev/null || printf invalid)
   fi
   "${jq_bin}" -n \
     --arg schema vtool_action_credit_g1_worker_status_v1 \
@@ -54,10 +61,11 @@ write_worker_status() {
     --arg job_id "${SLURM_JOB_ID}" \
     --arg code_revision "${expected_revision}" \
     --arg output_dir "${output_dir}" \
+    --arg scientific_decision "${scientific_decision}" \
     --argjson exit_code "${exit_code}" \
     --argjson started_epoch "${worker_start_epoch}" \
     --argjson ended_epoch "$(date +%s)" \
-    '{schema:$schema,decision:$decision,job_id:$job_id,code_revision:$code_revision,output_dir:$output_dir,exit_code:$exit_code,started_epoch:$started_epoch,ended_epoch:$ended_epoch}' \
+    '{schema:$schema,decision:$decision,scientific_decision:$scientific_decision,job_id:$job_id,code_revision:$code_revision,output_dir:$output_dir,exit_code:$exit_code,started_epoch:$started_epoch,ended_epoch:$ended_epoch}' \
     > "${status_file}.tmp"
   mv "${status_file}.tmp" "${status_file}"
   exit "${exit_code}"
@@ -88,6 +96,10 @@ require_hash "${config}" "${expected_config_sha256}" config
 require_hash "${runtime_audit}" "${expected_audit_sha256}" runtime-audit
 if [[ ! -x "${python_bin}" ]]; then
   echo "G1 frozen Python environment is absent" >&2
+  exit 2
+fi
+if [[ ! -x "${analyzer}" ]]; then
+  echo "G1 rollout analyzer is absent or not executable" >&2
   exit 2
 fi
 if [[ ! -x "${jq_bin}" ]]; then
@@ -171,6 +183,7 @@ ray_tmp=/dev/shm/beyond-entropy-vtool-g1-${SLURM_JOB_ID}
 mkdir -p "${ray_tmp}"
 export RAY_TMPDIR="${ray_tmp}"
 export TMPDIR="${ray_tmp}"
+export PYTHONPATH="${runtime}:${repo}:${repo}/src"
 export WANDB_MODE=disabled
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_CACHE=/userhome/cs3/yihangc/Data/hf_cache
@@ -227,6 +240,24 @@ if [[ ! -d "${output_dir}/checkpoints/global_step_2/actor" ]]; then
   exit 2
 fi
 
+"${python_bin}" "${analyzer}" \
+  --rollout-dir "${output_dir}/rollouts" \
+  --config "${config}" \
+  --expected-arm paired_signed_credit \
+  --output "${analysis_report}"
+if ! "${jq_bin}" -e '
+  (.decision == "paired_signed_g1_smoke_gate_passed" or
+   .decision == "paired_signed_g1_stop_rule_triggered") and
+  .rows == 64 and
+  .pair_mismatch_count == 0 and
+  .judge_failure_count == 0 and
+  (.checks | all(.[] == true))
+' "${analysis_report}" >/dev/null; then
+  echo "G1 rollout analysis contract failed" >&2
+  exit 2
+fi
+
 echo "paired-signed G1 end: $(date --iso-8601=seconds)"
 du -sh "${output_dir}"
+echo "scientific_decision=$("${jq_bin}" -r '.decision' "${analysis_report}")"
 echo "output=${output_dir} queue_wait_seconds=${queue_wait_seconds}"

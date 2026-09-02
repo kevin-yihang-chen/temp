@@ -38,6 +38,7 @@ RUNTIME_PATCHED_FILES = (
 IMPLEMENTATION_PATHS = (
     Path("scripts/run_vtool_action_credit_g1.py"),
     Path("scripts/audit_refocus_g1_runtime_dataset.py"),
+    Path("scripts/analyze_vtool_action_credit_g1.py"),
     Path("scripts/smoke_vtool_action_credit_gradient.py"),
     Path("src/beyond_entropy/vtool_action_credit.py"),
     Path("integrations/vtool_action_credit/paired_vtool.py"),

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import inspect
+import json
 from typing import Any
 from uuid import uuid4
 
@@ -41,6 +42,22 @@ NEUTRAL_OBSERVATION = (
     "Answer the original question using the available images."
 )
 SCORER_NAME = "chartqa_relaxed_match_with_vtool_answer_extraction_v1"
+ROLLOUT_AUDIT_SCHEMA = "vtool_action_credit_rollout_audit_v1"
+ROLLOUT_AUDIT_JSON_KEY = "vtool_action_credit_audit_json"
+ROLLOUT_AUDIT_FIELDS = (
+    "vtool_tool_attempted",
+    "vtool_tool_success",
+    "vtool_final_response_text",
+    "vtool_counterfactual_response_text",
+    TRAJECTORY_ID_KEY,
+    ACTION_TOKEN_COUNT_KEY,
+    OBSERVATION_TOKEN_COUNT_KEY,
+    ANSWER_TOKEN_COUNT_KEY,
+    ACTION_CREDIT_KEY,
+    PAIR_VALID_KEY,
+    "vtool_action_credit_pair",
+    "vtool_counterfactual_generation_seconds",
+)
 
 
 def _image_sha256(image: Image.Image) -> str:
@@ -69,6 +86,27 @@ def compute_score(
     del data_source, extra_info, kwargs
     score = local_chartqa_score(solution_str, ground_truth)
     return {"score": score, "acc": score}
+
+
+def _attach_rollout_audit(
+    extra_fields: dict[str, Any], *, score: float
+) -> dict[str, Any]:
+    """Put a JSON-safe, stable audit payload in upstream rollout dumps."""
+
+    missing = [name for name in ROLLOUT_AUDIT_FIELDS if name not in extra_fields]
+    if missing:
+        raise ValueError(f"rollout audit fields are missing: {missing}")
+    payload = {
+        "schema": ROLLOUT_AUDIT_SCHEMA,
+        **{name: extra_fields[name] for name in ROLLOUT_AUDIT_FIELDS},
+    }
+    extra_fields["reward_extra_info"] = {
+        "acc": float(score),
+        ROLLOUT_AUDIT_JSON_KEY: json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ),
+    }
+    return extra_fields
 
 
 class CounterfactualCreditVToolAgentLoop(VToolAgentLoop):
@@ -188,22 +226,25 @@ class CounterfactualCreditVToolAgentLoop(VToolAgentLoop):
                 lambda: self.tokenizer.decode(direct_ids, skip_special_tokens=True),
             )
             score = local_chartqa_score(final_text, target)
-            extra_fields = {
-                "turn_scores": [],
-                "tool_rewards": [],
-                "reward_extra_info": {"acc": score},
-                "vtool_tool_attempted": False,
-                "vtool_tool_success": False,
-                "vtool_final_response_text": final_text,
-                TRAJECTORY_ID_KEY: trajectory_id,
-                ACTION_TOKEN_COUNT_KEY: 0,
-                OBSERVATION_TOKEN_COUNT_KEY: 0,
-                ANSWER_TOKEN_COUNT_KEY: len(direct_ids),
-                ACTION_CREDIT_KEY: 0.0,
-                PAIR_VALID_KEY: False,
-                "vtool_action_credit_pair": None,
-                "vtool_counterfactual_generation_seconds": 0.0,
-            }
+            extra_fields = _attach_rollout_audit(
+                {
+                    "turn_scores": [],
+                    "tool_rewards": [],
+                    "vtool_tool_attempted": False,
+                    "vtool_tool_success": False,
+                    "vtool_final_response_text": final_text,
+                    "vtool_counterfactual_response_text": None,
+                    TRAJECTORY_ID_KEY: trajectory_id,
+                    ACTION_TOKEN_COUNT_KEY: 0,
+                    OBSERVATION_TOKEN_COUNT_KEY: 0,
+                    ANSWER_TOKEN_COUNT_KEY: len(direct_ids),
+                    ACTION_CREDIT_KEY: 0.0,
+                    PAIR_VALID_KEY: False,
+                    "vtool_action_credit_pair": None,
+                    "vtool_counterfactual_generation_seconds": 0.0,
+                },
+                score=score,
+            )
             return AgentLoopOutput(
                 prompt_ids=initial_prompt_ids,
                 response_ids=direct_ids,
@@ -356,25 +397,27 @@ class CounterfactualCreditVToolAgentLoop(VToolAgentLoop):
                     : len(factual_answer_ids)
                 ]
             )
-        extra_fields = {
-            "turn_scores": [],
-            "tool_rewards": [],
-            "reward_extra_info": {"acc": factual_score},
-            "vtool_tool_attempted": True,
-            "vtool_tool_success": tool_success,
-            "vtool_final_response_text": factual_text,
-            "vtool_counterfactual_response_text": counterfactual_text,
-            TRAJECTORY_ID_KEY: trajectory_id,
-            ACTION_TOKEN_COUNT_KEY: len(action_ids),
-            OBSERVATION_TOKEN_COUNT_KEY: len(observation_ids),
-            ANSWER_TOKEN_COUNT_KEY: len(factual_answer_ids),
-            ACTION_CREDIT_KEY: pair.action_credit,
-            PAIR_VALID_KEY: True,
-            "vtool_action_credit_pair": pair.to_dict(),
-            "vtool_counterfactual_generation_seconds": (
-                counterfactual_generation_seconds
-            ),
-        }
+        extra_fields = _attach_rollout_audit(
+            {
+                "turn_scores": [],
+                "tool_rewards": [],
+                "vtool_tool_attempted": True,
+                "vtool_tool_success": tool_success,
+                "vtool_final_response_text": factual_text,
+                "vtool_counterfactual_response_text": counterfactual_text,
+                TRAJECTORY_ID_KEY: trajectory_id,
+                ACTION_TOKEN_COUNT_KEY: len(action_ids),
+                OBSERVATION_TOKEN_COUNT_KEY: len(observation_ids),
+                ANSWER_TOKEN_COUNT_KEY: len(factual_answer_ids),
+                ACTION_CREDIT_KEY: pair.action_credit,
+                PAIR_VALID_KEY: True,
+                "vtool_action_credit_pair": pair.to_dict(),
+                "vtool_counterfactual_generation_seconds": (
+                    counterfactual_generation_seconds
+                ),
+            },
+            score=factual_score,
+        )
         return AgentLoopOutput(
             prompt_ids=initial_prompt_ids,
             response_ids=response_ids,

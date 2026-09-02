@@ -92,8 +92,8 @@
   "preflight": {
     "action_gradient_report": "artifacts/docvqa-train-factorized-v2/g1-preflight/action-gradient-v2/report.json",
     "action_gradient_report_sha256": "3fa21b9e5343348cf4619066c08b08049b63fe96fa11a9151d3723fd5238d99b",
-    "fake_server_report": "artifacts/docvqa-train-factorized-v2/paired-agent-smoke/vtool-g1-fake-server-v1/report.json",
-    "fake_server_report_sha256": "8dedebf8ef3329098712c8120068a355dcadfaa7a4545080150219f7dc772564",
+    "fake_server_report": "artifacts/docvqa-train-factorized-v2/paired-agent-smoke/vtool-g1-fake-server-v2/report.json",
+    "fake_server_report_sha256": "e24e48dfeee138d77bf6d50919043a5b685c108e7aa83c707b250b27b7df5ab5",
     "full_train_runtime_audit_report": "artifacts/docvqa-train-factorized-v2/g1-preflight/runtime-dataset-audit-paired-train-v2/report.json",
     "full_train_runtime_audit_report_sha256": "e468c36719ee3e303ff84a98f6feac1b88ebee9f0fb2731be2a129204671c1ed",
     "environment_report": "artifacts/docvqa-train-factorized-v2/environment-audit/vtool-action-credit-g1-v1/report.json",

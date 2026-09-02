@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 22:00（Asia/Hong_Kong）
+更新时间：2026-09-02 23:26（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -536,3 +536,61 @@
 - 下一步：完成全量回归、本地 commit（不 push GitHub）、实时复核 quota/queue/disk，
   然后只提交 paired-signed G1。真实 tool-call rate 低于 1%、pair mismatch 非零、judge
   failure 非零或训练/checkpoint 不稳定时按冻结规则停止；通过后才运行三组 controls。
+
+## E-20260902-16：G1 排队取消与 counterfactual 结果可观测性修复
+
+- 假设：正式 G1 不仅要完成训练，还必须在不可变产物中逐 trajectory 保存足以重建
+  factual/no-op pair、signed credit、cost-adjusted utility、harmful/rescue rate 和冻结
+  stop rules 的字段；否则即使 optimizer 成功也不能回答 H5。
+- 发现：Job `205870` 提交后仍处于 `PENDING (Resources)`。只读检查 pinned upstream
+  `_log_rollout_data` 发现 JSONL 只写 `reward_extra_infos_dict`；paired agent 当时的
+  `reward_extra_info` 仅有 `acc`。完整 pair 虽存在 batch `non_tensor_batch` 并参与
+  token-local training，但不会进入 `1.jsonl/2.jsonl`。这会使真实结果缺少
+  counterfactual score、action credit、pair provenance、tool success 与 harmful-call
+  证据，属于核心实验可观测性缺口。
+- 作业状态：在任何 GPU 分配前执行取消。Slurm 最终确认 Job `205870` 为
+  `CANCELLED`、`RunTime=00:00:00`、`Restarts=0`、`Reason=Resources`；没有模型加载、
+  rollout、optimizer step 或 GPU-hours。任务配置 `--mail-type=ALL`，取消属于状态通知
+  覆盖范围。没有重复提交。
+- 实现：paired agent 现在把稳定 schema 的 audit payload 序列化为单个 JSON 字符串，
+  作为 `reward_extra_info.vtool_action_credit_audit_json` 导出。使用字符串而非多个
+  bool/int numpy scalars，是因为 upstream `json.dumps` 不能直接序列化 `np.bool_`/
+  `np.int64`。Payload 对 direct/tool 两类都保持相同字段集合，含 factual 与
+  counterfactual response、trajectory ID、三个 role token counts、signed credit、pair
+  validity、完整 pair、tool success 和 counterfactual generation time。
+- 自动分析：新增 `scripts/analyze_vtool_action_credit_g1.py`。它要求 step 1/2 各 32
+  rows，逐行验证 JSON schema、唯一 trajectory、score/acc、direct/tool role contract，
+  并用 `CounterfactualActionPair.from_dict` 重新验证 shared provenance 与序列化 credit。
+  报告 task score、realized cost-adjusted utility、tool-call/tool-success、mean signed
+  credit、harmful/rescue/no-effect rate 与 per-step summaries；tool-call `<1%` 产生正式
+  stop decision，pair/scorer/产物 mismatch 则 fail closed。
+- Worker：训练完成后必须同时存在两份 rollout dump 与 step-2 resumable checkpoint，
+  随后自动生成 `rollout-analysis.json`。只有 artifact contract 完整，worker 才正常
+  完成；科学上允许 `smoke_gate_passed` 或预注册的 `stop_rule_triggered` 两种终态，负
+  结果不会被误报为基础设施成功，也不会隐藏。
+- Fake-server v2：rescue `+0.95`、harm `-1.05`、tool failure `-0.05`、direct `0` 与
+  全部原有 shared-prefix/mask/fail-closed 检查继续通过，并新增
+  `rollout_audit_payload_exported=true`。报告 SHA-256
+  `e24e48dfeee138d77bf6d50919043a5b685c108e7aa83c707b250b27b7df5ab5`；protected split
+  未访问、模型权重未加载。
+- Analyzer 合成回归：每 step 32 rows、每 step 1 个 valid rescue call 时，64 rows 的
+  tool-call rate 为 3.125%，decision 为 `paired_signed_g1_smoke_gate_passed`，mean signed
+  credit `0.95`、pair/judge failure 均为 0；全 direct 时 tool-call rate 为 0，按冻结
+  阈值得到 `paired_signed_g1_stop_rule_triggered`，程序正常保存负 gate 结果。
+- Hydra：更新后的 v11 仍有 59 项 scientific/resource resolved-config checks 全真，
+  训练超参数与 E-15 相同；launch manifest SHA-256
+  `cd2674577f56bcd3db7f6301c07171fa1019c6b4e80eb955296c0d80cca65d9a`，resolved config
+  SHA-256 `70089aca355c1f0952dc454044d95fbeaa2f62b7eb3bed65bb481a4b8f4cfaf1`。
+- 验证：完整仓库 `515 passed, 34 skipped`；skip 均为 base env 缺少可选 Torch/资源
+  项。12-file mypy、Python compileall、Black in-process、shell/JSON syntax、隔离环境
+  `pip check` 与 `git diff --check` 全部通过。隔离 runtime 的 rescue/harm/tool-failure/
+  direct 四种 fake-server 分支再次真实运行通过。另直接调用 pinned upstream
+  `RayPPOTrainer._dump_generations`，确认 numpy string array 可生成包含 `acc` 与
+  `vtool_action_credit_audit_json` 的 JSONL，并可无损反序列化；decision 为
+  `upstream_rollout_json_string_export_passed`。
+- 解释边界：这是让 H5 结果可审计的必要工程修复，不是 VTool 内部等价性审计，也不
+  构成方法效果证据。没有读取 validation/test/reserve，没有改 prompt、seed、采样、
+  reward、credit、threshold 或 baseline。
+- 结果：`paired_signed_g1_observability_gate_passed`。
+- 下一步：本地 commit（不 push GitHub），实时复核 quota/queue/disk，再以新 revision
+  只提交 paired-signed G1，并监控同一 job 到终态。

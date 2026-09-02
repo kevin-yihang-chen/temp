@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,18 @@ from typing import Any
 import pytest
 
 from beyond_entropy.refocus_chart_audit import STRUCTURAL_METADATA_FIELDS
+from beyond_entropy.counterfactual_action_credit import (
+    CounterfactualActionPair,
+    CounterfactualArmOutcome,
+)
+from beyond_entropy.vtool_action_credit import (
+    ACTION_CREDIT_KEY,
+    ACTION_TOKEN_COUNT_KEY,
+    ANSWER_TOKEN_COUNT_KEY,
+    OBSERVATION_TOKEN_COUNT_KEY,
+    PAIR_VALID_KEY,
+    TRAJECTORY_ID_KEY,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -98,6 +111,125 @@ def test_g1_launcher_environment_removes_credentials_and_proxies(
         {"HF_TOKEN", "OPENAI_API_KEY", "HTTP_PROXY", "HTTPS_PROXY"} & env.keys()
     )
     assert os.environ["HF_TOKEN"] == "must-not-survive"
+
+
+def test_g1_rollout_analyzer_preserves_pairs_and_applies_tool_rate_stop(
+    tmp_path: Path,
+) -> None:
+    analyzer = _load_script(
+        "analyze_vtool_action_credit_g1",
+        "scripts/analyze_vtool_action_credit_g1.py",
+    )
+    config_path = ROOT / "configs" / "vtool_action_credit_g1_v1.json"
+
+    def digest(value: str) -> str:
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    def row(step: int, index: int, *, tool: bool) -> dict[str, Any]:
+        trajectory_id = digest(f"trajectory-{step}-{index}")
+        if tool:
+            shared: dict[str, Any] = {
+                "prefix_sha256": digest(f"prefix-{step}-{index}"),
+                "action_sha256": digest(f"action-{step}-{index}"),
+                "target_sha256": digest("target"),
+                "policy_sha256": digest("policy"),
+                "decoding_sha256": digest("decoding"),
+                "scorer_sha256": digest("scorer"),
+                "continuation_seed": step * 1000 + index,
+            }
+            pair = CounterfactualActionPair(
+                trajectory_id=trajectory_id,
+                factual=CounterfactualArmOutcome(
+                    branch_id="factual",
+                    observation_sha256=digest(f"factual-{step}-{index}"),
+                    task_score=1.0,
+                    action_cost=1.0,
+                    **shared,
+                ),
+                counterfactual=CounterfactualArmOutcome(
+                    branch_id="counterfactual",
+                    observation_sha256=digest(f"counterfactual-{step}-{index}"),
+                    task_score=0.0,
+                    action_cost=0.0,
+                    **shared,
+                ),
+            )
+            audit = {
+                "schema": analyzer.ROLLOUT_AUDIT_SCHEMA,
+                "vtool_tool_attempted": True,
+                "vtool_tool_success": True,
+                "vtool_final_response_text": "FINAL ANSWER: 7 TERMINATE",
+                "vtool_counterfactual_response_text": "FINAL ANSWER: 3 TERMINATE",
+                TRAJECTORY_ID_KEY: trajectory_id,
+                ACTION_TOKEN_COUNT_KEY: 2,
+                OBSERVATION_TOKEN_COUNT_KEY: 2,
+                ANSWER_TOKEN_COUNT_KEY: 2,
+                ACTION_CREDIT_KEY: pair.action_credit,
+                PAIR_VALID_KEY: True,
+                "vtool_action_credit_pair": pair.to_dict(),
+                "vtool_counterfactual_generation_seconds": 1.0,
+            }
+        else:
+            audit = {
+                "schema": analyzer.ROLLOUT_AUDIT_SCHEMA,
+                "vtool_tool_attempted": False,
+                "vtool_tool_success": False,
+                "vtool_final_response_text": "FINAL ANSWER: 7 TERMINATE",
+                "vtool_counterfactual_response_text": None,
+                TRAJECTORY_ID_KEY: trajectory_id,
+                ACTION_TOKEN_COUNT_KEY: 0,
+                OBSERVATION_TOKEN_COUNT_KEY: 0,
+                ANSWER_TOKEN_COUNT_KEY: 1,
+                ACTION_CREDIT_KEY: 0.0,
+                PAIR_VALID_KEY: False,
+                "vtool_action_credit_pair": None,
+                "vtool_counterfactual_generation_seconds": 0.0,
+            }
+        return {
+            "input": "question",
+            "output": audit["vtool_final_response_text"],
+            "gts": "7",
+            "score": 1.0,
+            "acc": 1.0,
+            "step": step,
+            analyzer.ROLLOUT_AUDIT_JSON_KEY: json.dumps(audit, sort_keys=True),
+        }
+
+    def write_rollouts(directory: Path, *, tools_per_step: int) -> None:
+        directory.mkdir()
+        for step in (1, 2):
+            rows = [
+                row(step, index, tool=index < tools_per_step) for index in range(32)
+            ]
+            (directory / f"{step}.jsonl").write_text(
+                "\n".join(json.dumps(value, sort_keys=True) for value in rows) + "\n",
+                encoding="utf-8",
+            )
+
+    passing_dir = tmp_path / "passing"
+    write_rollouts(passing_dir, tools_per_step=1)
+    report, exit_code = analyzer.analyze_rollouts(
+        rollout_dir=passing_dir,
+        config_path=config_path,
+        expected_arm="paired_signed_credit",
+    )
+    assert exit_code == 0
+    assert report["decision"] == "paired_signed_g1_smoke_gate_passed"
+    assert report["tool_call_rate"] == pytest.approx(2 / 64)
+    assert report["mean_signed_action_credit"] == pytest.approx(0.95)
+    assert report["pair_mismatch_count"] == 0
+    assert report["judge_failure_count"] == 0
+
+    stopped_dir = tmp_path / "stopped"
+    write_rollouts(stopped_dir, tools_per_step=0)
+    stopped, stopped_exit_code = analyzer.analyze_rollouts(
+        rollout_dir=stopped_dir,
+        config_path=config_path,
+        expected_arm="paired_signed_credit",
+    )
+    assert stopped_exit_code == 0
+    assert stopped["decision"] == "paired_signed_g1_stop_rule_triggered"
+    assert stopped["stop_reasons"] == ["tool_call_rate_below_frozen_threshold"]
 
 
 def test_g1_resolved_config_audit_rejects_scientific_drift(tmp_path: Path) -> None:
@@ -238,6 +370,9 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "runtime audit provenance contract failed" in worker
     assert "exactly four visible H800 GPUs" in worker
     assert "latest_checkpointed_iteration.txt" in worker
+    assert "analyze_vtool_action_credit_g1.py" in worker
+    assert "rollout-analysis.json" in worker
+    assert "paired_signed_g1_stop_rule_triggered" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
     assert "git status --porcelain --untracked-files=all" in worker
     assert "jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq" in worker

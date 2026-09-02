@@ -24,6 +24,9 @@ from beyond_entropy.vtool_action_credit import (
 )
 from integrations.vtool_action_credit.paired_vtool import (
     CounterfactualCreditVToolAgentLoop,
+    ROLLOUT_AUDIT_FIELDS,
+    ROLLOUT_AUDIT_JSON_KEY,
+    ROLLOUT_AUDIT_SCHEMA,
 )
 
 
@@ -180,6 +183,13 @@ async def _run_case(mode: str) -> dict[str, Any]:
         reward_model={"ground_truth": "7"},
         tools_kwargs={"metadata": "{}"},
     )
+    reward_extra_info = output.extra_fields["reward_extra_info"]
+    audit = json.loads(reward_extra_info[ROLLOUT_AUDIT_JSON_KEY])
+    assert reward_extra_info["acc"] == output.reward_score
+    assert audit["schema"] == ROLLOUT_AUDIT_SCHEMA
+    assert set(audit) == {"schema", *ROLLOUT_AUDIT_FIELDS}
+    for field in ROLLOUT_AUDIT_FIELDS:
+        assert audit[field] == output.extra_fields[field]
 
     if mode == "direct":
         assert len(calls) == 1
@@ -311,6 +321,7 @@ async def run_contract() -> dict[str, Any]:
             "rescue_credit": True,
             "harm_or_failed_action_cost": True,
             "direct_answer_no_pair": True,
+            "rollout_audit_payload_exported": True,
             "mismatch_fail_closed": True,
         },
         "model_weights_loaded": False,
@@ -326,6 +337,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.output.exists():
+        raise FileExistsError(
+            f"refusing to overwrite fake-server report: {args.output}"
+        )
     report = asyncio.run(run_contract())
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

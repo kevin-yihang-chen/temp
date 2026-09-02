@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 23:04（Asia/Hong_Kong）
+更新时间：2026-09-02 23:26（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -101,6 +101,14 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
     32 修正为 8。Hydra signed dry-run v9 的 59 项冻结配置检查全部为真，launch
     manifest SHA-256 `dff12612...3da`，resolved config SHA-256
     `5a5d354d...7b3b`。这只授权首次 4×H800、2-step signed G1，不是性能结果。
+19. 首次正式提交 Job `205870` 后，在其仍为 `PENDING (Resources)` 时发现 upstream
+    rollout writer 只导出 `reward_extra_info`，而当时其中只有 `acc`；若直接运行将无法
+    保存 counterfactual score、signed credit、pair provenance、tool success 与
+    harmful-call 证据。作业在启动前取消，最终 `CANCELLED`、`RunTime=00:00:00`、
+    `Restarts=0`，未消耗 GPU。现已把全部核心字段封装为 JSON-safe audit payload，新增
+    自动 analyzer 逐行重建 pair、验证 score/credit/trajectory，并输出 task score、
+    cost-adjusted utility、harmful/rescue/tool-call rate。Fake-server v2 与 Hydra v11
+    均通过；这是核心可观测性修复，不是 VTool 等价性审计。
 
 ## 当前最佳结果与解释边界
 
@@ -123,7 +131,7 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
 | 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
-| 真实 paired rollout 与最多 2-step optimizer smoke | 完整 preflight 通过；待提交 |
+| 真实 paired rollout 与最多 2-step optimizer smoke | 可观测性缺口已修复；待新 revision 重提 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -135,11 +143,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-02 23:04 HKT，本轮尚未提交新 Slurm job；上一项 Job `205784` 已以
-`COMPLETED`、`ExitCode=0:0` 结束。首次 paired-signed G1 worker 已冻结为 4×H800、
-48 CPU、384 GiB、2 小时上限、2 optimizer steps，并配置
-`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。当前修改只保留在本地，未
-push GitHub；提交前仍需本地 commit、工作树 clean 与实时 quota/queue 检查。
+截至 2026-09-02 23:26 HKT，Job `205870` 已在 GPU 启动前主动取消，权威状态为
+`CANCELLED`、`RunTime=00:00:00`，当前没有正在运行的 G1。取消原因是正式输出缺少
+预注册指标所需 counterfactual audit 字段；不是训练失败，也没有方法结果。修复后的
+worker 仍冻结为 4×H800、48 CPU、384 GiB、2 小时上限、2 optimizer steps，并配置
+`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。修改只保留在本地，未 push
+GitHub；重提前需全量回归、本地 commit 与实时 quota/queue/disk 检查。
 
 同日 21:59 HKT 的 live quota 为 GPU 222,000 分钟总额、42,321 已用、
 179,679 剩余（2,994.65 GPU-hours，19.06% 已用）；association 上限为 4 GPU、
@@ -178,14 +187,16 @@ push GitHub；提交前仍需本地 commit、工作树 clean 与实时 quota/que
   暴露失去 sealed 资格，formal 必须使用从未打开的独立 benchmark/split。
 - 隔离环境、完整数据 processor、fake paired generation、单卡 vLLM load/generation
   与 Hydra 配置解析已通过；但首轮仍是直接回答，没有验证真实 tool/paired branch。
-  Optimizer、Ray 多进程、checkpoint/resume 与 action-credit metrics 仍未经过 GPU smoke。
+  JSON-safe pair/utility export 已由 fake-server 与 synthetic analyzer 验证；Optimizer、
+  Ray 多进程、checkpoint/resume 与真实 action-credit metrics 仍未经过 GPU smoke。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。完整数据与 Hydra gate 已通过；下一步只在本地提交当前
-revision，实时复核 quota/queue/disk 后提交唯一 4×H800、最多 2-step paired-signed G1。
+不再做 VTool 等价性审计。核心 rollout 可观测性缺口已在 GPU 启动前修复；下一步完成
+全量回归与本地 commit，实时复核 quota/queue/disk 后重新提交唯一 4×H800、最多
+2-step paired-signed G1。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。
