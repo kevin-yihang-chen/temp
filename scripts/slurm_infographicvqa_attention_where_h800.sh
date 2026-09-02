@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --partition=q-hgpu-small
-#SBATCH --gres=gpu:h800:4
-#SBATCH --cpus-per-task=24
-#SBATCH --mem=256G
-#SBATCH --time=04:00:00
+#SBATCH --gres=gpu:h800:2
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=192G
+#SBATCH --time=06:00:00
 #SBATCH --job-name=be-infovqa-attn-where
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-infovqa-attn-where-%j.out
 #SBATCH --mail-user=yihangc@connect.hku.hk
@@ -11,15 +11,16 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 5 ]]; then
-  echo "usage: worker EXPECTED_REVISION WORKER_SHA256 PROTOCOL_SHA256 RESUME SUBMIT_EPOCH" >&2
+if [[ "$#" -ne 6 ]]; then
+  echo "usage: worker EXPECTED_REVISION WORKER_SHA256 PROTOCOL_SHA256 AMENDMENT_SHA256 RESUME SUBMIT_EPOCH" >&2
   exit 2
 fi
 expected_revision=$1
 expected_worker_sha256=$2
 expected_protocol_sha256=$3
-resume_mode=$4
-submit_epoch=$5
+expected_amendment_sha256=$4
+resume_mode=$5
+submit_epoch=$6
 if [[ "${resume_mode}" != 0 && "${resume_mode}" != 1 ]]; then
   echo "attention-where resume must be 0 or 1" >&2
   exit 2
@@ -34,6 +35,7 @@ repo=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
 worker="${repo}/scripts/slurm_infographicvqa_attention_where_h800.sh"
 protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-train-protocol-v1.md"
+amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-resource-amendment-v1.md"
 extractor="${repo}/scripts/extract_question_region_attention.py"
 merger="${repo}/scripts/merge_semantic_feature_shards.py"
 auditor="${repo}/scripts/audit_infographicvqa_attention_where_features.py"
@@ -88,6 +90,7 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
 fi
 require_hash "${worker}" "${expected_worker_sha256}" worker
 require_hash "${protocol}" "${expected_protocol_sha256}" protocol
+require_hash "${amendment}" "${expected_amendment_sha256}" resource-amendment
 require_hash "${merged_rollouts}" "${merged_rollouts_sha256}" merged-rollouts
 require_hash "${merged_base_features}" "${merged_base_features_sha256}" merged-base-features
 for index in 0 1 2 3; do
@@ -130,8 +133,8 @@ if [[ -z "${CUDA_VISIBLE_DEVICES:-}" ]]; then
   exit 2
 fi
 IFS=',' read -r -a allocated_gpus <<< "${CUDA_VISIBLE_DEVICES}"
-if [[ "${#allocated_gpus[@]}" -ne 4 ]]; then
-  echo "attention-where requires exactly four H800 devices" >&2
+if [[ "${#allocated_gpus[@]}" -ne 2 ]]; then
+  echo "attention-where requires exactly two H800 devices" >&2
   exit 2
 fi
 mkdir -p "${attention_shards}" "${merged_dir}" "${execution_dir}"
@@ -148,7 +151,7 @@ echo "tracked revision: ${expected_revision}"
 nvidia-smi --query-gpu=name,uuid,memory.total,driver_version --format=csv,noheader
 
 run_attention_shard() {
-  local index=$1 shard_name source_features rollouts output_dir output
+  local index=$1 gpu_slot=$2 shard_name source_features rollouts output_dir output
   local resume_args=()
   shard_name=$(printf 'shard-%05d-of-00004' "${index}")
   source_features="${base_feature_root}/shard-${index}/features-label-free.pt"
@@ -157,7 +160,7 @@ run_attention_shard() {
   output="${output_dir}/features-question-region-attention-label-free.pt"
   mkdir -p "${output_dir}"
   if [[ -e "${output}" ]]; then resume_args=(--resume); fi
-  CUDA_VISIBLE_DEVICES="${allocated_gpus[${index}]}" \
+  CUDA_VISIBLE_DEVICES="${allocated_gpus[${gpu_slot}]}" \
     "${python_bin}" "${extractor}" \
       --source-features "${source_features}" \
       --rollouts "${rollouts}" \
@@ -173,13 +176,17 @@ run_attention_shard() {
 }
 
 extraction_start=$(date +%s)
-pids=()
 failed=0
-for index in 0 1 2 3; do
-  run_attention_shard "${index}" & pids+=("$!")
-done
-for pid in "${pids[@]}"; do
-  if ! wait "${pid}"; then failed=1; fi
+for wave_start in 0 2; do
+  pids=()
+  run_attention_shard "${wave_start}" 0 & pids+=("$!")
+  run_attention_shard "$((wave_start + 1))" 1 & pids+=("$!")
+  for pid in "${pids[@]}"; do
+    if ! wait "${pid}"; then failed=1; fi
+  done
+  if [[ "${failed}" -ne 0 ]]; then
+    break
+  fi
 done
 if [[ "${failed}" -ne 0 ]]; then
   echo "one or more attention-where feature shards failed" >&2
@@ -262,6 +269,7 @@ jq -n \
   --arg job_id "${SLURM_JOB_ID}" \
   --arg code_revision "${expected_revision}" \
   --arg protocol_sha256 "${expected_protocol_sha256}" \
+  --arg amendment_sha256 "${expected_amendment_sha256}" \
   --arg features_sha256 "${merged_attention_sha256}" \
   --arg audit_sha256 "${audit_sha256}" \
   --arg merge_report_sha256 "${merge_report_sha256}" \
@@ -273,9 +281,10 @@ jq -n \
   --argjson merge_seconds "${merge_seconds}" \
   '{schema:$schema,job_id:$job_id,slurm_state:"COMPLETED",exit_code:"0:0",restarts:0,
     code_revision:$code_revision,protocol_sha256:$protocol_sha256,
+    resource_amendment_sha256:$amendment_sha256,
     submitted_epoch:$submitted_epoch,started_epoch:$started_epoch,ended_epoch:$ended_epoch,
     queue_wait_seconds:$queue_wait_seconds,extraction_seconds:$extraction_seconds,
-    merge_seconds:$merge_seconds,gpu_type:"NVIDIA H800",gpu_count:4,
+    merge_seconds:$merge_seconds,gpu_type:"NVIDIA H800",gpu_count:2,
     validation_or_test_inputs_used:false,outcomes_included:false,
     merged_features_sha256:$features_sha256,audit_sha256:$audit_sha256,
     merge_report_sha256:$merge_report_sha256}' \
