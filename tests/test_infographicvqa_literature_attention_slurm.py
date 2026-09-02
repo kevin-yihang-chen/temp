@@ -73,6 +73,9 @@ def test_literature_attention_evaluation_worker_hides_reserved_gpu_and_notifies(
     assert 'export CUDA_VISIBLE_DEVICES=""' in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
     assert "validation_or_test_inputs_used:false" in worker
+    assert "feature_code_revision=$7" in worker
+    assert '--expected-literature-code-revision "${feature_code_revision}"' in worker
+    assert "feature_code_revision=$(jq -r" in submitter
     assert "-lt 60" in submitter
     assert "-lt 240" in submitter
     assert "sbatch --test-only --export=NONE" in submitter

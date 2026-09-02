@@ -11,8 +11,8 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 7 ]]; then
-  echo "usage: worker REVISION WORKER_SHA RUNNER_SHA EVAL_SHA PROTOCOL_SHA FEATURE_JOB_ID SUBMIT_EPOCH" >&2
+if [[ "$#" -ne 8 ]]; then
+  echo "usage: worker REVISION WORKER_SHA RUNNER_SHA EVAL_SHA PROTOCOL_SHA FEATURE_JOB_ID FEATURE_CODE_REVISION SUBMIT_EPOCH" >&2
   exit 2
 fi
 expected_revision=$1
@@ -21,7 +21,8 @@ expected_runner_sha256=$3
 expected_eval_sha256=$4
 expected_protocol_sha256=$5
 feature_job_id=$6
-submit_epoch=$7
+feature_code_revision=$7
+submit_epoch=$8
 for value in "${expected_worker_sha256}" "${expected_runner_sha256}" \
   "${expected_eval_sha256}" "${expected_protocol_sha256}"; do
   if [[ ! "${value}" =~ ^[0-9a-f]{64}$ ]]; then
@@ -31,6 +32,10 @@ for value in "${expected_worker_sha256}" "${expected_runner_sha256}" \
 done
 if [[ ! "${feature_job_id}" =~ ^[0-9]+$ || ! "${submit_epoch}" =~ ^[0-9]+$ ]]; then
   echo "literature-attention evaluation job ID or submit epoch is invalid" >&2
+  exit 2
+fi
+if [[ ! "${feature_code_revision}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "literature-attention evaluation feature code revision is invalid" >&2
   exit 2
 fi
 
@@ -136,7 +141,7 @@ if ! jq -e \
   echo "literature-attention feature completion binding failed" >&2
   exit 2
 fi
-if ! jq -e --arg revision "${expected_revision}" --arg job_id "${feature_job_id}" '
+if ! jq -e --arg revision "${feature_code_revision}" --arg job_id "${feature_job_id}" '
     .schema == "infographicvqa_literature_attention_where_feature_execution_v1" and
     .job_id == $job_id and .slurm_state == "COMPLETED" and .exit_code == "0:0" and
     .code_revision == $revision and .validation_or_test_inputs_used == false and
@@ -186,7 +191,7 @@ echo "Slurm job: ${SLURM_JOB_ID}; reserved GPU hidden from evaluator"
   --bootstrap-indices "${bootstrap_indices}" --expected-bootstrap-indices-sha256 17d3d5e2354710a019b662f4261a12fec65e6b096e6095aa6db3a2955effdba6 \
   --bootstrap-sources "${bootstrap_sources}" --expected-bootstrap-sources-sha256 5acaca75d9feb37fe1ad16155e29c7e2fd92972b34898785eed1444d02ab40a0 \
   --protocol "${protocol}" --expected-protocol-sha256 "${expected_protocol_sha256}" \
-  --expected-literature-code-revision "${expected_revision}" \
+  --expected-literature-code-revision "${feature_code_revision}" \
   --expected-raw-attention-code-revision "${raw_code_revision}" \
   --expected-model-revision "${model_revision}" \
   --expected-source-features-sha256 "${source_features_sha256}" \
@@ -213,7 +218,8 @@ execution="${execution_dir}/job-${SLURM_JOB_ID}.json"
 jq -n \
   --arg schema infographicvqa_literature_attention_where_evaluation_execution_v1 \
   --arg job_id "${SLURM_JOB_ID}" --arg code_revision "${expected_revision}" \
-  --arg feature_job_id "${feature_job_id}" --arg feature_complete_sha256 "${literature_complete_sha}" \
+  --arg feature_job_id "${feature_job_id}" --arg feature_code_revision "${feature_code_revision}" \
+  --arg feature_complete_sha256 "${literature_complete_sha}" \
   --arg decision "${decision}" --arg evaluation_sha256 "$(sha "${evaluation}")" \
   --arg complete_sha256 "$(sha "${complete}")" \
   --argjson queue_wait_seconds "${queue_wait_seconds}" \
@@ -221,7 +227,8 @@ jq -n \
   {schema:$schema,job_id:$job_id,code_revision:$code_revision,accelerator:"CPU",
    gpu_reserved:"NVIDIA RTX 4090",gpu_hidden:true,gpu_count:1,cpu_count:4,
    queue_wait_seconds:$queue_wait_seconds,total_seconds:$total_seconds,
-   feature_job_id:$feature_job_id,feature_complete_sha256:$feature_complete_sha256,
+   feature_job_id:$feature_job_id,feature_code_revision:$feature_code_revision,
+   feature_complete_sha256:$feature_complete_sha256,
    artifacts:{evaluation_sha256:$evaluation_sha256,complete_sha256:$complete_sha256},
    decision:$decision,credentials_present:false,validation_or_test_inputs_used:false}' \
   > "${execution}.tmp"

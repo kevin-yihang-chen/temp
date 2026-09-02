@@ -6,6 +6,9 @@ from typing import Any
 import numpy as np
 import pytest
 
+from beyond_entropy.infographicvqa_attention_where_evaluation import (  # noqa: E402
+    evaluate_attention_where,
+)
 from beyond_entropy.infographicvqa_decar_evaluation import (
     DECAR_ACTION_IDS,
     build_decar_outcomes,
@@ -15,12 +18,10 @@ from beyond_entropy.infographicvqa_decar_evaluation import (
     evaluate_entropy_where_hybrid,
     parse_decar_predictions,
 )
-from beyond_entropy.infographicvqa_attention_where_evaluation import (  # noqa: E402
-    evaluate_attention_where,
-)
 from beyond_entropy.infographicvqa_relative_where import RELATIVE_WHERE_VARIANTS
 from beyond_entropy.infographicvqa_relative_where_evaluation import (
     _first_exact_difference,
+    _first_frozen_difference,
     evaluate_relative_where_oof,
 )
 from beyond_entropy.schema import ActionRecord, BBox
@@ -402,6 +403,23 @@ def test_relative_where_frozen_difference_reports_first_exact_path() -> None:
     assert _first_exact_difference({"value": [1, 2]}, {"value": [1, 2]}) is None
 
 
+def test_frozen_comparator_allows_only_machine_scale_float_noise() -> None:
+    assert (
+        _first_frozen_difference(
+            {"value": 0.0007172290756453434},
+            {"value": 0.0007172290756453436},
+        )
+        is None
+    )
+    assert _first_frozen_difference({"count": 3}, {"count": 4}) is not None
+    assert _first_frozen_difference({"count": 3}, {"count": 3.0}) is not None
+    assert (
+        _first_frozen_difference({"value": float("inf")}, {"value": float("inf")})
+        is not None
+    )
+    assert _first_frozen_difference({"value": 0.1}, {"value": 0.1000001}) is not None
+
+
 def test_attention_where_evaluation_reuses_all_frozen_comparators() -> None:
     torch = pytest.importorskip("torch")
     records = [record for index in range(8) for record in _decision(index)]
@@ -557,9 +575,12 @@ def test_attention_where_evaluation_reuses_all_frozen_comparators() -> None:
     )
     assert result["validation_or_test_inputs_used"] is False
     assert result["attention_features_outcomes_included"] is False
-    assert result["all_state_attention_localization"]["exact_nll_teacher"][
-        "question_balanced"
-    ] == 1.0
+    assert (
+        result["all_state_attention_localization"]["exact_nll_teacher"][
+            "question_balanced"
+        ]
+        == 1.0
+    )
     point = result["operating_points"][0]
     assert point["frozen_comparators_exact_match"] is True
     assert set(point["paired_source_utility_differences"]) == {

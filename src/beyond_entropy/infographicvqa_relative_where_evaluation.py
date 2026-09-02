@@ -27,9 +27,10 @@ from .infographicvqa_relative_where import (
 )
 from .schema import ActionRecord
 
-
 RELATIVE_WHERE_EVALUATION_SCHEMA = "infographicvqa_relative_where_oof_evaluation_v1"
 RELATIVE_WHERE_PRIMARY = "relative_teacher_entropy"
+FROZEN_COMPARATOR_FLOAT_REL_TOL = 1e-12
+FROZEN_COMPARATOR_FLOAT_ABS_TOL = 1e-15
 
 
 def _first_exact_difference(
@@ -78,11 +79,66 @@ def _require_frozen_comparator(
     recomputed: Mapping[str, Any],
     frozen: Mapping[str, Any],
 ) -> None:
-    difference = _first_exact_difference(recomputed, frozen)
+    difference = _first_frozen_difference(recomputed, frozen)
     if difference is not None:
         raise ValueError(
             f"relative-where frozen comparator {name} changed: {difference}"
         )
+
+
+def _first_frozen_difference(
+    recomputed: Any,
+    frozen: Any,
+    *,
+    path: str = "$",
+) -> str | None:
+    """Compare frozen metrics exactly except for machine-scale float noise."""
+
+    if isinstance(recomputed, Mapping) and isinstance(frozen, Mapping):
+        recomputed_keys = set(recomputed)
+        frozen_keys = set(frozen)
+        if recomputed_keys != frozen_keys:
+            return (
+                f"{path}: recomputed-only={sorted(recomputed_keys - frozen_keys)!r} "
+                f"frozen-only={sorted(frozen_keys - recomputed_keys)!r}"
+            )
+        for key in sorted(recomputed_keys, key=str):
+            difference = _first_frozen_difference(
+                recomputed[key], frozen[key], path=f"{path}.{key}"
+            )
+            if difference is not None:
+                return difference
+        return None
+    if isinstance(recomputed, (list, tuple)) and isinstance(frozen, (list, tuple)):
+        if len(recomputed) != len(frozen):
+            return f"{path}: recomputed-length={len(recomputed)} frozen-length={len(frozen)}"
+        for index, (recomputed_item, frozen_item) in enumerate(
+            zip(recomputed, frozen, strict=True)
+        ):
+            difference = _first_frozen_difference(
+                recomputed_item, frozen_item, path=f"{path}[{index}]"
+            )
+            if difference is not None:
+                return difference
+        return None
+    if isinstance(recomputed, float) and isinstance(frozen, float):
+        if not math.isfinite(recomputed) or not math.isfinite(frozen):
+            return f"{path}: non-finite recomputed={recomputed!r} " f"frozen={frozen!r}"
+        if math.isclose(
+            recomputed,
+            frozen,
+            rel_tol=FROZEN_COMPARATOR_FLOAT_REL_TOL,
+            abs_tol=FROZEN_COMPARATOR_FLOAT_ABS_TOL,
+        ):
+            return None
+    elif type(recomputed) is not type(frozen):
+        return (
+            f"{path}: recomputed-type={type(recomputed).__name__} "
+            f"frozen-type={type(frozen).__name__}"
+        )
+    if recomputed != frozen:
+        return f"{path}: recomputed={recomputed!r} frozen={frozen!r}"
+    return None
 
 
 def parse_relative_where_predictions(

@@ -47,13 +47,18 @@ if [[ -z "${gpu_limit}" || -z "${gpu_used}" || -z "${cpu_limit}" \
   exit 2
 fi
 revision=$(git rev-parse HEAD)
+feature_code_revision=$(jq -r '.code_revision // ""' "${feature_execution}")
+if [[ ! "${feature_code_revision}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "literature-attention feature execution has an invalid code revision" >&2
+  exit 2
+fi
 worker_sha256=$(sha256sum "${worker}" | awk '{print $1}')
 runner_sha256=$(sha256sum "${runner}" | awk '{print $1}')
 eval_sha256=$(sha256sum "${eval_module}" | awk '{print $1}')
 protocol_sha256=$(sha256sum "${protocol}" | awk '{print $1}')
 submit_epoch=$(date +%s)
 args=("${revision}" "${worker_sha256}" "${runner_sha256}" "${eval_sha256}" \
-  "${protocol_sha256}" "${feature_job_id}" "${submit_epoch}")
+  "${protocol_sha256}" "${feature_job_id}" "${feature_code_revision}" "${submit_epoch}")
 /usr/local/slurm/bin/sbatch --test-only --export=NONE "${worker}" "${args[@]}" >/dev/null
 submission=$(/usr/local/slurm/bin/sbatch --parsable --export=NONE "${worker}" "${args[@]}")
 job_id=${submission%%;*}
@@ -61,5 +66,5 @@ if [[ ! "${job_id}" =~ ^[0-9]+$ ]]; then
   echo "could not parse literature-attention evaluation job ID: ${submission}" >&2
   exit 2
 fi
-printf 'literature_attention_evaluation_job_id=%s feature_job_id=%s code_revision=%s evaluator_device=cpu\n' \
-  "${job_id}" "${feature_job_id}" "${revision}"
+printf 'literature_attention_evaluation_job_id=%s feature_job_id=%s feature_code_revision=%s code_revision=%s evaluator_device=cpu\n' \
+  "${job_id}" "${feature_job_id}" "${feature_code_revision}" "${revision}"

@@ -22,6 +22,8 @@ from .infographicvqa_decar_evaluation import (
     parse_decar_predictions,
 )
 from .infographicvqa_relative_where_evaluation import (
+    FROZEN_COMPARATOR_FLOAT_ABS_TOL,
+    FROZEN_COMPARATOR_FLOAT_REL_TOL,
     RELATIVE_WHERE_EVALUATION_SCHEMA,
     RELATIVE_WHERE_PRIMARY,
     _oracle_gap_closure,
@@ -30,7 +32,6 @@ from .infographicvqa_relative_where_evaluation import (
     privileged_teacher_actions,
 )
 from .schema import ActionRecord
-
 
 ATTENTION_WHERE_EVALUATION_SCHEMA = "infographicvqa_attention_where_evaluation_v1"
 ATTENTION_WHERE_PRIMARY = "attention_where"
@@ -105,7 +106,9 @@ def _conditional_localization_metrics(
     source_decisions: dict[str, int] = defaultdict(int)
     raw_numerators = {name: 0.0 for name in names}
     raw_denominators = {name: 0.0 for name in names}
-    action_index = {action_id: index for index, action_id in enumerate(DECAR_ACTION_IDS)}
+    action_index = {
+        action_id: index for index, action_id in enumerate(DECAR_ACTION_IDS)
+    }
     for key, outcome in outcomes.items():
         source = outcome.source_id
         source_decisions[source] += 1
@@ -127,8 +130,7 @@ def _conditional_localization_metrics(
             "exact_task_oracle": float(
                 selected_action == outcome.task_action.action_id
             ),
-            "nll_regret": crop_nll[key][selected_action]
-            - min(crop_nll[key].values()),
+            "nll_regret": crop_nll[key][selected_action] - min(crop_nll[key].values()),
             "helpful_state_rescue": float(
                 helpful and selected_crop.delta_success > 0.0
             ),
@@ -167,9 +169,7 @@ def _conditional_localization_metrics(
             "raw_denominator": raw_denominators[name],
         }
     result["selected_decisions"] = len(selected_keys)
-    result["selected_sources"] = len(
-        {outcomes[key].source_id for key in selected_keys}
-    )
+    result["selected_sources"] = len({outcomes[key].source_id for key in selected_keys})
     return result
 
 
@@ -283,7 +283,9 @@ def evaluate_attention_where(
     teacher_actions = privileged_teacher_actions(nll_rows, outcomes)
     crop_nll = _crop_nll_by_key(nll_rows, outcomes)
     keys = sorted(outcomes)
-    attention_keys = list(zip(attention.state_ids, attention.replicate_ids, strict=True))
+    attention_keys = list(
+        zip(attention.state_ids, attention.replicate_ids, strict=True)
+    )
     if attention_keys != keys:
         raise ValueError("attention-where feature ordering changed")
     sources = sorted({outcome.source_id for outcome in outcomes.values()})
@@ -416,15 +418,15 @@ def evaluate_attention_where(
                 "entropy_fixed_ug_grid_00"
             ],
             "entropy_random": hybrid_point["policies"]["entropy_random"],
-            "old_decar_where": hybrid_point["policies"][
-                "entropy_when_decar_where"
-            ],
+            "old_decar_where": hybrid_point["policies"]["entropy_when_decar_where"],
             "answer_now": hybrid_point["policies"]["answer_now"],
-            "task_oracle_where": oracle_point["policies"]
-            ["entropy_when_task_oracle_where"],
+            "task_oracle_where": oracle_point["policies"][
+                "entropy_when_task_oracle_where"
+            ],
             "relative_where": relative_point["policies"][RELATIVE_WHERE_PRIMARY],
-            "privileged_teacher_nll_where": relative_point["policies"]
-            ["privileged_teacher_nll_where"],
+            "privileged_teacher_nll_where": relative_point["policies"][
+                "privileged_teacher_nll_where"
+            ],
         }
         for name, expected in frozen.items():
             expected_base = {
@@ -453,12 +455,9 @@ def evaluate_attention_where(
     points: list[dict[str, Any]] = []
     for registered in operating:
         point_name = str(registered["name"])
-        policies = {
-            name: public[f"{point_name}/{name}"] for name in policy_names
-        }
+        policies = {name: public[f"{point_name}/{name}"] for name in policy_names}
         policy_bootstrap = {
-            name: bootstrap["policies"][f"{point_name}/{name}"]
-            for name in policy_names
+            name: bootstrap["policies"][f"{point_name}/{name}"] for name in policy_names
         }
         primary_aggregate = aggregates[f"{point_name}/{ATTENTION_WHERE_PRIMARY}"]
         comparator_aggregates = {
@@ -487,8 +486,7 @@ def evaluate_attention_where(
             "utility"
         ]
         paired_lows = [
-            float(differences[name]["ci_low"])
-            for name in ATTENTION_WHERE_COMPARATORS
+            float(differences[name]["ci_low"]) for name in ATTENTION_WHERE_COMPARATORS
         ]
         rules = {
             "all_audits_passed": bool(
@@ -507,14 +505,10 @@ def evaluate_attention_where(
             "paired_strictly_superior_to_at_least_one_comparator": any(
                 value > 0.0 for value in paired_lows
             ),
-            "induced_harm_within_registered_tolerance": float(
-                primary["induced_harm"]
-            )
+            "induced_harm_within_registered_tolerance": float(primary["induced_harm"])
             <= float(policies[best_comparator]["source_balanced"]["induced_harm"])
             + 0.00025,
-            "random_to_oracle_gap_closure_at_least_quarter": closure[
-                "point_estimate"
-            ]
+            "random_to_oracle_gap_closure_at_least_quarter": closure["point_estimate"]
             is not None
             and float(closure["point_estimate"]) >= 0.25,
         }
@@ -547,16 +541,19 @@ def evaluate_attention_where(
             qualified,
             key=lambda point: (
                 -float(
-                    point["source_bootstrap"][ATTENTION_WHERE_PRIMARY]["additive"]
-                    ["utility"]["ci_low"]
+                    point["source_bootstrap"][ATTENTION_WHERE_PRIMARY]["additive"][
+                        "utility"
+                    ]["ci_low"]
                 ),
                 -float(
-                    point["policies"][ATTENTION_WHERE_PRIMARY]["source_balanced"]
-                    ["utility"]
+                    point["policies"][ATTENTION_WHERE_PRIMARY]["source_balanced"][
+                        "utility"
+                    ]
                 ),
                 float(
-                    point["policies"][ATTENTION_WHERE_PRIMARY]["source_balanced"]
-                    ["induced_harm"]
+                    point["policies"][ATTENTION_WHERE_PRIMARY]["source_balanced"][
+                        "induced_harm"
+                    ]
                 ),
                 float(point["nominal_question_call_rate"]),
             ),
@@ -567,9 +564,7 @@ def evaluate_attention_where(
     max_scores = {
         key: float(attention.scores[index].max()) for index, key in enumerate(keys)
     }
-    margins = {
-        key: float(attention.margins[index]) for index, key in enumerate(keys)
-    }
+    margins = {key: float(attention.margins[index]) for index, key in enumerate(keys)}
     return {
         "schema": ATTENTION_WHERE_EVALUATION_SCHEMA,
         "scientific_status": "frozen InfographicVQA official-train raw-attention where evaluation",
@@ -581,6 +576,11 @@ def evaluate_attention_where(
         "primary": ATTENTION_WHERE_PRIMARY,
         "lambda_cost": DECAR_LAMBDA_COST,
         "registered_call_rates": list(DECAR_CALL_RATES),
+        "frozen_comparator_float_tolerance": {
+            "relative": FROZEN_COMPARATOR_FLOAT_REL_TOL,
+            "absolute": FROZEN_COMPARATOR_FLOAT_ABS_TOL,
+            "discrete_fields_exact": True,
+        },
         "feature_audit": feature_audit,
         "all_state_attention_localization": _conditional_localization_metrics(
             action_by_key=attention_actions,
@@ -615,16 +615,17 @@ def evaluate_attention_where(
             if selected is None
             else {
                 "name": selected["name"],
-                "nominal_question_call_rate": selected[
-                    "nominal_question_call_rate"
-                ],
+                "nominal_question_call_rate": selected["nominal_question_call_rate"],
                 "actual_calls": selected["actual_calls"],
-                "source_balanced_utility": selected["policies"]
-                [ATTENTION_WHERE_PRIMARY]["source_balanced"]["utility"],
-                "source_balanced_utility_ci_low": selected["source_bootstrap"]
-                [ATTENTION_WHERE_PRIMARY]["additive"]["utility"]["ci_low"],
-                "source_balanced_induced_harm": selected["policies"]
-                [ATTENTION_WHERE_PRIMARY]["source_balanced"]["induced_harm"],
+                "source_balanced_utility": selected["policies"][
+                    ATTENTION_WHERE_PRIMARY
+                ]["source_balanced"]["utility"],
+                "source_balanced_utility_ci_low": selected["source_bootstrap"][
+                    ATTENTION_WHERE_PRIMARY
+                ]["additive"]["utility"]["ci_low"],
+                "source_balanced_induced_harm": selected["policies"][
+                    ATTENTION_WHERE_PRIMARY
+                ]["source_balanced"]["induced_harm"],
                 "random_to_oracle_gap_closure": selected[
                     "random_to_oracle_gap_closure"
                 ]["point_estimate"],

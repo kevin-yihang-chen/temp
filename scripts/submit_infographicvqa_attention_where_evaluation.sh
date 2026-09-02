@@ -10,6 +10,7 @@ runner="${repo}/scripts/evaluate_infographicvqa_attention_where.py"
 eval_module="${repo}/src/beyond_entropy/infographicvqa_attention_where_evaluation.py"
 protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-train-protocol-v1.md"
 amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-resource-amendment-v1.md"
+recovery="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-evaluation-float-recovery-v1.md"
 feature_complete="${attention_root}/complete.json"
 feature_execution="${attention_root}/execution/job-203257.json"
 output_dir="${attention_root}/evaluation-v1"
@@ -20,7 +21,7 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   exit 2
 fi
 for path in "${worker}" "${runner}" "${eval_module}" "${protocol}" \
-  "${amendment}" "${feature_complete}" "${feature_execution}" \
+  "${amendment}" "${recovery}" "${feature_complete}" "${feature_execution}" \
   "${attention_root}/merged-features/features-question-region-attention-label-free.pt"; do
   if [[ ! -f "${path}" ]]; then
     echo "attention-where evaluation input is incomplete: ${path}" >&2
@@ -50,9 +51,10 @@ runner_sha256=$(sha256sum "${runner}" | awk '{print $1}')
 eval_sha256=$(sha256sum "${eval_module}" | awk '{print $1}')
 protocol_sha256=$(sha256sum "${protocol}" | awk '{print $1}')
 amendment_sha256=$(sha256sum "${amendment}" | awk '{print $1}')
+recovery_sha256=$(sha256sum "${recovery}" | awk '{print $1}')
 submit_epoch=$(date +%s)
 args=("${revision}" "${worker_sha256}" "${runner_sha256}" "${eval_sha256}" \
-  "${protocol_sha256}" "${amendment_sha256}" "${submit_epoch}")
+  "${protocol_sha256}" "${amendment_sha256}" "${recovery_sha256}" "${submit_epoch}")
 /usr/local/slurm/bin/sbatch --test-only --export=NONE "${worker}" "${args[@]}" >/dev/null
 submission=$(/usr/local/slurm/bin/sbatch --parsable --export=NONE "${worker}" "${args[@]}")
 job_id=${submission%%;*}

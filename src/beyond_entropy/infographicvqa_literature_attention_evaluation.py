@@ -32,6 +32,8 @@ from .infographicvqa_literature_attention_where import (
     assemble_literature_attention_where_features,
 )
 from .infographicvqa_relative_where_evaluation import (
+    FROZEN_COMPARATOR_FLOAT_ABS_TOL,
+    FROZEN_COMPARATOR_FLOAT_REL_TOL,
     RELATIVE_WHERE_EVALUATION_SCHEMA,
     RELATIVE_WHERE_PRIMARY,
     _oracle_gap_closure,
@@ -708,6 +710,11 @@ def evaluate_literature_attention_where(
         "registered_comparators": list(LITERATURE_ATTENTION_COMPARATORS),
         "lambda_cost": DECAR_LAMBDA_COST,
         "registered_call_rates": list(DECAR_CALL_RATES),
+        "frozen_comparator_float_tolerance": {
+            "relative": FROZEN_COMPARATOR_FLOAT_REL_TOL,
+            "absolute": FROZEN_COMPARATOR_FLOAT_ABS_TOL,
+            "discrete_fields_exact": True,
+        },
         "multiplicity_correction": {
             "method": "Bonferroni for two candidate variants",
             "central_confidence_level": 0.975,

@@ -11,8 +11,8 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 7 ]]; then
-  echo "usage: worker REVISION WORKER_SHA RUNNER_SHA EVAL_SHA PROTOCOL_SHA AMENDMENT_SHA SUBMIT_EPOCH" >&2
+if [[ "$#" -ne 8 ]]; then
+  echo "usage: worker REVISION WORKER_SHA RUNNER_SHA EVAL_SHA PROTOCOL_SHA AMENDMENT_SHA RECOVERY_SHA SUBMIT_EPOCH" >&2
   exit 2
 fi
 expected_revision=$1
@@ -21,10 +21,11 @@ expected_runner_sha256=$3
 expected_eval_sha256=$4
 expected_protocol_sha256=$5
 expected_amendment_sha256=$6
-submit_epoch=$7
+expected_recovery_sha256=$7
+submit_epoch=$8
 for value in "${expected_worker_sha256}" "${expected_runner_sha256}" \
   "${expected_eval_sha256}" "${expected_protocol_sha256}" \
-  "${expected_amendment_sha256}"; do
+  "${expected_amendment_sha256}" "${expected_recovery_sha256}"; do
   if [[ ! "${value}" =~ ^[0-9a-f]{64}$ ]]; then
     echo "attention-where evaluation received a malformed SHA-256" >&2
     exit 2
@@ -59,6 +60,7 @@ bootstrap_indices="${root}/evaluation-v1/bootstrap-indices.npy"
 bootstrap_sources="${root}/evaluation-v1/bootstrap-sources.json"
 protocol="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-train-protocol-v1.md"
 amendment="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-resource-amendment-v1.md"
+recovery="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-attention-where-evaluation-float-recovery-v1.md"
 diagnostic="${repo}/artifacts/docvqa-train-factorized-v2/ops/infographicvqa-relative-where-action-generalization-result-job-203241-v1.md"
 worker="${repo}/scripts/slurm_infographicvqa_attention_where_evaluation.sh"
 runner="${repo}/scripts/evaluate_infographicvqa_attention_where.py"
@@ -92,6 +94,7 @@ require_hash "${runner}" "${expected_runner_sha256}" runner
 require_hash "${eval_module}" "${expected_eval_sha256}" eval-module
 require_hash "${protocol}" "${expected_protocol_sha256}" protocol
 require_hash "${amendment}" "${expected_amendment_sha256}" resource-amendment
+require_hash "${recovery}" "${expected_recovery_sha256}" evaluation-recovery
 require_hash "${rollouts}" 9b2313ed122df26f75e8d27326bb695d469f0b1afad0921afb3676c040d3287e rollouts
 require_hash "${answer_nll}" 884de4ebc1ba83226393871cdfff819bc7553a61eee6ffa11697db03332ac646 answer-nll
 require_hash "${decar_predictions}" c8338b1960ca223c892c3f992b0ccc3027d543113f67c82a734eccd7e3699c4b decar-predictions
@@ -179,6 +182,7 @@ echo "Slurm job: ${SLURM_JOB_ID}; reserved GPU hidden from evaluator"
   --protocol "${protocol}" --expected-protocol-sha256 "${expected_protocol_sha256}" \
   --resource-amendment "${amendment}" --expected-resource-amendment-sha256 "${expected_amendment_sha256}" \
   --action-diagnostic "${diagnostic}" --expected-action-diagnostic-sha256 1fc3c78174a7f0b2479c6f56ae1586b8c31e4c8b23d919cd12f708b3d9b3a428 \
+  --evaluation-recovery "${recovery}" --expected-evaluation-recovery-sha256 "${expected_recovery_sha256}" \
   --expected-attention-code-revision "${feature_code_revision}" \
   --expected-model-revision "${model_revision}" \
   --expected-source-features-sha256 "${source_features_sha256}" \

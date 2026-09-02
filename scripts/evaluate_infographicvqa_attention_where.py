@@ -141,6 +141,7 @@ def main() -> None:
         "protocol",
         "resource-amendment",
         "action-diagnostic",
+        "evaluation-recovery",
     )
     for name in input_names:
         parser.add_argument(f"--{name}", type=Path, required=True)
