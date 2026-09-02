@@ -14,6 +14,13 @@ def test_literature_attention_worker_binds_h800_protocol_and_email() -> None:
     assert "#SBATCH --mail-type=ALL" in content
     assert "--checkpoint-interval 256" in content
     assert "for wave_start in 0 2" in content
+    for expected_feature_sha256 in (
+        "2ef27cfe17b5d8d36bd4410850a24e982b23f7686a9fa064c48db73c1ba0f3da",
+        "ed643ad1d4b82500db3dd3cec6f7d6d01412cef90e7f55690ad2e57b70cabdeb",
+        "6cf284fec70ad2873ff05a1ef17ab0958ab57d92bc1b340c03a749fdb470a69b",
+        "4eb20a4d9ca35b693889406eb82c74f1c635e93ab07ec74917fe0976773d948e",
+    ):
+        assert expected_feature_sha256 in content
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in content
     assert "validation_or_test_inputs_used:false" in content
     assert "outcomes_included:false" in content
