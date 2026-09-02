@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 17:53（Asia/Hong_Kong）
+更新时间：2026-09-02 18:19（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -279,3 +279,43 @@
   `artifacts/docvqa-train-factorized-v2/ops/vtool-counterfactual-credit-upstream-feasibility-audit-20260902-v1.md`。
 - 下一步：写唯一 matched-control protocol 和纯 synthetic sign/mask tests；在
   dependency、mask、antisymmetry、resume 与 novelty gate 全通过前不授权训练。
+
+## E-20260902-10：Same-prefix counterfactual action-credit G0
+
+- 假设：在不加载模型/数据和不修改 upstream 的条件下，可以把 signed net-utility
+  pair、token roles、token-local advantage 与 shuffled control 写成可审计纯函数，
+  并由 synthetic tests 排除 cost/arm-swap、mask 泄漏和 provenance 错配。
+- Protocol：
+  `artifacts/docvqa-train-factorized-v2/ops/vtool-counterfactual-action-credit-protocol-20260902-v1.md`；
+  SHA-256 `5b85bc7381e8028f2ae07f423c2f7b165ebd3a8f28fafb4ceac1bf6043b5b1e0`。
+- 实现 commit：`56b990c767973a8a23060d63293db8657254b35d`；core SHA-256
+  `b5adcd4300d3fcf1df6efb7003ae6de0ae6179727e1b2e9cc0b5f2c1f2c55b5a`；
+  tests SHA-256
+  `7b651236ff6d59455f7d6242542cfc4d248e20a487b971d846a8413bcb063a7c`。
+- 数据/种子：无数据、模型、outcome 或随机采样。Synthetic fixtures 固定 seed `17`
+  字段，但没有 stochastic test；validation/test/reserve 未打开。
+- 冻结定义：
+  `A_visual=(Y_f-0.05*C_f)-(Y_c-0.05*C_c)`；primary `beta=1.0`，不 center/
+  normalize；outcome 只给 answer tokens，action credit 只给 action tokens；
+  observation/padding 为零。Pair 必须绑定 prefix/action/target/policy/decoding/scorer
+  SHA-256 与 continuation seed。
+- 对照修正：额外 counterfactual continuation 使“同 steps/rollouts/GPU-hours”无法由
+  单一 baseline 同时满足。协议改为 paired zero/shuffled 的 exact-compute control，
+  加 outcome-only 的 step/trajectory-matched 与独立 GPU-hour-matched 两种比较。
+- 命令：`python -m pytest -q tests/test_counterfactual_action_credit.py
+  tests/test_vtool_adapter.py`；`python -m pytest -q`；`python -m mypy
+  src/beyond_entropy/counterfactual_action_credit.py
+  tests/test_counterfactual_action_credit.py`；`python -m compileall -q ...`。
+- 验证：17 项新 G0 tests 与 7 项 VTool adapter 回归通过；完整仓库收集 509 项，
+  全量 pytest 为 479 passed、30 项依赖/资源相关预期 skip、exit 0；mypy 2 files 与
+  compileall 通过，`git diff --check` 通过。
+- 格式工具事件：Black `24.8.0` CLI 在输出文件检查结果后不退出，在 repo 与
+  `/tmp` 均可复现；精确根因未证明。安全中断后改用同版本 in-process
+  formatter/check，两个文件均 clean。未把 CLI 无输出误记为通过。
+- 环境/资源：本地 CPU-only；无网络、无 dependency install、无 GPU、无 Slurm、
+  无邮件事件。18:19 HKT 队列为空，GPU quota 剩余 179,656 分钟。
+- 结果：`counterfactual_action_credit_g0_passed`。这只证明 schema/arithmetic 与协议
+  不变量，不能证明 upstream 集成、训练稳定性、新颖性或性能。
+- 下一步：只审计 public Refocus_Chart train metadata/source identity 和 vLLM 0.17
+  权威 image/digest，冻结 train-only/data/environment amendment；明确禁止 FP8 script
+  默认 `test.parquet`。G1 前不提交 GPU。

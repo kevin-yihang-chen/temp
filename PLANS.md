@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 17:53（Asia/Hong_Kong）
+更新时间：2026-09-02 18:19（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -88,10 +88,17 @@ Final-answer/reasoning tokens 继续使用 outcome reward。
 3. 在 upstream 第一段 tool tokens 当前被 `response_mask=0` 的前提下，新增独立且
    可审计的 action mask/advantage 通路；
 4. 先通过 synthetic sign/mask/unit test，再做极小 4×H800 smoke；
-5. primary 必须是与 outcome-only/shuffled-credit 在相同 data、steps、rollouts、
-   GPU-hours 和 tool budget 下的比较；
+5. paired zero/shuffled controls 必须复用相同 pairs、mask、steps 与计算；另分别做
+   outcome-only 的 trajectory/step-matched 和 GPU-hour-matched 比较，不虚构一个
+   baseline 能同时匹配互相冲突的全部预算轴；
 6. 短程学习曲线需同时改善 task score、cost-adjusted utility 与 harmful-call rate，
    否则不扩完整训练。
+
+G0 当前已通过：protocol v1 冻结 arm-specific net-utility contrast、`lambda=0.05`、
+`beta=1.0`、raw bounded action credit、zero/shuffled/outcome-only controls 与泄漏边界；
+dependency-free core 已实现 action/answer/observation/padding masks、pair provenance、
+token-local advantage、序列化与 deterministic derangement。实现 commit 为
+`56b990c767973a8a23060d63293db8657254b35d`；尚未集成上游或获得训练结果。
 
 ### 顶会约束
 
@@ -128,16 +135,15 @@ Final-answer/reasoning tokens 继续使用 outcome reward。
 
 ## 紧接着的行动
 
-1. Answer-conditioned candidate 的代码可行性与文献碰撞审计已落盘；候选关闭。
-2. 顶会级 action-credit pivot 已冻结为唯一优先 feasibility 对象；还不是训练
-   authorization。
-3. 浅克隆并固定 VTool-R1 `training-v2` upstream，核实 mask、advantage、agent-loop、
-   checkpoint 与 4×H800 dependency surface。静态 gate 已完成：上游 action tokens
-   当前被 mask 掉，必须新增 action/answer masks 和 token-local advantage；vLLM
-   `0.17.0` Docker 与 `<=0.12.0` package constraint 冲突，尚未授权装环境或训练。
-4. 下一步写唯一 matched-control protocol 和纯 synthetic sign/mask tests；然后冻结
-   权威 image/digest 并做 import-only audit。上述项目全通过后才允许 4×H800 smoke。
-5. 当前 Slurm 队列为空；实时剩余 GPU quota 为 179,652 分钟（2,994.2 GPU-hours），
-   账户上限 4 GPU/4 H800。算力允许有界 matched-control，但 protocol 与 synthetic
-   tests 前不烧 GPU。
+1. Answer-conditioned candidate 已因文献碰撞关闭；VTool upstream 静态审计已完成。
+2. Matched-control action-credit protocol 与 G0 synthetic implementation/tests 已完成；
+   这只证明 arithmetic/schema，不是方法有效性证据。
+3. 下一步只获取 Refocus_Chart public train metadata，审计 row/image/source identity，
+   冻结 train-only split manifest；禁止使用 FP8 脚本默认的 `test.parquet`。
+4. 同时确定 upstream vLLM `0.17.0` recipe 的权威 container/image digest，完成
+   import-only audit。数据/环境 amendment、baseline 和最多 2-step smoke 合同全部
+   冻结后，才允许 4×H800 G1。
+5. 2026-09-02 18:19 HKT Slurm 队列为空；实时剩余 GPU quota 为 179,656 分钟
+   （2,994.3 GPU-hours），账户上限 4 GPU/4 H800。算力允许有界 matched-control，
+   但 protocol 与 synthetic gate 通过并不自动授权烧 GPU。
 6. 保持 validation/test/reserve 封存；本地修改不 push GitHub。

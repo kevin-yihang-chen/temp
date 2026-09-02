@@ -19,13 +19,14 @@ weight 或阈值，既违反既有止损规则，也不足以形成新颖方法�
 1. 对一个已经产生的视觉 action，在完全相同的 agent prefix 上构造 factual
    observation 与预先冻结的 counterfactual observation（至少 no-op；可扩展为固定
    alternative action）。
-2. 用二者对最终任务分数的 signed difference 减去显式 action cost，定义
-   `A_visual`；保留 rescue、harm 和 zero-effect，不把它压成“是否需要工具”的
-   question-level 标签。
+2. 用两臂各自的 cost-adjusted task utility 之差定义 `A_visual`；保留 rescue、
+   harm 和 zero-effect，不把它压成“是否需要工具”的 question-level 标签。完整
+   arm swap（score 与 cost 一起交换）必须严格反号。
 3. 保留 outcome-only advantage 给 reasoning/final-answer tokens；`A_visual` 只施加
    于对应 tool/action tokens，observation tokens 不训练。
-4. 以匹配数据、rollouts、optimizer steps、GPU-hours 和 tool-call budget 的
-   outcome-only VTool-R1 分支作为主对照。
+4. 以复用相同 pairs/steps/compute 的 zero 与 shuffled credit 作为主因果对照；
+   outcome-only 分别做 trajectory/step-matched 与 GPU-hour-matched 比较。额外
+   counterfactual continuation 使单一 baseline 不可能同时匹配所有预算轴。
 
 这与当前失败的 deployable gate 是不同命题：这里不要求一个小 classifier 在新
 domain 直接预测 tail benefit，而是测试 causal local credit 是否能让 end-to-end
@@ -89,16 +90,24 @@ extra 与 `0.8.4` requirements 注释，必须先冻结权威 image/digest。Che
 入口存在，但 paired RNG 与 sampler 的精确恢复还未验证。详细证据见
 `vtool-counterfactual-credit-upstream-feasibility-audit-20260902-v1.md`。
 
+### 18:19 HKT G0 结果
+
+Protocol v1 与 dependency-free core 已在 commit
+`56b990c767973a8a23060d63293db8657254b35d` 冻结。Credit 改为完整两臂净效用差，
+所以 arm swap 严格反号；binary primary credit 已有界，不做 batch normalize。
+17 项 synthetic tests 以及完整仓库 479 passed/30 expected skips 回归无失败。该结果
+只授权 data/dependency amendment，不授权 upstream 修改或 GPU training。
+
 ## 前置 gate 与止损
 
 在任何训练前依次完成：
 
 1. 浅克隆、固定 upstream 并完成代码/依赖/license 静态审计。已完成；带 dependency
    与 credit-path blockers，不等于训练授权。
-2. 写 protocol，唯一 primary 比较 `outcome_only` 与
-   `outcome_plus_signed_action_credit`；随机符号或 shuffled credit 作为负对照。
+2. 写 protocol，冻结 paired zero/shuffled、outcome-only step-matched 与
+   GPU-hour-matched 对照。已完成。
 3. 用 synthetic trajectory 证明 action mask 只覆盖 action tokens，且同 prefix
-   factual/counterfactual scorer 在交换两臂时严格变号。
+   factual/counterfactual scorer 在交换完整两臂时严格变号。已完成。
 4. 用极小真实 batch 做 4×H800 smoke，检查显存、吞吐、judge、checkpoint/resume
    和每种 branch 的实际 GPU-hours；所有 Slurm 状态邮件使用
    `yihangc@connect.hku.hk`。

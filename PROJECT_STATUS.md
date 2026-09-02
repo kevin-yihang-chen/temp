@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 17:53（Asia/Hong_Kong）
+更新时间：2026-09-02 18:19（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -15,7 +15,8 @@ classifier 或 threshold 没有科学价值。
 失败点是 deployable pre-action prediction 无法跨 source 稳定识别稀疏正收益尾部。
 当前最有价值的产出是严格的 stop/where 因子化与负结果证据，而不是一个成功策略。
 下一步已转为机制不同的视觉工具 RL action-local credit feasibility，而不是给旧
-gate 换特征。
+gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无训练趋势或正式
+方法结果，不能据此提高项目成功概率。
 
 ## 已完成的证据链
 
@@ -51,6 +52,12 @@ gate 换特征。
     `d2aa28353ec10c7f91b39f502925003a81d6982d`。静态 gate 支持 action-credit 可实现，
     但确认 tool/action tokens 当前被 mask，必须新增 token-local credit 通路；同时
     vLLM Docker/package 版本冲突尚未解决。没有安装环境、训练或提交 job。
+11. Same-prefix action-credit protocol v1 与 dependency-free G0 core 已在 commit
+    `56b990c767973a8a23060d63293db8657254b35d` 冻结。17 项新测试覆盖 exhaustive
+    token roles、arm-specific cost、swap antisymmetry、完整 provenance、序列化防
+    篡改、token-local advantage 与 shuffled no-self-donor；完整仓库共收集 509 项，
+    479 passed、30 项依赖/资源相关预期 skip。该证据只支持实现定义一致，不支持
+    方法性能。
 
 ## 当前最佳结果与解释边界
 
@@ -69,6 +76,7 @@ gate 换特征。
 | 里程碑 | 当前状态 |
 | --- | --- |
 | 严格数据/无泄漏/强基线基础设施 | 已完成 |
+| Action-credit protocol 与 synthetic G0 | 已完成；尚未 upstream 集成 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -80,12 +88,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-2026-09-02 17:42 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
+2026-09-02 18:19 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
 Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件已按全状态合同
 配置。当前修改只保留在本地，未 push GitHub。
 
-同日 17:42--17:44 HKT 的 live quota 为 GPU 222,000 分钟总额、42,348 已用、
-179,652 剩余（2,994.2 GPU-hours，19.08% 已用）；association 上限为 4 GPU、
+同日 18:19 HKT 的 live quota 为 GPU 222,000 分钟总额、42,344 已用、
+179,656 剩余（2,994.3 GPU-hours，19.07% 已用）；association 上限为 4 GPU、
 4 H800、48 CPU。算力足以支持一次有界 3B matched-control RL 研究，但科学 gate、
 依赖与训练稳定性仍是主要风险。
 
@@ -114,13 +122,16 @@ Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件�
 - Same-prefix action credit 与 ToolVision 的 stepwise evidence gain 存在强碰撞；
   若不能证明具体 action 的 signed causal contrast 和 token-local training 带来
   matched-budget improvement，该硬转向也会失败。
+- Upstream FP8 3B script 默认把 `test.parquet` 同时作为 train/val；直接运行会造成
+  明确测试泄漏。必须只用 official train 派生开发 split，并关闭 train-time test。
+- 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
+  1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不立即提交新 GPU 任务。Answer-conditioned 候选已在文献 gate 关闭；唯一优先行动
-改为 same-prefix signed visual-action credit。Upstream 静态 gate 已完成，结论为
-`upstream_static_feasibility_supported_with_dependency_and_credit_path_blockers`。下一步
-只写唯一 matched-control protocol、action/answer mask 与 arm-swap antisymmetry 的
-纯 synthetic tests，并冻结权威 dependency image/digest。只有这些检查和极小
-4×H800 smoke 全通过，才允许短程 matched-control training。目标仍是三大会 main
-conference，不设置降低投稿档位的完成出口。
+不立即提交新 GPU 任务。Protocol 与 G0 已通过；下一步是 public Refocus_Chart train
+metadata/identity audit 和 upstream vLLM 0.17 权威 image/digest 的 import-only audit，
+然后冻结 train-only split 与最多 2-step G1 smoke amendment。只有 baseline、pair
+validity、judge fail-closed、checkpoint/resume、显存与 call-rate gate 全通过，才允许
+短程 matched-control training。目标仍是三大会 main conference，不设置降低投稿
+档位的完成出口。

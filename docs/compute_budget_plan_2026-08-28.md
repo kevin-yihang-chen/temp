@@ -21,8 +21,9 @@
 1. Counterfactual visual-action credit 的 full-text novelty 与 upstream 静态
    feasibility audit 已完成，不使用 GPU；当前结论带 dependency/credit-path
    blockers，不等于训练授权。
-2. protocol 与 synthetic mask/sign tests 通过后，做极小 4×H800 smoke；记录 method、
-   outcome-only 与 shuffled-credit 每步真实耗时和峰值显存。
+2. Protocol 与 synthetic mask/sign tests 已在 G0 通过。下一步先冻结 train-only data
+   manifest 与 vLLM 0.17 image digest；再做极小 4×H800 smoke，记录 method、
+   outcome-only、zero 与 shuffled-credit 每步真实耗时和峰值显存。
 3. 只有短程 matched-control 学习曲线同时改善 task score、utility 与 harmful-call
    rate 才扩完整 3B run。
 4. 为 outcome-only matched control、失败恢复、独立 benchmark/backbone replication

@@ -38,9 +38,10 @@ reserve 继续封存。
    继续全零，union 才作为 policy/log-prob 的可训练 response mask。
 2. 保留现有 `vtool_final_response_text` 的 answer-only 解码语义，不能因 union mask
    把 tool code 送给最终 answer judge。
-3. 新增显式 advantage estimator，例如
-   `A = A_outcome * answer_mask + beta * normalize(A_visual) * action_mask`；两项分别
-   normalization，并审计 loss、old/ref log-prob 与 KL 是否真正覆盖 action tokens。
+3. 新增显式 advantage estimator。后续 protocol 已冻结为
+   `A = A_outcome * answer_mask + beta * A_visual * action_mask`：outcome 保留 GRPO
+   group normalization，binary signed action credit 已有界，不再 batch-center 或
+   normalize；同时审计 loss、old/ref log-prob 与 KL 是否真正覆盖 action tokens。
 4. 对同一 action prefix 生成 factual edited-image continuation 与预先冻结的 no-op
    或 fixed-alternative continuation；固定 decoding 配置与可控的 paired seed，交换
    factual/counterfactual 两臂时 signed score 必须严格变号。
@@ -79,5 +80,7 @@ reserve 继续封存。
 5. full-text novelty audit 无法把本方法与 ToolVision、AdaTooler-V、AdaptVision 的
    stepwise/question-level benefit 和 decoupled objective 清楚区分。
 
-下一项只写一个 matched-control protocol 与纯 synthetic tests；没有通过上述 gate
-前，不安装 GPU 环境、不提交 Slurm、不读取新 outcomes。
+后续 resolution：protocol 与纯 synthetic G0 已在 commit
+`56b990c767973a8a23060d63293db8657254b35d` 通过；这只解除 data/environment audit
+前置项。没有冻结权威 data manifest 与 image digest 前，仍不安装 GPU 环境、不提交
+Slurm、不读取新 outcomes。
