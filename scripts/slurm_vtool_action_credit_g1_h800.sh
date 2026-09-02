@@ -34,6 +34,7 @@ worker="${repo}/scripts/slurm_vtool_action_credit_g1_h800.sh"
 launcher="${repo}/scripts/run_vtool_action_credit_g1.py"
 config="${repo}/configs/vtool_action_credit_g1_v1.json"
 audit_script="${repo}/scripts/audit_refocus_g1_runtime_dataset.py"
+jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq
 output_dir="${repo}/artifacts/docvqa-train-factorized-v2/g1-runs/paired-signed-v1/job-${SLURM_JOB_ID}"
 status_dir="${repo}/artifacts/docvqa-train-factorized-v2/g1-execution-status"
 status_file="${status_dir}/paired-signed-job-${SLURM_JOB_ID}.json"
@@ -47,7 +48,7 @@ write_worker_status() {
   if [[ "${exit_code}" -eq 0 ]]; then
     decision=completed
   fi
-  jq -n \
+  "${jq_bin}" -n \
     --arg schema vtool_action_credit_g1_worker_status_v1 \
     --arg decision "${decision}" \
     --arg job_id "${SLURM_JOB_ID}" \
@@ -89,16 +90,20 @@ if [[ ! -x "${python_bin}" ]]; then
   echo "G1 frozen Python environment is absent" >&2
   exit 2
 fi
+if [[ ! -x "${jq_bin}" ]]; then
+  echo "G1 frozen jq executable is absent" >&2
+  exit 2
+fi
 if [[ -e "${output_dir}" || -e "${status_file}" ]]; then
   echo "G1 refuses to overwrite an existing job artifact" >&2
   exit 2
 fi
 
-train_sha256=$(jq -er '.data.train.paired_sha256' "${config}")
-train_row_manifest_sha256=$(jq -er '.data.train.row_id_manifest_sha256' "${config}")
-model_revision=$(jq -er '.model.revision' "${config}")
+train_sha256=$("${jq_bin}" -er '.data.train.paired_sha256' "${config}")
+train_row_manifest_sha256=$("${jq_bin}" -er '.data.train.row_id_manifest_sha256' "${config}")
+model_revision=$("${jq_bin}" -er '.model.revision' "${config}")
 audit_script_sha256=$(sha "${audit_script}")
-if ! jq -e \
+if ! "${jq_bin}" -e \
   --arg train_sha256 "${train_sha256}" '
     .decision == "refocus_g1_runtime_dataset_audit_passed" and
     .dataset_sha256 == $train_sha256 and
@@ -112,7 +117,7 @@ if ! jq -e \
   echo "G1 runtime dataset audit contract failed" >&2
   exit 2
 fi
-if ! jq -e \
+if ! "${jq_bin}" -e \
   --arg row_manifest "${train_row_manifest_sha256}" \
   --arg model_revision "${model_revision}" \
   --arg audit_script_sha256 "${audit_script_sha256}" '
@@ -123,7 +128,7 @@ if ! jq -e \
   echo "G1 runtime audit provenance contract failed" >&2
   exit 2
 fi
-if ! jq -e '
+if ! "${jq_bin}" -e '
   .frozen_before_g1_results == true and
   .resources.gpu_count == 4 and
   .resources.gpu_type == "H800" and
@@ -157,7 +162,7 @@ if [[ "${#allocated_gpus[@]}" -ne 4 ]]; then
   exit 2
 fi
 gpu_report=$("${python_bin}" -c 'import json, torch; print(json.dumps({"count": torch.cuda.device_count(), "names": [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]}))')
-if ! jq -e '.count == 4 and (.names | all(contains("H800")))' <<< "${gpu_report}" >/dev/null; then
+if ! "${jq_bin}" -e '.count == 4 and (.names | all(contains("H800")))' <<< "${gpu_report}" >/dev/null; then
   echo "G1 PyTorch runtime did not expose exactly four H800 GPUs: ${gpu_report}" >&2
   exit 2
 fi
@@ -198,7 +203,7 @@ nvidia-smi --query-gpu=name,uuid,memory.total,driver_version --format=csv,nohead
   --config "${config}" \
   --mode execute
 
-if ! jq -e \
+if ! "${jq_bin}" -e \
   --arg job_id "${SLURM_JOB_ID}" '
     .arm == "paired_signed_credit" and
     .exit_code == 0 and

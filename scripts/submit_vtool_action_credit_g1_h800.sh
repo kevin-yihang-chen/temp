@@ -11,8 +11,13 @@ repo=/userhome/cs3/yihangc/Documents/beyond-entropy
 worker="${repo}/scripts/slurm_vtool_action_credit_g1_h800.sh"
 launcher="${repo}/scripts/run_vtool_action_credit_g1.py"
 config="${repo}/configs/vtool_action_credit_g1_v1.json"
+jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq
 cd "${repo}"
-runtime_audit_relative=$(jq -er '.preflight.full_train_runtime_audit_report' "${config}")
+if [[ ! -x "${jq_bin}" ]]; then
+  echo "required jq executable is absent: ${jq_bin}" >&2
+  exit 2
+fi
+runtime_audit_relative=$("${jq_bin}" -er '.preflight.full_train_runtime_audit_report' "${config}")
 runtime_audit="${repo}/${runtime_audit_relative}"
 
 revision=$(git rev-parse HEAD)

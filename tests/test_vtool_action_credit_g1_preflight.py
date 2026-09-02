@@ -240,6 +240,8 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "latest_checkpointed_iteration.txt" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
     assert "git status --porcelain --untracked-files=all" in worker
+    assert "jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq" in worker
     assert "sbatch --test-only --export=NONE" in submit
     assert "show-cpu-gpu-quota" in submit
     assert "a paired-signed G1 job is already queued or running" in submit
+    assert "jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq" in submit

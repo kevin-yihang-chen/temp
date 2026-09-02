@@ -522,6 +522,9 @@
   hashes；execute 要求 clean repo、Slurm allocation 与恰好 4 张可见 H800。Worker 要求
   至少 32 GiB persistent free space，临时 Ray 数据写 `/dev/shm`；不会读取 validation/
   test/reserve，也不会把 credential 传入训练环境。
+- 提交前诊断：首次调用 submit wrapper 在执行 `sbatch` 前退出，因为脚本收紧的 PATH
+  不含 base-conda 的 `jq`；没有创建 Slurm job、没有 GPU 或邮件事件。Submit/worker
+  现均固定并验证 `/userhome/cs3/yihangc/anaconda3/bin/jq`，避免节点环境继承差异。
 - 验证：完整仓库 `514 passed, 34 skipped`；skip 均为 base env 缺少可选 Torch/资源
   项，隔离训练环境的真实 Torch gradient smoke 另行通过全部 8 项检查。10-file mypy
   （忽略第三方无 stub imports）、Python compileall、Black in-process、shell/JSON syntax、
