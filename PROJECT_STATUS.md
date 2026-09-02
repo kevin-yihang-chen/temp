@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 21:46（Asia/Hong_Kong）
+更新时间：2026-09-02 22:00（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -24,10 +24,10 @@ outcome-only comparator，不再把 pixel、thought 或内部实现与 VTool 的
 核心 empirical question 是：same-prefix signed action credit 能否在冻结的强基线与
 matched controls 下改善任务分数、cost-adjusted utility 和 harmful-call rate。
 
-当前 pre-GPU 工程 gate 已前进：官方 Apache-2.0 ReFocus train 已固定，token-local
-adapter 的真实 autograd、隔离 runtime import/version/worktree、单行真实 Qwen processor
-和 paired agent fake-server contract 均已通过。尚未完成 H800 vLLM 模型加载或任何
-optimizer step。因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未开始”。
+当前工程 gate 已前进：官方 Apache-2.0 ReFocus train、token-local adapter 的真实
+autograd、隔离 runtime、单行 Qwen processor、paired fake-server，以及单卡 H800
+vLLM 模型加载/真实首轮 generation 均已通过。尚未完成真实 paired tool rollout 或
+任何 optimizer step。因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未开始”。
 
 ## 已完成的证据链
 
@@ -87,6 +87,11 @@ optimizer step。因此当前不是“新方法已成功/失败”，而是“�
     泄漏。Paired fake-server contract 通过：rescue `+0.95`、harm `-1.05`、失败/无收益
     `-0.05`、direct `0`；shared prefix/seed、image-only delta、union mask 和 fail-closed
     均验证。四组 G1 配置已在 `configs/vtool_action_credit_g1_v1.json` 冻结。
+17. 单卡 H800 model-load/generation Job `205784` 以 `COMPLETED`、`ExitCode=0:0`、零
+    restart 结束。精确 model/runtime/data/config binding 通过；vLLM `0.12.0` 加载 3B
+    BF16 权重约占 7.16 GiB，完整 engine load `64.05s`，966-token 视觉 prompt 生成
+    12 tokens 用时 `19.21s`。报告 SHA-256 `1a67365b...009a`。首轮为 direct answer，
+    因此本项不验证真实 tool/paired branch，也不是性能证据。
 
 ## 当前最佳结果与解释边界
 
@@ -108,7 +113,8 @@ optimizer step。因此当前不是“新方法已成功/失败”，而是“�
 | Action-credit protocol、synthetic G0 与 upstream adapter | pre-GPU contract 已完成；尚无 optimizer step |
 | 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
 | 真实 converter 与 paired fake-server | 已通过 |
-| 单卡 H800 vLLM model-load/generation preflight | 待运行；G1 暂不授权 |
+| 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
+| 真实 paired rollout 与最多 2-step optimizer smoke | 未运行 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -120,12 +126,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-2026-09-02 20:41 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
-Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件已按全状态合同
-配置。当前修改只保留在本地，未 push GitHub。
+2026-09-02 21:58 HKT，Job `205784` 已以 `COMPLETED`、`ExitCode=0:0` 结束，当前
+没有运行或排队的 Slurm job。该任务为 1×H800、运行 2分14秒、零 restart；计算状态
+邮件按 `--mail-type=ALL` 配置。当前修改只保留在本地，未 push GitHub。
 
-同日 20:41 HKT 的 live quota 为 GPU 222,000 分钟总额、42,330 已用、
-179,670 剩余（2,994.5 GPU-hours，19.07% 已用）；association 上限为 4 GPU、
+同日 21:59 HKT 的 live quota 为 GPU 222,000 分钟总额、42,321 已用、
+179,679 剩余（2,994.65 GPU-hours，19.06% 已用）；association 上限为 4 GPU、
 4 H800、48 CPU。算力足以支持一次有界 3B matched-control RL 研究，但科学 gate、
 依赖与训练稳定性仍是主要风险。
 
@@ -159,16 +165,16 @@ Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件�
 - 旧 Refocus_Chart derivative 不再是训练数据；正式输入改为已固定 revision/hash 的
   Apache-2.0 official ReFocus train。Refocus test 与 original ChartQA test 已因 metadata
   暴露失去 sealed 资格，formal 必须使用从未打开的独立 benchmark/split。
-- 隔离 VTool 环境、真实 processor 和 fake paired generation 已通过；但 vLLM 模型
-  权重加载、显存、真实 generation、checkpoint/resume 与吞吐仍未经过 GPU smoke，
-  不能把 CPU/fake-server 成功等同于训练可行。
+- 隔离环境、真实 processor、fake paired generation 与单卡 vLLM load/generation
+  已通过；但该首轮直接回答，没有验证真实 tool/paired branch。Optimizer、Ray 多进程、
+  checkpoint/resume 与 action-credit metrics 仍未经过 GPU smoke。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。Converter、fake-server 与 matched-control config 已完成；
-下一步是已绑定一条 official-train 样本、pinned model/runtime 和全状态邮件的 1×H800
-vLLM model-load/generation smoke。只有它通过，才允许最多 2-step 的 4×H800 G1。G1
-只回答实现与早期学习信号是否成立；若 signed 不能在 matched controls 下改善冻结
-指标，就关闭 H5，而不是继续追 VTool 一致性。
+不再做 VTool 等价性审计。单卡 model-load/generation gate 已通过；下一步只审计 pinned
+upstream 的实际训练入口，生成唯一 4×H800、最多 2-step paired-signed launch，并先做
+Hydra config dry-run。若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结
+stop rule，就关闭或修复可明确定位的实现问题；只有它们通过，才以同一 revision 运行
+zero/shuffled/outcome-only controls，不事后改 prompt、seed 或指标。

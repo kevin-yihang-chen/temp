@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 21:46（Asia/Hong_Kong）
+更新时间：2026-09-02 22:00（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -454,3 +454,33 @@
 - 下一步：提交已绑定 code/data/model/runtime、1×H800、30 分钟上限、
   `--mail-type=ALL` 的 vLLM model-load/单条 first-turn generation smoke；通过后才允许
   4×H800、最多 2-step G1。
+
+## E-20260902-14：单卡 H800 vLLM model-load/真实首轮 generation gate
+
+- 假设：冻结的 Qwen2.5-VL-3B、vLLM/verl runtime、official-train row 与视觉 prompt
+  可以在本集群单卡 H800 上真实加载并完成一次非空、可解析的首轮 generation，且显存
+  足以进入后续有界 G1。
+- 代码 revision：`67822c14bd086929b64ec65803e7e8e9afa1d833`；核心实现 commit
+  `b212dc844a25afff228c31eb47b16cd63007fc97`。没有 push GitHub。
+- 数据/模型：单行 official-train Parquet SHA-256
+  `0de5b1421c765724e77432f2d176e33c2af6d6bc27652ca4e9d5393306e66199`；模型 revision
+  `66285546d2b821cf421d4f5eb2576359d3770cd3`，两块权重完整 SHA-256 与冻结配置匹配。
+  Worker 同时验证 exact config、runtime commit 与 patch SHA-256；protected split 未访问。
+- 资源/通知：Slurm Job `205784`，partition `q-h800`，1×NVIDIA H800、8 CPU、64 GiB、
+  30 分钟上限、`--mail-type=ALL`。提交 `21:56:31`，开始 `21:56:32`，结束
+  `21:58:46`，运行 `00:02:14`，零 restart，`COMPLETED`，`ExitCode=0:0`。
+- 结果：`vtool_vllm_model_load_smoke_passed`。GPU 总显存 85,017,493,504 bytes；engine
+  load `64.0501s`，模型权重加载报告 7.1562 GiB；生成前后剩余显存约 47.30/47.12 GB。
+  966 prompt tokens 生成 12 completion tokens 用时 `19.2087s`，输出可由 parser 识别为
+  `NOTOOL` direct answer。无 optimizer step。
+- 产物：report SHA-256
+  `1a67365b1fc1fbf76ad84c7954cdeeeb73f1fd1eeb52dd7d94971dd06469009a`；log SHA-256
+  `abee46d422ed1b132bb90c736e16e7ba73929f48405bfb883dd8a06747e7be0d`。
+- 诊断：日志仅有程序退出时未显式 `destroy_process_group()` 的 NCCL warning；作业
+  正常退出且产物完整。该 warning 不影响本项 decision，但后续训练必须检查正常 shutdown。
+- 解释边界：本项证明真实模型/视觉输入/显存/runtime 可执行，不证明 action credit
+  有效，也没有覆盖真实 tool-call 与 paired continuation。G1 只获得工程授权，尚无
+  方法性能证据。
+- 下一步：核对 pinned upstream 的唯一训练入口，冻结 4×H800、最多 2-step 的
+  paired-signed launch 并先做 Hydra dry-run；只有真实 call/pair/optimizer gate 通过，
+  才运行同 revision 的 matched controls。
