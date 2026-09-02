@@ -32,6 +32,59 @@ RELATIVE_WHERE_EVALUATION_SCHEMA = "infographicvqa_relative_where_oof_evaluation
 RELATIVE_WHERE_PRIMARY = "relative_teacher_entropy"
 
 
+def _first_exact_difference(
+    recomputed: Any,
+    frozen: Any,
+    *,
+    path: str = "$",
+) -> str | None:
+    """Return the first structural/value difference for a frozen dependency."""
+
+    if isinstance(recomputed, Mapping) and isinstance(frozen, Mapping):
+        recomputed_keys = set(recomputed)
+        frozen_keys = set(frozen)
+        if recomputed_keys != frozen_keys:
+            return (
+                f"{path}: recomputed-only={sorted(recomputed_keys - frozen_keys)!r} "
+                f"frozen-only={sorted(frozen_keys - recomputed_keys)!r}"
+            )
+        for key in sorted(recomputed_keys, key=str):
+            difference = _first_exact_difference(
+                recomputed[key], frozen[key], path=f"{path}.{key}"
+            )
+            if difference is not None:
+                return difference
+        return None
+    if isinstance(recomputed, (list, tuple)) and isinstance(frozen, (list, tuple)):
+        if len(recomputed) != len(frozen):
+            return f"{path}: recomputed-length={len(recomputed)} frozen-length={len(frozen)}"
+        for index, (recomputed_item, frozen_item) in enumerate(
+            zip(recomputed, frozen, strict=True)
+        ):
+            difference = _first_exact_difference(
+                recomputed_item, frozen_item, path=f"{path}[{index}]"
+            )
+            if difference is not None:
+                return difference
+        return None
+    if recomputed != frozen:
+        return f"{path}: recomputed={recomputed!r} frozen={frozen!r}"
+    return None
+
+
+def _require_frozen_comparator(
+    *,
+    name: str,
+    recomputed: Mapping[str, Any],
+    frozen: Mapping[str, Any],
+) -> None:
+    difference = _first_exact_difference(recomputed, frozen)
+    if difference is not None:
+        raise ValueError(
+            f"relative-where frozen comparator {name} changed: {difference}"
+        )
+
+
 def parse_relative_where_predictions(
     rows: Sequence[Mapping[str, Any]],
     outcomes: Mapping[DecisionKey, Any],
@@ -428,13 +481,38 @@ def evaluate_relative_where_oof(
         name: _aggregate_policy(values, outcomes, sources)
         for name, values in policy_values.items()
     }
-    bootstrap, paired_differences = _bootstrap_all_policies(
-        aggregates, sources, bootstrap_indices
-    )
     public_aggregates = {
         name: {key: value for key, value in aggregate.items() if key != "source_values"}
         for name, aggregate in aggregates.items()
     }
+    for registered, hybrid_point, oracle_point in zip(
+        operating, hybrid_points, oracle_points, strict=True
+    ):
+        point_name = str(registered["name"])
+        frozen_comparators = {
+            "old_decar_where": hybrid_point["policies"]["entropy_when_decar_where"],
+            "old_task_value_where": hybrid_point["policies"][
+                "entropy_when_task_value_where"
+            ],
+            "entropy_random": hybrid_point["policies"]["entropy_random"],
+            "entropy_fixed_ug_grid_00": hybrid_point["policies"][
+                "entropy_fixed_ug_grid_00"
+            ],
+            "answer_now": hybrid_point["policies"]["answer_now"],
+            "task_oracle_where": oracle_point["policies"][
+                "entropy_when_task_oracle_where"
+            ],
+        }
+        for name, frozen in frozen_comparators.items():
+            _require_frozen_comparator(
+                name=f"{point_name}/{name}",
+                recomputed=public_aggregates[f"{point_name}/{name}"],
+                frozen=frozen,
+            )
+        registered["frozen_comparators_exact_match"] = True
+    bootstrap, paired_differences = _bootstrap_all_policies(
+        aggregates, sources, bootstrap_indices
+    )
     policy_names = (
         *RELATIVE_WHERE_VARIANTS,
         "old_decar_where",
@@ -466,20 +544,6 @@ def evaluate_relative_where_oof(
         policy_bootstrap = {
             name: bootstrap["policies"][f"{point_name}/{name}"] for name in policy_names
         }
-        frozen_matches = (
-            policies["old_decar_where"]
-            == hybrid_point["policies"]["entropy_when_decar_where"]
-            and policies["old_task_value_where"]
-            == hybrid_point["policies"]["entropy_when_task_value_where"]
-            and policies["entropy_random"] == hybrid_point["policies"]["entropy_random"]
-            and policies["entropy_fixed_ug_grid_00"]
-            == hybrid_point["policies"]["entropy_fixed_ug_grid_00"]
-            and policies["answer_now"] == hybrid_point["policies"]["answer_now"]
-            and policies["task_oracle_where"]
-            == oracle_point["policies"]["entropy_when_task_oracle_where"]
-        )
-        if not frozen_matches:
-            raise ValueError("relative-where frozen comparator aggregate changed")
         entropy_calls = called_by_point[point_name]
         action_maps: dict[str, Mapping[DecisionKey, str] | None] = {
             **relative_actions,
@@ -554,7 +618,8 @@ def evaluate_relative_where_oof(
             "oracle_gap_closure_at_least_half": closure["point_estimate"] is not None
             and float(closure["point_estimate"]) >= 0.5,
             "all_audits_passed": bool(
-                registered["selection_audit"]["matched_call_count"] and frozen_matches
+                registered["selection_audit"]["matched_call_count"]
+                and registered["frozen_comparators_exact_match"]
             ),
         }
         points.append(

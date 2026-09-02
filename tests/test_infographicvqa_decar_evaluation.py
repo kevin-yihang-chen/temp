@@ -17,6 +17,7 @@ from beyond_entropy.infographicvqa_decar_evaluation import (
 )
 from beyond_entropy.infographicvqa_relative_where import RELATIVE_WHERE_VARIANTS
 from beyond_entropy.infographicvqa_relative_where_evaluation import (
+    _first_exact_difference,
     evaluate_relative_where_oof,
 )
 from beyond_entropy.schema import ActionRecord, BBox
@@ -387,6 +388,17 @@ def test_relative_where_evaluation_reuses_frozen_states_and_bootstrap() -> None:
     assert point["qualification_rules"]["minimum_calls_and_sources"] is False
 
 
+def test_relative_where_frozen_difference_reports_first_exact_path() -> None:
+    assert (
+        _first_exact_difference(
+            {"source_balanced": {"utility": 0.1, "call": 0.2}},
+            {"source_balanced": {"utility": 0.3, "call": 0.2}},
+        )
+        == "$.source_balanced.utility: recomputed=0.1 frozen=0.3"
+    )
+    assert _first_exact_difference({"value": [1, 2]}, {"value": [1, 2]}) is None
+
+
 def test_decar_evaluation_script_freezes_train_only_full_protocol() -> None:
     root = Path(__file__).resolve().parents[1]
     script = (root / "scripts/evaluate_infographicvqa_decar_oof.py").read_text()
@@ -528,6 +540,32 @@ def test_relative_where_h800_worker_binds_code_quota_and_notifications() -> None
     assert "expected_decar_eval_sha256" in worker
     assert "-lt 60" in submitter
     assert "-lt 720" in submitter
+    assert "--test-only --export=NONE" in submitter
+    assert "--parsable --export=NONE" in submitter
+    assert "git push" not in submitter
+
+
+def test_relative_where_recovery_reuses_predictions_and_keeps_gate_frozen() -> None:
+    root = Path(__file__).resolve().parents[1]
+    worker = (
+        root / "scripts/slurm_infographicvqa_relative_where_evaluation_recovery.sh"
+    ).read_text()
+    submitter = (
+        root / "scripts/submit_infographicvqa_relative_where_evaluation_recovery.sh"
+    ).read_text()
+    assert "#SBATCH --partition=debug" in worker
+    assert "#SBATCH --gres=gpu:rtx_4090:1" in worker
+    assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
+    assert "#SBATCH --mail-type=ALL" in worker
+    assert 'export CUDA_VISIBLE_DEVICES=""' in worker
+    assert "94e292d33fe9e55e9d50d53eef5f2590c4d5c751567feb2fe736867fc7dd6b6b" in worker
+    assert "1277c06f98a14ffbd8cfddb4a833c87a1a2a38de149cf786c87c6621e6f00def" in worker
+    assert "evaluation-recovery-v1" in worker
+    assert "fit_infographicvqa_relative_where_oof.py" not in worker
+    assert "frozen_comparators_exact_match" in worker
+    assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
+    assert "-lt 45" in submitter
+    assert "-lt 180" in submitter
     assert "--test-only --export=NONE" in submitter
     assert "--parsable --export=NONE" in submitter
     assert "git push" not in submitter
