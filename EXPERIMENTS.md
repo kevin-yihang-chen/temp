@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 13:07（Asia/Hong_Kong）
+更新时间：2026-09-02 13:16（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -146,10 +146,33 @@
   `scripts/submit_infographicvqa_attention_signed_stop_oof.sh` 提交。
 - 环境/资源：smoke 在 CPU 运行；完整任务预留 RTX 4090 但隐藏 GPU，
   4 CPU，64 GiB，45 分钟，全状态邮件。
-- 当前状态：Slurm Job `203330` 于 13:06:16 直接开始，运行中；
-  尚未打开任何 OOF 策略结果。提交 commit
+- 执行：Slurm Job `203330` 于 13:06:16 开始、13:13:16 完成，
+  runtime `00:07:00`，exit `0:0`，queue wait 11 秒。提交 commit
   `7b5f5ea2500cd49ad101c3dd11422f32d8e5bb98`，全状态邮件已由
   Slurm 合同确认。
-- 解释/下一步：若 2% primary 的 utility CI 不过零、paired improvement
-  CI 不过零或 positive-net precision 不超 entropy，则停止此模型族；不
-  事后改 C、特征、权重、seed 或 primary call rate。
+- 结果：`fixed_action_signed_stop_train_not_supported`。2% primary 为 479
+  calls；candidate utility `-0.0000626`，95% CI
+  `[-0.0007393, 0.0006553]`；entropy utility `-0.0005847`。Candidate-minus-
+  entropy `+0.0005221`，paired CI `[-0.0003039, 0.0014439]`。Positive-net
+  calls 为 90 vs 77，precision `18.79%` vs `16.08%`；因此仅 precision
+  条款通过，utility 过零与 paired improvement 两条失败。
+- 次要诊断：0.5% 点 candidate utility 为 `+0.0001598`，但 CI
+  `[-0.0001800, 0.0005725]` 跨零，且 paired lower endpoint 为
+  `-0.0000158`；不允许它挽救 primary 失败。10% 点 candidate utility 显著
+  为负。
+- 审计：所有 folds 均 source overlap 0，模型 6--7 iterations 收敛，OOF
+  coverage、matched calls、finite scores、输入哈希与无泄漏条款全部通过。
+- 产物：report SHA-256
+  `aa5de1fa1d9891d8425d192e7ed03782c003491d28c435dcf22abc69711e51ad`；
+  model SHA-256
+  `a053a47c5914d96423906abdd2d09500d3e2e193bb66826436a3149c0290be5e`；
+  scores SHA-256
+  `9bf4ad6a895864811427e9c37aeadf4844a8b5345165babb545db7fc9cc5f945`；
+  complete SHA-256
+  `47e5cf8eb5ae89ed3834042492122844ebf236058e9b093efd2b2b7fc7b1d62a`；
+  execution SHA-256
+  `aff57cd082b644a957ebd3a45442e636f463ecd94a4aaaca939234811924c7c4`。
+- 日志：`slurm-infovqa-signed-stop-203330.out`。
+- 解释/下一步：存在弱排序信号，但净 utility 和统计证据不足。按
+  冻结协议停止此模型族；不事后改 C、特征、权重、seed、classifier
+  family 或 primary call rate。等待 literature where 强基线决定下一主路线。

@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 13:07（Asia/Hong_Kong）
+更新时间：2026-09-02 13:16（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -31,6 +31,12 @@
    signed-value stop 候选，并在 implementation commit `0683526` 完成实现。
    真实输入 smoke 确认 80 维特征全部有限，五折 source overlap 均为
    0；未拟合模型或打开 OOF 策略结果。
+8. Fixed-action signed-value OOF（Job `203330`）在唯一 2% primary 上得到
+   `fixed_action_signed_stop_train_not_supported`。其 positive-net precision
+   从 entropy 的 `16.08%` 提高到 `18.79%`，但 utility 仍为
+   `-0.000063`，95% CI `[-0.000739, 0.000655]`；candidate-minus-entropy
+   为 `+0.000522`，paired CI `[-0.000304, 0.001444]`。只有 precision
+   条款通过，不允许 calibration 或事后调参。
 
 ## 当前最佳结果
 
@@ -41,15 +47,17 @@
 - 新的诊断上界：固定 raw action 后的 privileged stop utility 为
   `+0.021318`，远高于 entropy 5% 点的 `-0.000410`；这只是学习
   stopping 的充分动机，不是 deployable 结果。
+- 最新 deployable OOF 证据：signed-value stop 在主点比 entropy 有正向但不显著
+  的 utility 差异，且自身 utility 不能过零；该候选已正式失败。
 - 尚无满足主张、校准、跨域与正式测试要求的最终方法。
 
 ## 正在运行
 
-| Job | 内容 | 资源 | 状态（13:07 快照） | 关键产物 |
+| Job | 内容 | 资源 | 状态（13:16 快照） | 关键产物 |
 |---:|---|---|---|---|
 | 203273 | ViCrop/LASER literature attention 完整抽取 | 2×H800，16 CPU，192 GiB | RUNNING，wave 1 两分片均至少 2,560 decisions | `literature-attention-where-v1/` |
-| 203330 | Fixed raw action signed-value stop OOF | RTX 4090 预留但隐藏，4 CPU，64 GiB | RUNNING，13:06 开始，45 分钟时限 | `attention-signed-stop-oof-v1/` |
 
+Job `203330` 已于 13:13 正常完成，runtime `00:07:00`，exit `0:0`。
 Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 均启用全状态邮件。当前改动均为本地提交，未 push GitHub。
 
@@ -61,7 +69,11 @@ Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 - Stop diagnostic 使用已打开的 train outcomes，只有诊断价值；任何后续方法都
   必须另行冻结并 whole-source OOF，不能把 privileged ceiling 当部署结果。
 - Simple attention confidence 已被证据否定；不应继续搜索 attention
-  max/margin 变形。下一 stop 实验必须单候选、低容量且 source-held-out。
+  max/margin 变形。后续 stop 候选已按单候选、低容量且
+  source-held-out 的规则完成评估。
+- 单一低容量 source-OOF signed-value stop 也已失败。它有轻微 precision
+  和 harm 改善，但不显著且 utility 不过零；禁止在当前已打开 outcomes
+  上继续调该模型族。
 - 当前论文新颖性仍不足。Generic action-value classifier 本身与 selective VQA、
   learning-to-defer 等工作重叠；论文级贡献必须来自反事实工具收益、stop/where
   因子化、风险控制与跨数据集证据的组合。
@@ -71,7 +83,7 @@ Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 
 ## 下一步最优行动
 
-等待 Job `203330` 的唯一 2% primary 判定；不用次要 call rate 挽救失败。
-同时让 Job `203273` 完成而不
+已关闭 H3 的局部调参路线。等待 Job `203273` 的冻结 literature where
+强基线；让其完成而不
 改变其冻结设置。禁止继续调 raw attention 层、head、max/margin 或 entropy
 threshold。

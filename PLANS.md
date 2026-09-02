@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 13:07（Asia/Hong_Kong）
+更新时间：2026-09-02 13:16（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -59,14 +59,19 @@ deployable where 基线，但所有 call rate 的净 utility 仍为负。现有�
   指标计算。唯一主检验点为 2%（479 calls）。
 - 任务：Slurm `203330`，13:06 已开始，4 CPU / 64 GiB，RTX 4090 预留
   但对 evaluator 隐藏，45 分钟时限。
+- 结果：`fixed_action_signed_stop_train_not_supported`。2% primary 的
+  utility 为 `-0.000063`，95% CI `[-0.000739, 0.000655]`；相对 entropy
+  改善 `+0.000522`，paired CI `[-0.000304, 0.001444]`。Positive-net
+  precision 从 `16.08%` 升至 `18.79%`，但另两个主条款失败。
 
 ## 决策树
 
 1. Fixed-action privileged ceiling 已证实明显，max/margin 已证实无增益；
    因此进入低容量、whole-source OOF 的 fixed-action signed-value stop 模型。
    只预测“是否执行已固定动作”，不再同时学习四动作排序。
-2. 若 H3 在所有注册预算仍不能优于 entropy 或不能保持正 utility：
-   停止该 stop 学习路线，不在当前 train outcomes 上继续搜索模型。
+2. H3 已在唯一 primary 上失败：停止该线性 signed-value stop 模型族，
+   不在当前 train outcomes 上继续搜索 C、特征、权重、seed、call rate
+   或 classifier family。
 3. 若简单 confidence 已稳定优于 entropy：优先冻结无训练或单调小模型，减少
    多重比较与过拟合风险。
 4. 若 ViCrop/LASER where-only 通过：先做独立 calibration；stop 模型作为后续
@@ -77,10 +82,11 @@ deployable where 基线，但所有 call rate 的净 utility 仍为负。现有�
 
 ## 紧接着的行动
 
-1. H3 的完整 source-OOF signed-value stop 评估已作为 Job `203330`
-   运行；完成后只按唯一 2% primary 做决策。
+1. 将 Job `203330` 的负结果与弱排序信号写入不可变审计；不对 H3
+   调参或开放 calibration。
 2. 持续监控 `203273` checkpoint、吞吐、磁盘与 8 小时时限；完成后自动合并审计。
 3. 提交 literature Bonferroni evaluator，绑定 feature job 的旧 commit 与当前
    evaluator commit。
-4. Literature 和 H3 的结果分别写入 `PROJECT_STATUS.md` 与 `EXPERIMENTS.md`，
-   不在结果出来后选择有利阈值或模型族。
+4. Literature 结果决定下一主路线：若其 where-only 也失败，停止在
+   当前 action/stop 特征上局部调参，转向新 action space/proposer 或论文级瓶颈
+   审计重新定位。
