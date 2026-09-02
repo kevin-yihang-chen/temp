@@ -25,3 +25,16 @@ def test_attention_where_submitter_requires_quota_and_test_only() -> None:
     assert "sbatch --test-only --export=NONE" in content
     assert "sbatch --parsable --export=NONE" in content
     assert "git status --porcelain --untracked-files=no" in content
+
+
+def test_attention_where_evaluator_is_train_only_and_reuses_formal_bootstrap() -> None:
+    content = (
+        ROOT / "scripts/evaluate_infographicvqa_attention_where.py"
+    ).read_text()
+    assert 'mmap_mode="r"' in content
+    assert "evaluate_attention_where" in content
+    assert '"formal_bootstrap_reused": True' in content
+    assert '"validation_opened": False' in content
+    assert '"test_opened": False' in content
+    assert '"validation_or_test_inputs_used": False' in content
+    assert "download" not in content.lower()

@@ -15,6 +15,9 @@ from beyond_entropy.infographicvqa_decar_evaluation import (
     evaluate_entropy_where_hybrid,
     parse_decar_predictions,
 )
+from beyond_entropy.infographicvqa_attention_where_evaluation import (  # noqa: E402
+    evaluate_attention_where,
+)
 from beyond_entropy.infographicvqa_relative_where import RELATIVE_WHERE_VARIANTS
 from beyond_entropy.infographicvqa_relative_where_evaluation import (
     _first_exact_difference,
@@ -397,6 +400,176 @@ def test_relative_where_frozen_difference_reports_first_exact_path() -> None:
         == "$.source_balanced.utility: recomputed=0.1 frozen=0.3"
     )
     assert _first_exact_difference({"value": [1, 2]}, {"value": [1, 2]}) is None
+
+
+def test_attention_where_evaluation_reuses_all_frozen_comparators() -> None:
+    torch = pytest.importorskip("torch")
+    records = [record for index in range(8) for record in _decision(index)]
+    decar_predictions = [_prediction(index) for index in range(8)]
+    indices = np.tile(np.arange(4, dtype=np.int32), (100, 1))
+    formal = evaluate_decar_oof(
+        records,
+        decar_predictions,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+    )
+    hybrid = evaluate_entropy_where_hybrid(
+        records,
+        decar_predictions,
+        formal,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    oracle = evaluate_entropy_oracle_where_factorization(
+        records,
+        decar_predictions,
+        hybrid,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    oracle["decision"] = "where_bottleneck_supported"
+    relative_predictions = []
+    nll_rows = []
+    attention_decisions = []
+    for index in range(8):
+        scores = (0.0, 1.0, -1.0, -0.5)
+        probabilities = (0.15, 0.55, 0.1, 0.2)
+        relative_predictions.append(
+            {
+                "schema": "infographicvqa_relative_where_oof_prediction_v1",
+                "state_id": f"state-{index:03d}",
+                "replicate_id": "replicate-000",
+                "image_id": f"image-{index:03d}",
+                "source_id": f"source-{index // 2:03d}",
+                "outer_fold": (index // 2) % 5,
+                "variants": {
+                    name: {
+                        "action_scores": list(scores),
+                        "action_probabilities": list(probabilities),
+                        "selected_action_id": "ug-grid-01",
+                        "predicted_margin": 1.0,
+                    }
+                    for name in RELATIVE_WHERE_VARIANTS
+                },
+            }
+        )
+        siblings = _decision(index)
+        zooms = siblings[1:]
+        attention_decisions.append(
+            {
+                "state_id": f"state-{index:03d}",
+                "replicate_id": "replicate-000",
+                "image_id": f"image-{index:03d}",
+                "source_id": f"source-{index // 2:03d}",
+                "question": "Question?",
+                "action_ids": list(DECAR_ACTION_IDS),
+                "tool_costs": torch.ones(4, dtype=torch.float32),
+                "bboxes": torch.tensor(
+                    [record.candidate_bbox.to_list() for record in zooms],
+                    dtype=torch.float32,
+                ),
+                "state_signals": torch.tensor(
+                    [1.0 - 0.01 * index], dtype=torch.float32
+                ),
+                "question_region_attention": torch.tensor(
+                    [0.1, 0.7, 0.1, 0.1], dtype=torch.float32
+                ),
+                "question_image_attention_mass": 1.0,
+            }
+        )
+        for action_id in ("answer-now", *DECAR_ACTION_IDS):
+            nll_rows.append(
+                {
+                    "schema": "visual_action_answer_nll_v1",
+                    "state_id": f"state-{index:03d}",
+                    "replicate_id": "replicate-000",
+                    "image_id": f"image-{index:03d}",
+                    "source_id": f"source-{index // 2:03d}",
+                    "action_id": action_id,
+                    "answer_mean_nll": (
+                        1.0
+                        if action_id == "answer-now"
+                        else {
+                            "ug-grid-00": 0.1,
+                            "ug-grid-01": 0.0,
+                            "ug-grid-02": 0.2,
+                            "ug-grid-03": 0.3,
+                        }[action_id]
+                    ),
+                }
+            )
+    relative = evaluate_relative_where_oof(
+        records,
+        relative_predictions,
+        decar_predictions,
+        nll_rows,
+        hybrid,
+        oracle,
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    attention_payload = {
+        "format_version": 1,
+        "metadata": {
+            "outcomes_included": False,
+            "question_region_attention": {
+                "source_features_sha256": "features",
+                "source_rollouts_sha256": "rollouts",
+                "model_revision": "model",
+                "attention_implementation": "eager",
+                "top_layers": 4,
+                "head_pooling": "mean",
+                "question_token_pooling": "mean",
+                "candidate_pooling": "ROI mean then normalize across candidates",
+                "candidate_actions_executed": False,
+                "replace_question_embedding": False,
+                "code_revision": "code",
+                "completed_decisions": 8,
+                "total_decisions": 8,
+            },
+        },
+        "decisions": attention_decisions,
+    }
+    result = evaluate_attention_where(
+        records,
+        attention_payload,
+        decar_predictions,
+        relative_predictions,
+        nll_rows,
+        hybrid,
+        oracle,
+        relative,
+        expected_attention_code_revision="code",
+        expected_model_revision="model",
+        expected_source_features_sha256="features",
+        expected_rollouts_sha256="rollouts",
+        bootstrap_indices=indices,
+        expected_decisions=8,
+        expected_sources=4,
+        expected_bootstrap_resamples=100,
+    )
+    assert result["validation_or_test_inputs_used"] is False
+    assert result["attention_features_outcomes_included"] is False
+    assert result["all_state_attention_localization"]["exact_nll_teacher"][
+        "question_balanced"
+    ] == 1.0
+    point = result["operating_points"][0]
+    assert point["frozen_comparators_exact_match"] is True
+    assert set(point["paired_source_utility_differences"]) == {
+        "entropy_fixed_ug_grid_00",
+        "entropy_random",
+        "old_decar_where",
+        "relative_where",
+    }
+    assert len(result["attention_max_score_deciles"]) == 8
+    assert len(result["attention_margin_deciles"]) == 8
 
 
 def test_decar_evaluation_script_freezes_train_only_full_protocol() -> None:
