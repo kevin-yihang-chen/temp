@@ -5,6 +5,10 @@
 来源与止损边界，不是实验 protocol，不授权读取 validation/test/reserve、拟合模型
 或提交计算任务。
 
+后续决议：answer-conditioned evidence 候选已在实现/GPU 前因直接文献碰撞关闭，
+详见 `infographicvqa-answer-conditioned-evidence-feasibility-and-collision-audit-20260902-v1.md`。
+本文中的“唯一优先候选”仅保留为当时的选择记录，不再授权后续实现。
+
 ## 已知约束
 
 1. 工具 headroom 不是零：固定 raw action 的 privileged positive-net stop utility
@@ -60,6 +64,7 @@ whole-source lower endpoint 同时大于零。所有额外 baseline 计算都必
 - 即使 train OOF 通过，也只授权单独 calibration protocol；不得立即打开
   validation/test 或宣称顶会结果。
 
-这个设计把下一次实验定义为最后一次机制上不同、信息来源明确的 stop 候选，而不是
-无限续命。它也保留了一个诚实的失败出口：若新信息仍不能识别稀疏正收益尾部，项目
-应转为审计论文或降低投稿目标，而不是继续调整局部超参数。
+这个设计原本把下一次实验定义为最后一次机制上不同、信息来源明确的 stop 候选，
+而不是无限续命。后续文献 gate 已在实验前关闭它。项目因此不再继续调整局部
+pre-call 超参数，也不以降低投稿档位作为完成出口；下一步转向实质不同的
+counterfactual visual-action credit 可行性审计。

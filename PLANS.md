@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 17:25（Asia/Hong_Kong）
+更新时间：2026-09-02 17:53（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -27,6 +27,13 @@ signed-value OOF stop 都无法利用它。
 因此，当前失败不是“没有任何有用 crop”，而是现有 outcome-free representation
 无法以足够精度预测哪些状态值得调用。Fixed four-box attention-localization、
 entropy/simple-confidence stopping 与当前线性 signed-value stop 家族现已关闭。
+
+原本唯一优先的 answer-conditioned evidence consistency 在实现前完成了代码与一手
+文献审计：工程上可以从同一次 baseline generation 复用 hidden states，但
+ContextualLens、LRP、VRP、V-Loop 等已直接覆盖 answer/image hidden-state probe、
+grounding 与 reliability。该候选因此以
+`answer_conditioned_evidence_candidate_rejected_before_experiment` 关闭，没有提交
+GPU、拟合模型或读取新 outcome。
 
 ## 已完成的关键假设
 
@@ -58,9 +65,37 @@ entropy/simple-confidence stopping 与当前线性 signed-value stop 家族现�
 
 ## 下一主假设与路线选择
 
-### H4：需要新的 pre-action 信息来源，而不是现有特征上的局部调参
+### H4：新的 pre-action hidden-state 信息足以形成独立方法
 
-下一方法候选必须同时满足：
+- 可行性：通过；Transformers `5.4.0` 可在 generation output 中返回 hidden
+  states，旧 feature contract 确实没有 answer semantics。
+- 新颖性：失败；与现有 hidden-state/grounding reliability probes 直接碰撞。
+- 决定：实验前关闭，不实现、不提交作业、不把它记成负实验结果。
+
+### H5：same-prefix signed action credit 能改善视觉工具 RL
+
+下一唯一优先研究对象不再是 deployable pre-call classifier，而是对同一 agent
+prefix 下 factual visual observation 与 no-op/固定 alternative observation 的最终
+任务差定义 signed、cost-aware `A_visual`，并只分配给对应 tool/action tokens。
+Final-answer/reasoning tokens 继续使用 outcome reward。
+
+候选必须同时满足：
+
+1. 与 VTool-R1 outcome-only、ToolVision committee evidence/MUT、AdaTooler-V
+   query benefit 和 AdaptVision decoupled objective 明确区分；
+2. 不是 question-level necessity label，而是具体 action/observation 的同 prefix
+   signed rescue/harm/cost contrast；
+3. 在 upstream 第一段 tool tokens 当前被 `response_mask=0` 的前提下，新增独立且
+   可审计的 action mask/advantage 通路；
+4. 先通过 synthetic sign/mask/unit test，再做极小 4×H800 smoke；
+5. primary 必须是与 outcome-only/shuffled-credit 在相同 data、steps、rollouts、
+   GPU-hours 和 tool budget 下的比较；
+6. 短程学习曲线需同时改善 task score、cost-adjusted utility 与 harmful-call rate，
+   否则不扩完整训练。
+
+### 顶会约束
+
+所有后续候选仍必须满足：
 
 1. 引入可解释的新信息来源或 action proposer，而不是 attention 层/head、阈值、
    线性 head 或 call rate 的变体；
@@ -72,13 +107,12 @@ entropy/simple-confidence stopping 与当前线性 signed-value stop 家族现�
 5. official-train 只作 exploratory/source-OOF screen；validation/test/reserve 继续
    封存，只有严格 train gate 通过才允许新 calibration 协议。
 
-候选方向优先级：
+路线优先级：
 
-1. 具有新观测语义的显式 counterfactual stop/where representation；
-2. 能突破固定四格 action-bank 限制的 proposer，但必须对额外推理/视觉获取付费；
-3. 若没有候选能在冻结 OOF gate 上给出正 utility，则停止正方法叙事，转为完整
-   sibling bank、prospective risk 与跨域失败机制的 empirical audit 路线，并重新
-   审计它是否达到顶会新颖性。
+1. same-prefix counterfactual visual-action credit 的 novelty/implementation gate；
+2. 只有 gate 通过才进行 matched-control 3B RL smoke 与短程曲线；
+3. benchmark/causal audit 只能在规模、模型/工具广度与新 estimand 足以独立满足
+   顶会标准时成为主路线，不能作为降低投稿档位的默认 fallback。
 
 ## 止损规则
 
@@ -87,16 +121,23 @@ entropy/simple-confidence stopping 与当前线性 signed-value stop 家族现�
 - 不用 validation/test 帮助选路线，不把 privileged oracle 当部署结果。
 - 下一候选必须先写 protocol，再实现，再 smoke；没有能区分科学假设的新信息时
   不提交 GPU job。
-- 若下一次“机制上不同”的冻结 OOF 候选仍不能获得正 utility 或显著强于
-  entropy/raw-attention，正方法路线关闭，不再用算力追逐局部变体。
+- 不再对 answer hidden-state/grounding probe、generic group-DRO/IRM 或 conformal
+  threshold 进行局部变体搜索。
+- 若 action-credit novelty audit 或短程 matched-control gate 失败，关闭该路线，
+  重新选择实质方法/benchmark contribution；不以降低投稿目标作为完成条件。
 
 ## 紧接着的行动
 
-1. 已将 Jobs `203273`/`203340` 的完整负结果、哈希与路线关闭规则写入不可变审计。
-2. 同步 `PROJECT_STATUS.md` 与 `EXPERIMENTS.md`；保持 validation/test/reserve
-   封存。
-3. H4 候选矩阵已完成；唯一优先候选是复用 baseline generation 的
-   answer-conditioned evidence consistency。先做 outcome-free feature/cost/literature
-   feasibility audit，不拟合、不读 endpoints。
-4. 只有 feasibility audit 通过才冻结单一 source-OOF protocol；当前 Slurm 队列
-   为空，在 protocol 和真实输入 smoke 完成前不烧 GPU。
+1. Answer-conditioned candidate 的代码可行性与文献碰撞审计已落盘；候选关闭。
+2. 顶会级 action-credit pivot 已冻结为唯一优先 feasibility 对象；还不是训练
+   authorization。
+3. 浅克隆并固定 VTool-R1 `training-v2` upstream，核实 mask、advantage、agent-loop、
+   checkpoint 与 4×H800 dependency surface。静态 gate 已完成：上游 action tokens
+   当前被 mask 掉，必须新增 action/answer masks 和 token-local advantage；vLLM
+   `0.17.0` Docker 与 `<=0.12.0` package constraint 冲突，尚未授权装环境或训练。
+4. 下一步写唯一 matched-control protocol 和纯 synthetic sign/mask tests；然后冻结
+   权威 image/digest 并做 import-only audit。上述项目全通过后才允许 4×H800 smoke。
+5. 当前 Slurm 队列为空；实时剩余 GPU quota 为 179,652 分钟（2,994.2 GPU-hours），
+   账户上限 4 GPU/4 H800。算力允许有界 matched-control，但 protocol 与 synthetic
+   tests 前不烧 GPU。
+6. 保持 validation/test/reserve 封存；本地修改不 push GitHub。

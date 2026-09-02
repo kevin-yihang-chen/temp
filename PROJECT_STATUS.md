@@ -1,18 +1,21 @@
 # 项目状态
 
-更新时间：2026-09-02 17:25（Asia/Hong_Kong）
+更新时间：2026-09-02 17:53（Asia/Hong_Kong）
 
 ## 总体判断
 
-项目仍然存活，但“当前方法自然发展成顶会正结果”的路线已进入高风险状态，尚未
-形成 ECCV/ICCV/CVPR 可投稿主结果。最新 literature-attention 实验正式否定了
-ViCrop/LASER 能在当前 fixed four-box bank 与 entropy stop 下挽救净 utility；
-继续局部调 attention 或 threshold 没有科学价值。
+项目仍然存活，但原始“训练一个 deployable pre-call value/gate 即得到顶会正结果”
+路线现在应视为高概率失败，尚未形成 ECCV/ICCV/CVPR 可投稿主结果。最新
+literature-attention 实验否定了 ViCrop/LASER；随后 answer-conditioned hidden-state
+候选又因直接文献碰撞在实验前关闭。继续局部调 attention、hidden-state probe、
+classifier 或 threshold 没有科学价值。
 
 这不是工程失败，也不是证明研究问题不存在。完整 sibling outcomes 显示有大量
 可获益状态，固定 raw action 的 privileged stopping utility 上界也显著为正；
 失败点是 deployable pre-action prediction 无法跨 source 稳定识别稀疏正收益尾部。
 当前最有价值的产出是严格的 stop/where 因子化与负结果证据，而不是一个成功策略。
+下一步已转为机制不同的视觉工具 RL action-local credit feasibility，而不是给旧
+gate 换特征。
 
 ## 已完成的证据链
 
@@ -39,6 +42,15 @@ ViCrop/LASER 能在当前 fixed four-box bank 与 entropy stop 下挽救净 util
    LASER 在 0.5/1/2/5/10% 的所有 utility 点估计均为负，也未显著优于 raw
    attention。完整结果见
    `infographicvqa-literature-attention-where-result-job-203340-v1.md`。
+9. Answer-conditioned evidence outcome-free feasibility audit 完成。代码层面可从同
+   一 generation 返回 answer hidden states，但 ContextualLens、LRP、VRP、V-Loop
+   等已直接覆盖核心 representation/probe/grounding 组合；决定码为
+   `answer_conditioned_evidence_candidate_rejected_before_experiment`。没有模型拟合、
+   新 outcome 或 GPU job。
+10. VTool-R1 `training-v2` 已只读浅克隆并固定到
+    `d2aa28353ec10c7f91b39f502925003a81d6982d`。静态 gate 支持 action-credit 可实现，
+    但确认 tool/action tokens 当前被 mask，必须新增 token-local credit 通路；同时
+    vLLM Docker/package 版本冲突尚未解决。没有安装环境、训练或提交 job。
 
 ## 当前最佳结果与解释边界
 
@@ -68,9 +80,14 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-2026-09-02 17:15 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
+2026-09-02 17:42 HKT 的实时 `squeue -u yihangc` 为空；当前没有运行或排队的
 Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件已按全状态合同
 配置。当前修改只保留在本地，未 push GitHub。
+
+同日 17:42--17:44 HKT 的 live quota 为 GPU 222,000 分钟总额、42,348 已用、
+179,652 剩余（2,994.2 GPU-hours，19.08% 已用）；association 上限为 4 GPU、
+4 H800、48 CPU。算力足以支持一次有界 3B matched-control RL 研究，但科学 gate、
+依赖与训练稳定性仍是主要风险。
 
 ## 已关闭的路线
 
@@ -79,6 +96,8 @@ Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件�
 - attention layer/head/ratio、max/margin、entropy threshold 与 call-rate sweep；
 - 当前 80 维特征上的线性 signed-value stop family，包括更换 C、权重、seed 或
   classifier family 的事后搜索；
+- answer hidden-state/contextual embedding/grounding reliability probe 作为独立新
+  方法；generic group-DRO、IRM 或 conformal threshold 的局部替代；
 - 用已打开 train outcomes 选择有利 operating point，或用 privileged oracle
   冒充部署结果。
 
@@ -87,17 +106,21 @@ Slurm job。Jobs `203273` 与 `203340` 均已正常完成，计算状态邮件�
 - Positive-net calls 稀疏且跨 source 异质，现有表征只能得到弱排序信号。
 - 固定四格 action bank 可能限制 proposal quality；但更丰富 proposer 会增加成本，
   并与 GapSight、CropVLM、AdaptVision 等工作产生更强新颖性碰撞。
-- Generic pre-call classifier、necessity/harm learning、attention crop 与
-  continuous crop routing 均已有直接相关工作；仅换模型不足以构成贡献。
+- Generic pre-call classifier、necessity/harm learning、attention crop、hidden-state
+  reliability probe 与 continuous crop routing 均已有直接相关工作；仅换模型不足
+  以构成贡献。
 - 即使新的 train OOF 候选通过，仍需独立 calibration、sealed formal 和至少一个
   generalization axis，时间不只由单次 GPU runtime 决定。
+- Same-prefix action credit 与 ToolVision 的 stepwise evidence gain 存在强碰撞；
+  若不能证明具体 action 的 signed causal contrast 和 token-local training 带来
+  matched-budget improvement，该硬转向也会失败。
 
 ## 下一步最优行动
 
-不立即提交新 GPU 任务。Post-attention pivot matrix 已把唯一优先候选缩到
-answer-conditioned evidence consistency：利用 baseline 已生成答案的语义与区域
-grounding，为 stopping 引入旧 80 维 features 没有的新信息，同时固定 raw-attention
-action。下一步只做 outcome-free feature availability、在线成本与 primary-literature
-feasibility audit；不拟合、不读 endpoints。若它不能低成本复用 baseline generation，
-或随后冻结的 source-OOF gate 仍失败，就关闭正方法路线，转向严谨 empirical audit
-并重新评估投稿档位。
+不立即提交新 GPU 任务。Answer-conditioned 候选已在文献 gate 关闭；唯一优先行动
+改为 same-prefix signed visual-action credit。Upstream 静态 gate 已完成，结论为
+`upstream_static_feasibility_supported_with_dependency_and_credit_path_blockers`。下一步
+只写唯一 matched-control protocol、action/answer mask 与 arm-swap antisymmetry 的
+纯 synthetic tests，并冻结权威 dependency image/digest。只有这些检查和极小
+4×H800 smoke 全通过，才允许短程 matched-control training。目标仍是三大会 main
+conference，不设置降低投稿档位的完成出口。

@@ -1,5 +1,33 @@
 # Compute-budget plan — point-in-time snapshot 2026-08-28
 
+## 2026-09-02 17:42--17:44 HKT live refresh
+
+旧快照中的 42,000 GPU-minute 总额已经失效。当前 live helper 与 association 记录
+一致：
+
+- GPU quota：222,000 分钟；已用 42,348；剩余 179,652（2,994.2 GPU-hours），
+  使用率 19.08%。
+- CPU quota：2,664,000 分钟；已用 200,618；剩余 2,463,382 分钟，使用率 7.53%。
+- association 上限：4 GPU、4 H800、48 CPU；查询时当前使用均为 0。
+- `squeue -u yihangc` 为空。H800/H100 partitions 有 mixed/allocated nodes，但该状态
+  只是一时快照，不保证提交后立即调度。
+
+因此旧的“一次 4 卡 24 小时几乎耗尽余额”判断不再成立。当前配额足以进行有界的
+3B matched-control RL、失败恢复和必要的第二次验证；仍不授权无 protocol 的多 seed/
+多模型 sweep。每次提交前必须重新查询 live quota，并继续使用全状态邮件。
+
+新的支出顺序：
+
+1. Counterfactual visual-action credit 的 full-text novelty 与 upstream 静态
+   feasibility audit 已完成，不使用 GPU；当前结论带 dependency/credit-path
+   blockers，不等于训练授权。
+2. protocol 与 synthetic mask/sign tests 通过后，做极小 4×H800 smoke；记录 method、
+   outcome-only 与 shuffled-credit 每步真实耗时和峰值显存。
+3. 只有短程 matched-control 学习曲线同时改善 task score、utility 与 harmful-call
+   rate 才扩完整 3B run。
+4. 为 outcome-only matched control、失败恢复、独立 benchmark/backbone replication
+   预留至少一半当前余额；不把配额全花在 proposed branch。
+
 ## Account limits and current usage
 
 The following values were queried live on `cluster3` while the ChartQAPro

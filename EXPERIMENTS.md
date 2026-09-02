@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 17:25（Asia/Hong_Kong）
+更新时间：2026-09-02 17:53（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -228,3 +228,54 @@
 - 结论/下一步：关闭当前 attention-localization/simple-confidence family；不调
   layer、head、ratio、threshold、call rate 或旧 classifier family。下一步必须
   引入新的 pre-action 信息来源/action proposer，或转为论文级 empirical audit。
+
+## E-20260902-08：Answer-conditioned evidence outcome-free feasibility gate
+
+- 假设：复用 baseline answer generation 的 token hidden states，并与原图区域
+  embeddings 计算 evidence consistency，可为 stopping 引入旧 80 维 features 没有
+  的合法 pre-tool 信息，同时形成足够独立的新方法。
+- 审计基线 commit：`c1f080a`；本项没有 feature/model/result commit。
+- 数据：不读任何 sibling outcome、ground truth、validation/test/reserve；只审计
+  代码接口、固定环境类型与 primary literature。
+- 配置/检查：`Qwen25VLBackend.infer` 的 generation contract；Transformers
+  `5.4.0` 的 `GenerateDecoderOnlyOutput` annotations；现有 semantic extractor 的
+  question/global/region outputs；answer/hidden-state/grounding 相关一手文献。
+- 命令：`rg`/`sed` 静态审计；
+  `/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python -c ...` 只打印
+  Transformers 版本与 generation output 字段。
+- 环境/资源：CPU-only 静态检查；无模型加载、无 GPU、无 Slurm job、无新 artifact
+  outcome；validation/test/reserve 继续封存。
+- 结果：工程 feasibility 通过，但顶会 novelty gate 失败。ContextualLens、LRP、
+  VRP、V-Loop 与 grounding-signature work 已覆盖 hidden-state/attention probe、
+  answer-conditioned verification 与视觉 grounding 的核心组合。
+- 决定：`answer_conditioned_evidence_candidate_rejected_before_experiment`。不实现、
+  不拟合、不提交 GPU；不能把本项描述为实验负结果。
+- 审计：
+  `artifacts/docvqa-train-factorized-v2/ops/infographicvqa-answer-conditioned-evidence-feasibility-and-collision-audit-20260902-v1.md`。
+- 下一步：只审计 same-prefix signed counterfactual visual-action credit 的
+  novelty/upstream feasibility；generic hidden-state probe、group-DRO/IRM 或 threshold
+  变体关闭。
+
+## E-20260902-09：VTool counterfactual credit upstream static feasibility gate
+
+- 假设：在 pinned VTool-R1 `training-v2` 上可以实现 action-local signed credit，
+  且不需在静态阶段读取新 outcomes、安装 GPU 环境或提交 Slurm。
+- Pinned upstream：`d2aa28353ec10c7f91b39f502925003a81d6982d`；Apache-2.0；
+  本地只读浅克隆约 25 MiB，worktree clean。
+- 数据/配置：无数据、模型或 outcome；只审计 agent loop、trajectory mask、GRPO
+  advantage、checkpoint 与 3B recipe/dependency surface。
+- 环境/资源：CPU-only `rg`/`sed`/git 静态检查；无 dependency install、无 GPU、
+  无 Slurm job；validation/test/reserve 继续封存。
+- 结果：`upstream_static_feasibility_supported_with_dependency_and_credit_path_blockers`。
+  当前 tool/action chunk 在解析后整段 `response_mask=0`，observation 也为 0；GRPO
+  仅把 outcome scalar 广播到单一 response mask，因此现状下 action credit 梯度为
+  零。需要独立 `action_mask`/`answer_mask` 与 token-local advantage estimator。
+- 环境 blocker：Docker 使用 PyTorch `2.10.0`、CUDA `12.9.1`、vLLM `0.17.0`；
+  `setup.py` 却要求 `vllm<=0.12.0`，`requirements.txt` 还留有 `0.8.4` 注释。
+  未确定权威 image/digest 前不安装环境。
+- 恢复/成本：checkpoint/resume 入口存在，但 paired RNG/sampler 精确恢复和额外
+  continuation cost 尚需 smoke 测量。
+- 审计：
+  `artifacts/docvqa-train-factorized-v2/ops/vtool-counterfactual-credit-upstream-feasibility-audit-20260902-v1.md`。
+- 下一步：写唯一 matched-control protocol 和纯 synthetic sign/mask tests；在
+  dependency、mask、antisymmetry、resume 与 novelty gate 全通过前不授权训练。
