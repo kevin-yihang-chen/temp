@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 13:05（Asia/Hong_Kong）
+更新时间：2026-09-02 13:07（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -45,9 +45,10 @@
 
 ## 正在运行
 
-| Job | 内容 | 资源 | 状态（13:04 快照） | 关键产物 |
+| Job | 内容 | 资源 | 状态（13:07 快照） | 关键产物 |
 |---:|---|---|---|---|
 | 203273 | ViCrop/LASER literature attention 完整抽取 | 2×H800，16 CPU，192 GiB | RUNNING，wave 1 两分片均至少 2,560 decisions | `literature-attention-where-v1/` |
+| 203330 | Fixed raw action signed-value stop OOF | RTX 4090 预留但隐藏，4 CPU，64 GiB | RUNNING，13:06 开始，45 分钟时限 | `attention-signed-stop-oof-v1/` |
 
 Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 均启用全状态邮件。当前改动均为本地提交，未 push GitHub。
@@ -70,7 +71,7 @@ Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 
 ## 下一步最优行动
 
-单一 source-OOF fixed-action signed-value stop 候选的协议、实现与真实输入
-smoke 已通过；下一步是完整 OOF 评估。同时让 Job `203273` 完成而不
+等待 Job `203330` 的唯一 2% primary 判定；不用次要 call rate 挽救失败。
+同时让 Job `203273` 完成而不
 改变其冻结设置。禁止继续调 raw attention 层、head、max/margin 或 entropy
 threshold。

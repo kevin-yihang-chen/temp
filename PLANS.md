@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 13:05（Asia/Hong_Kong）
+更新时间：2026-09-02 13:07（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -57,6 +57,8 @@ deployable where 基线，但所有 call rate 的净 utility 仍为负。现有�
   有利 call rate。
 - 实现：commit `0683526`；真实输入 smoke 已通过，无模型拟合或策略
   指标计算。唯一主检验点为 2%（479 calls）。
+- 任务：Slurm `203330`，13:06 已开始，4 CPU / 64 GiB，RTX 4090 预留
+  但对 evaluator 隐藏，45 分钟时限。
 
 ## 决策树
 
@@ -75,8 +77,8 @@ deployable where 基线，但所有 call rate 的净 utility 仍为负。现有�
 
 ## 紧接着的行动
 
-1. H3 的冻结协议、实现和无 performance inspection 的真实输入 smoke 均已
-   完成；提交完整 source-OOF signed-value stop 评估。
+1. H3 的完整 source-OOF signed-value stop 评估已作为 Job `203330`
+   运行；完成后只按唯一 2% primary 做决策。
 2. 持续监控 `203273` checkpoint、吞吐、磁盘与 8 小时时限；完成后自动合并审计。
 3. 提交 literature Bonferroni evaluator，绑定 feature job 的旧 commit 与当前
    evaluator commit。
