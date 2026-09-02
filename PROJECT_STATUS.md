@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 12:49（Asia/Hong_Kong）
+更新时间：2026-09-02 13:05（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -27,6 +27,10 @@
    ceiling 为 `+0.021318`，95% CI `[0.018447, 0.024444]`，证明主要
    剩余 headroom 确实在 stopping。Attention max/margin stopping 在所有注册
    call rates 均比 entropy 更差，不能作为候选。
+7. 已在 protocol commit `e0f95d2` 中预先冻结单一 fixed-action
+   signed-value stop 候选，并在 implementation commit `0683526` 完成实现。
+   真实输入 smoke 确认 80 维特征全部有限，五折 source overlap 均为
+   0；未拟合模型或打开 OOF 策略结果。
 
 ## 当前最佳结果
 
@@ -41,9 +45,9 @@
 
 ## 正在运行
 
-| Job | 内容 | 资源 | 状态（12:47 快照） | 关键产物 |
+| Job | 内容 | 资源 | 状态（13:04 快照） | 关键产物 |
 |---:|---|---|---|---|
-| 203273 | ViCrop/LASER literature attention 完整抽取 | 2×H800，16 CPU，192 GiB | RUNNING，12:47 快照为 52 分钟，wave 1 | `literature-attention-where-v1/` |
+| 203273 | ViCrop/LASER literature attention 完整抽取 | 2×H800，16 CPU，192 GiB | RUNNING，wave 1 两分片均至少 2,560 decisions | `literature-attention-where-v1/` |
 
 Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 均启用全状态邮件。当前改动均为本地提交，未 push GitHub。
@@ -66,7 +70,7 @@ Job `203290` 已于 12:44 正常完成，runtime `00:18:09`。所有计算任务
 
 ## 下一步最优行动
 
-已授权冻结一个单一 source-OOF fixed-action signed-value stop 候选，先做
-真实输入工程 smoke，再完整 OOF 评估；同时让 Job `203273` 完成而不
+单一 source-OOF fixed-action signed-value stop 候选的协议、实现与真实输入
+smoke 已通过；下一步是完整 OOF 评估。同时让 Job `203273` 完成而不
 改变其冻结设置。禁止继续调 raw attention 层、head、max/margin 或 entropy
 threshold。

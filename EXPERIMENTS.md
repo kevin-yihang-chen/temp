@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 12:49（Asia/Hong_Kong）
+更新时间：2026-09-02 13:05（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -122,3 +122,32 @@
 - 结论/下一步：fixed action 有大量 stopping headroom，但简单 attention confidence
   失败。冻结一个单独的 whole-source OOF，低容量 signed-value stop 候选；
   不继续搜索 max/margin 变体。
+
+## E-20260902-06：Fixed-action signed-value stop OOF
+
+- 假设：固定 raw-attention action 后，一个低容量 source-held-out signed-value
+  classifier 能比 entropy 更好地识别 positive-net 调用尾部。
+- 协议 commit：`e0f95d2ff0ed01b0343530989d1a2b52242ada3d`；协议 SHA-256
+  `32e6080399153b91f1584d068590826fb105451c52c0a8944f0ce62ba6dac74a`。
+- 实现 commit：`0683526db78c13cdced9eda237b833e9614f54c5`。
+- 数据：同 E-20260902-05 的 official-train raw features/outcomes；绑定哈希见协议；
+  validation/test/reserve 保持封存。
+- 配置/种子：固定 raw attention argmax action；80 维 pre-action 特征；L2
+  logistic `C=0.01`，无 class weight，按绝对 net utility 加权并使每个
+  source 总权重相等；5 个 whole-source OOF folds，seed `20260918`。唯一
+  primary 为 2% / 479 calls；20,000 次冻结 whole-source bootstrap。
+- 验证９ 项相关单测通过；mypy 2 files 通过；Black check、shell
+  `bash -n` 和 `git diff --check` 通过。
+- 真实输入 smoke：23,946 decisions / 2,204 sources；80 维全部有限；
+  1,023 positive-net / 22,923 negative-net states；五折 train/held-out source
+  overlap 均为 0。`fit_performed=false`、`policy_metrics_computed=false`；
+  elapsed `00:58.67`，峰值 RSS `3,678,368 KiB`。
+- 命令：本地 runner `--smoke-only`；完整执行由
+  `scripts/submit_infographicvqa_attention_signed_stop_oof.sh` 提交。
+- 环境/资源：smoke 在 CPU 运行；完整任务预留 RTX 4090 但隐藏 GPU，
+  4 CPU，64 GiB，45 分钟，全状态邮件。
+- 当前状态：实现与 smoke 通过，待提交完整 OOF；尚未打开任何 OOF
+  策略结果。
+- 解释/下一步：若 2% primary 的 utility CI 不过零、paired improvement
+  CI 不过零或 positive-net precision 不超 entropy，则停止此模型族；不
+  事后改 C、特征、权重、seed 或 primary call rate。

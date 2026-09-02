@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 12:49（Asia/Hong_Kong）
+更新时间：2026-09-02 13:05（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -55,6 +55,8 @@ deployable where 基线，但所有 call rate 的净 utility 仍为负。现有�
 - 解释：这是 opened official-train 上的 exploratory OOF 候选。只有在预先
   固定的决策条款下通过，才能冻结到独立 calibration；不可事后选择
   有利 call rate。
+- 实现：commit `0683526`；真实输入 smoke 已通过，无模型拟合或策略
+  指标计算。唯一主检验点为 2%（479 calls）。
 
 ## 决策树
 
@@ -73,8 +75,8 @@ deployable where 基线，但所有 call rate 的净 utility 仍为负。现有�
 
 ## 紧接着的行动
 
-1. 将 `203290` 结果写入审计记录，冻结并实现 H3 的单一 source-OOF
-   signed-value stop 候选；先做无 performance inspection 的真实输入 smoke。
+1. H3 的冻结协议、实现和无 performance inspection 的真实输入 smoke 均已
+   完成；提交完整 source-OOF signed-value stop 评估。
 2. 持续监控 `203273` checkpoint、吞吐、磁盘与 8 小时时限；完成后自动合并审计。
 3. 提交 literature Bonferroni evaluator，绑定 feature job 的旧 commit 与当前
    evaluator commit。
