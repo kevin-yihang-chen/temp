@@ -7,6 +7,8 @@ import math
 import re
 from typing import Any, Callable, Literal, Mapping, Sequence
 
+import numpy as np
+
 from .counterfactual_action_credit import (
     TokenSpan,
     build_token_role_masks,
@@ -345,8 +347,8 @@ def inject_token_local_action_credit(
     data.batch["answer_mask"] = torch.as_tensor(
         prepared.answer_masks, dtype=response_mask.dtype, device=response_mask.device
     )
-    data.non_tensor_batch["vtool_action_credit_donor_trajectory_id"] = list(
-        prepared.donor_trajectory_ids
+    data.non_tensor_batch["vtool_action_credit_donor_trajectory_id"] = np.asarray(
+        prepared.donor_trajectory_ids, dtype=object
     )
     tool_count = sum(item.tool_attempted for item in trajectories)
     shuffled_batch_skipped = mode == "shuffled" and tool_count < 2

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 
+import numpy as np
 import pytest
 
 from beyond_entropy.vtool_action_credit import (
@@ -178,6 +179,23 @@ def test_runtime_injection_creates_real_action_token_gradient() -> None:
     assert torch.all(gradient[0, 4:7] != 0)
     assert gradient[0, 7] == 0
     assert metrics["action_credit/tool_trajectory_rate"] == pytest.approx(0.5)
+    donor_ids = data.non_tensor_batch["vtool_action_credit_donor_trajectory_id"]
+    assert isinstance(donor_ids, np.ndarray)
+    assert donor_ids.dtype == object
+    assert donor_ids.tolist() == ["tool-a", None]
+
+
+def test_runtime_injection_preserves_verl_chunkable_non_tensor_contract() -> None:
+    data = _runtime_batch()
+    data.non_tensor_batch = {
+        key: np.asarray(value, dtype=object)
+        for key, value in data.non_tensor_batch.items()
+    }
+    inject_token_local_action_credit(data, mode="signed")
+
+    assert all(
+        isinstance(value, np.ndarray) for value in data.non_tensor_batch.values()
+    )
 
 
 def test_runtime_injection_fails_if_upstream_still_masks_action_tokens() -> None:

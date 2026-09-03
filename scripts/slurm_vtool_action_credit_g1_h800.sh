@@ -36,6 +36,7 @@ launcher="${repo}/scripts/run_vtool_action_credit_g1.py"
 config="${repo}/configs/vtool_action_credit_g1_v1.json"
 audit_script="${repo}/scripts/audit_refocus_g1_runtime_dataset.py"
 analyzer="${repo}/scripts/analyze_vtool_action_credit_g1.py"
+dataproto_smoke="${repo}/scripts/smoke_vtool_action_credit_dataproto.py"
 jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq
 output_dir="${repo}/artifacts/docvqa-train-factorized-v2/g1-runs/paired-signed-v1/job-${SLURM_JOB_ID}"
 analysis_report="${output_dir}/rollout-analysis.json"
@@ -100,6 +101,10 @@ if [[ ! -x "${python_bin}" ]]; then
 fi
 if [[ ! -x "${analyzer}" ]]; then
   echo "G1 rollout analyzer is absent or not executable" >&2
+  exit 2
+fi
+if [[ ! -f "${dataproto_smoke}" ]]; then
+  echo "G1 DataProto chunk smoke is absent" >&2
   exit 2
 fi
 if [[ ! -x "${jq_bin}" ]]; then
@@ -200,6 +205,19 @@ export MKL_NUM_THREADS=4
 unset HF_TOKEN HUGGINGFACE_HUB_TOKEN OPENAI_API_KEY OPENAI_API_BASE \
   OPENAI_BASE_URL VTOOL_JUDGE_API_BASE HTTP_PROXY HTTPS_PROXY ALL_PROXY \
   http_proxy https_proxy all_proxy
+
+dataproto_report=$("${python_bin}" "${dataproto_smoke}")
+if ! "${jq_bin}" -e '
+  .decision == "vtool_action_credit_dataproto_chunk_passed" and
+  .chunks == 4 and
+  .protected_split_contents_accessed == false and
+  .model_weights_loaded == false and
+  (.checks | all(.[]; . == true))
+' <<< "${dataproto_report}" >/dev/null; then
+  echo "G1 DataProto chunk smoke failed" >&2
+  exit 2
+fi
+echo "DataProto chunk smoke: ${dataproto_report}"
 
 queue_wait_seconds=$((worker_start_epoch - submit_epoch))
 if [[ "${queue_wait_seconds}" -lt 0 ]]; then

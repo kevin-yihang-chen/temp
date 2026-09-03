@@ -11,6 +11,9 @@ repo=/userhome/cs3/yihangc/Documents/beyond-entropy
 worker="${repo}/scripts/slurm_vtool_action_credit_g1_h800.sh"
 launcher="${repo}/scripts/run_vtool_action_credit_g1.py"
 config="${repo}/configs/vtool_action_credit_g1_v1.json"
+runtime=/userhome/cs3/yihangc/Documents/runtime/vtool-action-credit-g1
+python_bin=/userhome/cs3/yihangc/anaconda3/envs/beyond-entropy-vtool-g1/bin/python
+dataproto_smoke="${repo}/scripts/smoke_vtool_action_credit_dataproto.py"
 jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq
 cd "${repo}"
 if [[ ! -x "${jq_bin}" ]]; then
@@ -25,12 +28,28 @@ if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
   echo "repository worktree must be clean before G1 submission" >&2
   exit 2
 fi
-for path in "${worker}" "${launcher}" "${config}" "${runtime_audit}"; do
+for path in "${worker}" "${launcher}" "${config}" "${runtime_audit}" "${dataproto_smoke}"; do
   if [[ ! -f "${path}" ]]; then
     echo "required G1 input is absent: ${path}" >&2
     exit 2
   fi
 done
+if [[ ! -x "${python_bin}" ]]; then
+  echo "frozen G1 Python executable is absent: ${python_bin}" >&2
+  exit 2
+fi
+dataproto_report=$(PYTHONPATH="${runtime}:${repo}:${repo}/src" \
+  "${python_bin}" "${dataproto_smoke}")
+if ! "${jq_bin}" -e '
+  .decision == "vtool_action_credit_dataproto_chunk_passed" and
+  .chunks == 4 and
+  .protected_split_contents_accessed == false and
+  .model_weights_loaded == false and
+  (.checks | all(.[]; . == true))
+' <<< "${dataproto_report}" >/dev/null; then
+  echo "G1 DataProto chunk smoke failed" >&2
+  exit 2
+fi
 if /usr/local/slurm/bin/squeue -h -u yihangc -n be-vtool-g1-signed | grep -q .; then
   echo "a paired-signed G1 job is already queued or running" >&2
   exit 2

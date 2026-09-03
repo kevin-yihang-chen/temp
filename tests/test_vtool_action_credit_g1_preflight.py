@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 from types import ModuleType
 from typing import Any
 
@@ -393,6 +394,8 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "analyze_vtool_action_credit_g1.py" in worker
     assert "rollout-analysis.json" in worker
     assert "paired_signed_g1_stop_rule_triggered" in worker
+    assert "smoke_vtool_action_credit_dataproto.py" in worker
+    assert "vtool_action_credit_dataproto_chunk_passed" in worker
     assert '.training.actor_attention_implementation == "sdpa"' in worker
     assert ".training.actor_use_remove_padding == false" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
@@ -401,12 +404,40 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "sbatch --test-only --export=NONE" in submit
     assert "show-cpu-gpu-quota" in submit
     assert "a paired-signed G1 job is already queued or running" in submit
+    assert "smoke_vtool_action_credit_dataproto.py" in submit
+    assert "vtool_action_credit_dataproto_chunk_passed" in submit
     assert "jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq" in submit
 
 
-def test_g1_worker_jq_all_checks_predicate_handles_object_values() -> None:
-    import subprocess
+def test_g1_dataproto_chunk_smoke_uses_pinned_runtime() -> None:
+    python_bin = Path(
+        "/userhome/cs3/yihangc/anaconda3/envs/beyond-entropy-vtool-g1/bin/python"
+    )
+    runtime = Path("/userhome/cs3/yihangc/Documents/runtime/vtool-action-credit-g1")
+    if not python_bin.is_file() or not runtime.is_dir():
+        pytest.skip("pinned VTool G1 runtime is unavailable")
 
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join([str(runtime), str(ROOT), str(ROOT / "src")])
+    completed = subprocess.run(
+        [
+            str(python_bin),
+            str(ROOT / "scripts" / "smoke_vtool_action_credit_dataproto.py"),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    report = json.loads(completed.stdout)
+    assert report["decision"] == "vtool_action_credit_dataproto_chunk_passed"
+    assert report["chunks"] == 4
+    assert all(report["checks"].values())
+    assert report["protected_split_contents_accessed"] is False
+    assert report["model_weights_loaded"] is False
+
+
+def test_g1_worker_jq_all_checks_predicate_handles_object_values() -> None:
     jq_bin = Path("/userhome/cs3/yihangc/anaconda3/bin/jq")
     if not jq_bin.is_file():
         pytest.skip("frozen jq executable is unavailable")
@@ -415,7 +446,7 @@ def test_g1_worker_jq_all_checks_predicate_handles_object_values() -> None:
         encoding="utf-8"
     )
     predicate = ".checks | all(.[]; . == true)"
-    assert worker.count(f"({predicate})") == 2
+    assert worker.count(f"({predicate})") == 3
 
     for checks, expected_exit_code in (
         ({"first": True, "second": True}, 0),
