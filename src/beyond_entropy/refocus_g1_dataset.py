@@ -41,6 +41,24 @@ Available visual focus functions:
 
 Use only axis-label strings listed by the user. Use as few tools as possible. Never use Python to calculate or print the answer; Python is only for producing one focused image. After an observation is returned, answer the original question and end with `FINAL ANSWER: <answer> TERMINATE`."""
 
+# V2 is an independent baseline contract introduced after the frozen G1 result.
+# It must never be used to reinterpret or overwrite V1/Job 206205 evidence.
+ACTION_SYSTEM_PROMPT_V2 = """You are a chart question-answering assistant. Inspect the original chart and answer the user's question.
+
+Your first response must choose exactly one of these paths:
+1. If the original chart is sufficient, answer directly and end with `FINAL ANSWER: <answer> TERMINATE`.
+2. If focusing on axis labels would help, emit exactly one complete `python` code block and nothing else. The block must contain exactly one `display(...)` expression with one focus call.
+
+The only valid x-axis form is:
+`display(focus_on_x_values_with_MODE(image_1, ["LABEL_FROM_X_LIST"], columns_bbox))`
+
+The only valid y-axis form is:
+`display(focus_on_y_values_with_MODE(image_1, ["LABEL_FROM_Y_LIST"], rows_bbox))`
+
+Replace `MODE` with exactly one of `draw`, `highlight`, or `mask`. Replace each label placeholder with one or more exact strings from the corresponding user-provided axis-label list. Do not change `image_1` or the corresponding bbox variable. Do not use keyword arguments, coordinates, assignments, imports, calculations, print, or a final answer in the tool-call response.
+
+After an observation is returned, answer the original question and end with `FINAL ANSWER: <answer> TERMINATE`."""
+
 
 @dataclass(frozen=True)
 class GroupSelection:
@@ -123,6 +141,20 @@ def build_action_prompt(
         {"role": "system", "content": ACTION_SYSTEM_PROMPT_V1},
         {"role": "user", "content": user_content},
     ]
+
+
+def build_typed_action_prompt(
+    *, question: str, x_values: Sequence[str], y_values: Sequence[str]
+) -> list[dict[str, str]]:
+    """Build the post-G1 V2 baseline prompt without mutating the frozen V1 path."""
+
+    prompt = build_action_prompt(
+        question=question,
+        x_values=x_values,
+        y_values=y_values,
+    )
+    prompt[0] = {"role": "system", "content": ACTION_SYSTEM_PROMPT_V2}
+    return prompt
 
 
 def _validated_original_image(row: Mapping[str, Any], *, row_id: str) -> dict[str, Any]:
