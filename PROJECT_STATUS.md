@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 17:47（Asia/Hong_Kong）
+更新时间：2026-09-03 19:42（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -9,7 +9,7 @@
 问题再次混入 `whether/when`。完整协议已冻结为 3 benchmark × 4 predictor levels × 3
 targets 的 36-cell 矩阵，并固定 split、强基线、成本、指标、bootstrap 与终局判定规则。
 
-当前完成的是协议和 runner 的第一层基础设施，不是实验成功：typed pre-action allowlist
+当前完成的是协议、runner 与冻结数据层，不是实验成功：typed pre-action allowlist
 会阻止 post-action/label 字段进入模型；固定工具 collapse 会强制四个 sibling crops、稳定
 tie-break 和四次成本；matrix checker 会在少于 36 cells 时拒绝完成；终局 classifier 只能
 按冻结规则输出 `GO/PIVOT/REPRESENTATION/STOP`，证据不足则报 inconclusive。
@@ -20,10 +20,19 @@ headroom；但 always-call utility 分别约为 `-0.1808/-0.1948/-0.1843`，说�
 取胜。这些数据缺关键 L0/L3 特征与 untouched test，V* 也不是最终冻结的 HRBench，因此
 正式完成度仍是 `0/36`，不能据此宣布 GO、PIVOT 或失败。
 
-下一步是完成统一 feature/data contract 和 image/source-disjoint 数据分配，然后实现并
-CPU smoke 三类 target 的训练、validation-only threshold、全指标与 paired source
-bootstrap。当前没有新 Slurm job、GPU 运行或 checkpoint；本轮代码保持本地，除非用户
-再次明确要求，否则不 push。
+统一 feature/data contract 和 image/source-disjoint 数据分配已经完成。冻结规模为：
+ChartQA `3600/900/1000` states；DocVQA `10861/2719/2147` states、对应
+`2800/700/500` source documents；HRBench `480/160/160` states。三套数据任意角色间的
+source 与 decoded-RGB overlap 都为零；22,027 条 manifest 的 9,651 个实际图片路径均
+存在，HRBench 151 个唯一图片又经独立全量 RGB 哈希复核。分配未读取模型 outcome，三个
+test 均未做新 rollout。allocation report SHA-256 为
+`4c072355b75dcd7b228267f30c4790efa3d9facbdae1a731ac903ec351efb468`。
+
+下一步是 opened ChartQA 单行真实 GPU smoke：同一状态生成 baseline + 四个固定 UG crop
+outcomes，并导出 L0--L3 pre-action features；它只验证运行合同，不构成 benchmark 结果。
+smoke 脚本已实现并要求单 GPU、clean revision、输入/代码哈希、离线模型、原子产物、
+四次工具收费和邮件 `ALL` 状态通知。当前尚未提交新 Slurm job、没有新 GPU 运行或
+checkpoint；代码保持本地，除非用户再次明确要求，否则不 push。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均

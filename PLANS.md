@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 17:47（Asia/Hong_Kong）
+更新时间：2026-09-03 19:42（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -31,16 +31,21 @@ train/validation/test 必须按 source 与解码 RGB hash 双重隔离；test �
 必须是 `PREDICTABILITY_AUDIT.md`，且只能输出 `GO/PIVOT/REPRESENTATION/STOP` 之一。
 
 第一轮 dependency-free 合同与 retrospective asset audit 已完成。现有 opened ChartQA、
-DocVQA、V*Bench bank 只验证固定工具标签构造与 headroom；由于缺 max probability、margin、
-完整 L3 state、HRBench 和 untouched test，正式矩阵完成度为 `0/36`。下一步不是再想新方法，
-而是实现 image/source split、L0--L3 feature export、三个 target trainer、validation-only
-选择、完整指标与 paired source bootstrap；所有 CPU/synthetic smoke 通过后才提交 GPU。
+DocVQA、V*Bench bank 只验证固定工具标签构造与 headroom；由于尚无新 max probability、
+margin、完整 L3 state 与真实 paired outcomes，正式矩阵完成度仍为 `0/36`。
+
+image/source-disjoint 数据冻结现已完成：ChartQA 为 `3600/900/1000` states，DocVQA 为
+`10861/2719/2147` states、对应 `2800/700/500` documents，HRBench 为
+`480/160/160` states。三者 train/validation/test 的 source 与 decoded-RGB overlap 均为
+零；test 在任何新 rollout 前冻结，分配未读取模型 outcome。下一步不是再想新方法，而是
+在 opened ChartQA 单行上完成真实 Qwen rollout + L0--L3 feature smoke，通过后再冻结分片
+与 GPU 预算并生成 train/validation outcomes；test 继续封存。
 
 当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
 threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。
 完整 synthetic 36-cell × 3-seed smoke 已通过；这是 108 个 seed-runs 的工程证据，明确标记
-`formal_claim_eligible=false`。剩余主要阻塞已从 evaluator 实现转为真实数据 manifest 和
-Qwen L0--L3 feature export。
+`formal_claim_eligible=false`。真实 manifest 阻塞已解除，剩余首要阻塞是 Qwen L0--L3
+extractor 的真实单行运行合同以及后续大规模 paired rollout 成本。
 
 ## 当前核心判断
 

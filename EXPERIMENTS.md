@@ -1356,3 +1356,31 @@
 - 下一步：实现 RGB/source split allocator、统一 L0--L3 exporter、三 target trainer、
   validation-only threshold/calibration、全指标和 paired bootstrap；先在 synthetic 与旧
   opened bank 完成真实输入 smoke，再决定最小 GPU feature extraction。
+
+## E-20260903-18：三 benchmark 无泄漏数据冻结
+
+- 目的与诚信边界：在任何新 test rollout 前固定 ChartQA、DocVQA、HRBench 的
+  train/validation/test；selection 只读取公开数据身份、source 和解码 RGB 内容，不读取
+  Qwen 输出或工具 outcome。历史 opened 数据只进入 train/validation，新 test 在本项后
+  继续封存。
+- 分配：ChartQA `3600/900/1000` states（每 state 独立 source/image）；DocVQA
+  `10861/2719/2147` states，对应 `2800/700/500` documents 与 images；HRBench
+  `480/160/160` states、`480/160/160` source IDs、`89/31/31` decoded-RGB images。
+  HRBench 重复图片通过 source/RGB 联合连通分量整体分配，未跨角色拆散。
+- 完整性结果：三个 benchmark 的 train-vs-validation、train-vs-test、
+  validation-vs-test 均为 `source_overlap=0`、`decoded_rgb_overlap=0`；报告字段
+  `selection_used_model_outcomes=false`、`new_test_rollouts_opened=false`。独立复核遍历
+  22,027 条 manifest，确认 9,651 个唯一实际图片路径存在，并对 HRBench 151 个唯一图片
+  重新解码计算 RGB 哈希，151/151 一致。
+- 实现与性能修正：最初 HRBench parquet 整表 `to_pylist()` 造成约 3GB base64 字符串的
+  内存/换页开销，逐图重编码 PNG 又预计占约 30GB。最终 commit
+  `afa103f596896088bd8eea358301399bc98f49b4` 改为 parquet 逐行流式处理、保存已验证的
+  RGB digest、直接写官方 JPEG/PNG bytes；科学 split 身份不变，最终全部冻结数据约
+  1.2GB。34 个相关单测、mypy、Black、bash syntax 与 `git diff --check` 通过。
+- 产物：allocation config SHA-256
+  `542efa523d19e652521aea01c06fea507b5d99a82f166f344d7be410dc166c75`；allocation
+  report SHA-256 `4c072355b75dcd7b228267f30c4790efa3d9facbdae1a731ac903ec351efb468`。
+  数据文件保持在 ignored `data/predictability-audit-v1/`，不把约 1.2GB 图片加入 git。
+- 资源与下一步：本项 CPU-only，无 Slurm/GPU/checkpoint、无 test outcome。下一步只在
+  opened ChartQA train 的一个状态上执行真实 Qwen baseline + 四 crop rollout 与 L0--L3
+  extractor smoke；通过后再估算并冻结正式 train/validation 分片，test 仍不打开。
