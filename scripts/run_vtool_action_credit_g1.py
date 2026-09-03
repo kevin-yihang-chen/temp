@@ -37,6 +37,7 @@ RUNTIME_PATCHED_FILES = (
 )
 IMPLEMENTATION_PATHS = (
     Path("scripts/run_vtool_action_credit_g1.py"),
+    Path("scripts/smoke_vtool_hf_actor_load.py"),
     Path("scripts/audit_refocus_g1_runtime_dataset.py"),
     Path("scripts/analyze_vtool_action_credit_g1.py"),
     Path("scripts/smoke_vtool_action_credit_gradient.py"),
@@ -349,6 +350,48 @@ def validate_frozen_inputs(
         and _all_true_checks(action_gradient_payload)
     ):
         raise ValueError("action gradient report semantic contract failed")
+    actor_load_payload, actor_load_report_sha256 = _require_preflight_report(
+        preflight,
+        path_key="actor_load_report",
+        hash_key="actor_load_report_sha256",
+        name="HF actor-load report",
+    )
+    resolved_attention_backends = actor_load_payload.get("resolved_attention_backends")
+    logits_shape = actor_load_payload.get("logits_shape")
+    if not (
+        actor_load_payload.get("decision") == "vtool_hf_actor_gpu_forward_smoke_passed"
+        and actor_load_payload.get("model_revision") == str(model_config["revision"])
+        and actor_load_payload.get("runtime_commit")
+        == str(runtime_config["upstream_commit"])
+        and actor_load_payload.get("dataset_sha256")
+        == str(preflight["one_row_dataset_sha256"])
+        and actor_load_payload.get("attention_implementation")
+        == str(training["actor_attention_implementation"])
+        and actor_load_payload.get("use_remove_padding")
+        is training["actor_use_remove_padding"]
+        and isinstance(resolved_attention_backends, Mapping)
+        and set(resolved_attention_backends) == {"model", "text", "vision"}
+        and all(
+            value == str(training["actor_attention_implementation"])
+            for value in resolved_attention_backends.values()
+        )
+        and actor_load_payload.get("smoke_script_sha256")
+        == sha256_file(_repo_path("scripts/smoke_vtool_hf_actor_load.py"))
+        and actor_load_payload.get("model_weights_loaded") is True
+        and actor_load_payload.get("optimizer_step_performed") is False
+        and actor_load_payload.get("protected_split_contents_accessed") is False
+        and int(actor_load_payload.get("prompt_tokens", 0)) > 0
+        and isinstance(logits_shape, list)
+        and len(logits_shape) == 3
+        and logits_shape[0] == 1
+        and logits_shape[1] == actor_load_payload.get("prompt_tokens")
+        and int(logits_shape[2]) > 0
+        and float(actor_load_payload.get("forward_seconds", 0.0)) > 0.0
+        and int(actor_load_payload.get("gpu_peak_allocated_bytes", 0)) > 0
+        and "H800" in str(actor_load_payload.get("gpu_name", ""))
+        and _all_true_checks(actor_load_payload)
+    ):
+        raise ValueError("HF actor-load report semantic contract failed")
 
     return {
         "arm": dict(arm),
@@ -360,6 +403,7 @@ def validate_frozen_inputs(
         "model_weight_sha256": actual_weight_hashes,
         "full_train_runtime_audit_sha256": full_train_audit_sha256,
         "action_gradient_report_sha256": action_gradient_report_sha256,
+        "actor_load_report_sha256": actor_load_report_sha256,
         "environment_report_sha256": environment_report_sha256,
         "fake_server_report_sha256": fake_server_report_sha256,
         "model_load_report_sha256": model_load_report_sha256,
@@ -737,6 +781,7 @@ def main() -> int:
         "model_weight_sha256": validated["model_weight_sha256"],
         "full_train_runtime_audit_sha256": validated["full_train_runtime_audit_sha256"],
         "action_gradient_report_sha256": validated["action_gradient_report_sha256"],
+        "actor_load_report_sha256": validated["actor_load_report_sha256"],
         "environment_report_sha256": validated["environment_report_sha256"],
         "fake_server_report_sha256": validated["fake_server_report_sha256"],
         "model_load_report_sha256": validated["model_load_report_sha256"],

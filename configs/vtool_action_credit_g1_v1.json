@@ -92,6 +92,8 @@
   "preflight": {
     "action_gradient_report": "artifacts/docvqa-train-factorized-v2/g1-preflight/action-gradient-v2/report.json",
     "action_gradient_report_sha256": "3fa21b9e5343348cf4619066c08b08049b63fe96fa11a9151d3723fd5238d99b",
+    "actor_load_report": "artifacts/docvqa-train-factorized-v2/actor-load-smoke/vtool-hf-actor-sdpa-v1/job-206174/report.json",
+    "actor_load_report_sha256": "48e2f12f0fcb910d87761b950af26ba83836033b1b2a0e9149b7a4720a318742",
     "fake_server_report": "artifacts/docvqa-train-factorized-v2/paired-agent-smoke/vtool-g1-fake-server-v2/report.json",
     "fake_server_report_sha256": "e24e48dfeee138d77bf6d50919043a5b685c108e7aa83c707b250b27b7df5ab5",
     "full_train_runtime_audit_report": "artifacts/docvqa-train-factorized-v2/g1-preflight/runtime-dataset-audit-paired-train-v2/report.json",

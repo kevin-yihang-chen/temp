@@ -295,6 +295,9 @@ def test_g1_config_freezes_matched_controls_and_stop_rules() -> None:
     assert config["preflight"]["action_gradient_report_sha256"] == (
         "3fa21b9e5343348cf4619066c08b08049b63fe96fa11a9151d3723fd5238d99b"
     )
+    assert config["preflight"]["actor_load_report_sha256"] == (
+        "48e2f12f0fcb910d87761b950af26ba83836033b1b2a0e9149b7a4720a318742"
+    )
     assert config["preflight"]["full_train_runtime_audit_report_sha256"] == (
         "e468c36719ee3e303ff84a98f6feac1b88ebee9f0fb2731be2a129204671c1ed"
     )
