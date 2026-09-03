@@ -1,0 +1,137 @@
+{
+  "audited_at": "2026-09-03T15:52:38+08:00",
+  "bootstrap": {
+    "confidence_level": 0.975,
+    "n_resamples": 20000,
+    "resampling_unit": "source_id",
+    "seed": 20260903
+  },
+  "cost": {
+    "high_information_extra_cost_primary": 0.0,
+    "high_information_extra_cost_scope": "per_decision",
+    "high_information_primary_is_optimistic_upper_bound": true,
+    "high_information_registered_cost_unit": "already_lambda_weighted_utility_per_decision",
+    "lambda_cost": 0.05,
+    "registered_nonnegative_extra_costs": [
+      0.0,
+      0.001,
+      0.005,
+      0.01
+    ]
+  },
+  "data_role": {
+    "docvqa_status": "already_opened_retrospective_heldout_diagnostic",
+    "formal_or_confirmatory_claim_authorized": false,
+    "new_outcome_opening_authorized": false,
+    "screenqa_formal_test_opened": false,
+    "screenqa_reserve_opened": false,
+    "screenqa_risk_calibration_opened": false
+  },
+  "information_sets": {
+    "higher": {
+      "feature_mode": "semantic-context",
+      "information_set_id": "baseline_response_context_plus_full_resolution_semantic",
+      "selector_visible_fields": [
+        "normalized_question_surface",
+        "baseline_answer_surface",
+        "baseline_token_entropy_statistics",
+        "candidate_geometry",
+        "question_embedding_conditioned_on_original_image",
+        "global_original_image_embedding",
+        "candidate_roi_embeddings_from_original_image",
+        "question_to_candidate_attention"
+      ]
+    },
+    "lower": {
+      "feature_mode": "context-geometry",
+      "information_set_id": "baseline_response_context_plus_geometry",
+      "selector_visible_fields": [
+        "normalized_question_surface",
+        "baseline_answer_surface",
+        "baseline_token_entropy_statistics",
+        "candidate_geometry"
+      ]
+    },
+    "n4_required_but_unavailable": [
+      "question_only_selector",
+      "question_plus_uniform_low_resolution_preview_selector",
+      "same_method_family_refit_under_each_information_set"
+    ]
+  },
+  "inputs": {
+    "docvqa_existing_higher_evaluation": {
+      "path": "artifacts/docvqa-formal-v1/attention-semantic-v1/evaluation.json",
+      "sha256": "a87b99af4f4fe9d20cff2f816bbf6baa8313f0607e0f182e17f58f5e5e7c2c62"
+    },
+    "docvqa_existing_lower_evaluation": {
+      "path": "artifacts/docvqa-formal-v1/frozen-context-v1/evaluation.json",
+      "sha256": "9f7428b661ea213ac5fa6bd9e58b5a22ac3dd505848064c47a94fb4a4310efc9"
+    },
+    "docvqa_higher_features": {
+      "path": "artifacts/docvqa-formal-v1/attention-semantic-v1/features-question-region-attention-label-free.pt",
+      "sha256": "bc58c1694261d8e5da91e8d3006a25c29447c0633f8e378796262439f9448ba7"
+    },
+    "docvqa_higher_features_audit": {
+      "path": "artifacts/docvqa-formal-v1/attention-semantic-v1/label-free-audit-before-evaluation.json",
+      "sha256": "c605952e150b8de6486ffad2f5f13b08d36ee72578f677a71d402085c806ec2e"
+    },
+    "docvqa_higher_model": {
+      "path": "artifacts/docvqa-oof-factorized-action-value-attention-semantic-postfailure-v1/model.json",
+      "sha256": "1f8b6cf5d026bcd9921434c1c6ef0c753259d36504dedc040b8145c76bd06ff3"
+    },
+    "docvqa_lower_model": {
+      "path": "artifacts/docvqa-oof-factorized-action-value-context-v1/model.json",
+      "sha256": "33f2e0b1fd29e52c878bbbf2cd9819cd3c7e65e12afbabbdc5fa1f6687c8496b"
+    },
+    "docvqa_rollouts": {
+      "path": "artifacts/docvqa-formal-v1/qwen3b-c4-seed0/rollouts.jsonl",
+      "sha256": "a7f44c267b11c12f6cbf8f1e714350174c4dfd7e4ab3866fde0dbd84fe0b5aa3"
+    },
+    "n4_report": {
+      "path": "artifacts/docvqa-train-factorized-v2/ops/n4-selector-information-boundary-audit-v1.json",
+      "sha256": "d34449b6b10b8b49f7264bcabe4866e0b225ec586b1a7454743a2f6d8aa6ef5c"
+    },
+    "screenqa_allocation_audit": {
+      "path": "artifacts/screenqa-train-factorized-v1/allocation-v1/allocation.audit.json",
+      "sha256": "a68043289e4a342479bc7f1c699f772269e2f0e36d748b9fefe4be015be2468a"
+    },
+    "screenqa_higher_oof_report": {
+      "path": "artifacts/screenqa-train-factorized-v1/ranker-training/semantic-oof-v2/hybrid-context-semantic-oof-v2/report.json",
+      "sha256": "ae15f251de6fd4ef7a3be4d21251f421f5e09471344707fd59b65c009cacdb5b"
+    },
+    "screenqa_lower_oof_report": {
+      "path": "artifacts/screenqa-train-factorized-v1/ranker-training/low-capacity-oof-v1/context-geometry-oof-v1/report.json",
+      "sha256": "3f1c0edf36832304808a57bd6cc34a702b5283716bb92d51c7c27d949f08174e"
+    }
+  },
+  "matched_budget": {
+    "call_rate": 0.05,
+    "score_tie_break": "descending_score_then_ascending_state_id_replicate_id"
+  },
+  "primary_hypothesis": "additional full-resolution selector information must produce a positive, source-robust, material utility improvement before protected ScreenQA calibration is opened",
+  "registered_baselines": [
+    "answer_now",
+    "entropy_gate_random_crop_expected",
+    "entropy_gate_each_fixed_crop",
+    "random_gate_random_crop_expected",
+    "post_action_entropy_single_execution_idealized",
+    "ug_style_exhaustive_entropy_charged_four_candidates",
+    "privileged_oracle_ceiling"
+  ],
+  "schema": "n5_information_set_retrospective_config_v1",
+  "screenqa_cost_if_opened": {
+    "action_records_per_decision": 5,
+    "allocated_images": 4001,
+    "estimated_action_records": 49755,
+    "identity_only_qa_rows": 9951
+  },
+  "stop_rules": {
+    "exact_n4_rank_reversal_requires_registered_information_sets": true,
+    "higher_information_matched_utility_ci_low_above_zero": true,
+    "higher_information_matched_utility_positive": true,
+    "higher_minus_lower_matched_ci_low_above_zero": true,
+    "higher_minus_lower_matched_minimum_utility": 0.001,
+    "screenqa_higher_non_degenerate_safe_threshold_required": true,
+    "screenqa_oof_higher_minus_lower_minimum_utility": 0.001
+  }
+}
