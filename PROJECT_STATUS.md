@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 12:52（Asia/Hong_Kong）
+更新时间：2026-09-03 13:27（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -16,9 +16,9 @@ classifier 或 threshold 没有科学价值。
 当前最有价值的产出是严格的 stop/where 因子化与负结果证据，而不是一个成功策略。
 下一步已转为机制不同的视觉工具 RL action-local credit feasibility，而不是给旧
 gate 换特征。该方向已从 protocol/纯 synthetic G0 前进到真实四卡 actor、vLLM、
-agent loop、两步 optimizer 与完整 checkpoint；但 Job `206205` 的 64 条 rollout 全部
-没有工具动作，action-local credit 从未激活，正式触发 `<1%` 停止规则。当前 sampled
-on-policy H5 路线因此关闭，仍不能据此提高项目成功概率。
+agent loop、两步 optimizer 与完整 checkpoint；但 Job `206205` 的 64 条 rollout 没有
+parser-valid、可执行工具动作，action-local credit 从未激活，正式触发 `<1%` 停止规则。
+当前 sampled on-policy H5 路线因此关闭，仍不能据此提高项目成功概率。
 
 2026-09-02 已做范围纠偏：VTool 只保留为 Apache-2.0 的可运行 RL 骨架和
 outcome-only comparator，不再把 pixel、thought 或内部实现与 VTool 的一致性当作研究
@@ -62,19 +62,30 @@ ndarray，并新增真实 4-way chunk preflight，提交前及 worker 启动前�
 shards 尚未写完就已达 43,367,466,220 bytes（约 40.39 GiB）；extra-state、dataloader
 state 与 tracker 均缺失，checkpoint 不可恢复。授权清理后持久盘可用约 77.1 GiB，
 资源 gate 已提高为 submitter/worker 双重 64 GiB。step-1 rollout 的结构合同全部通过、
-task score mean 为 `0.53125`，但 32 条均为 direct、工具调用率为 0。由于冻结协议要求
-两步 64 条，当前 scientific decision 仍为 `not_available`；这不是 H5 的正式失败，
-但使最终触发 `<1%` stop rule 的风险明显上升。
+task score mean 为 `0.53125`，但 parser-valid 工具调用率为 0。事后 raw 文本复核显示
+19 条 final answer、13 条裸 `focus_on_*` intent；由于冻结协议要求两步 64 条，当前
+scientific decision 仍为 `not_available`。这不是 H5 的正式失败，但使最终触发 `<1%`
+stop rule 的风险明显上升。
 
 最终重提的 Job `206205` 于 12:26:27--12:31:10 HKT 正常完成两步训练。两步 score
 分别为 `0.5625` / `0.53125`，总体 task score 与 realized cost-adjusted utility 均为
-`0.546875`；64 条 rollout 中 tool call `0/64`，两步 action-credit tool trajectory
+`0.546875`；64 条 rollout 中 parser-valid tool call `0/64`，两步 action-credit tool trajectory
 count 与 applied credit 均为 0。正式 analyzer 10/10 checks 全真，pair mismatch 和
 judge failure 为 0，decision 为 `paired_signed_g1_stop_rule_triggered`。唯一
 `global_step_2` checkpoint 结构完整、约 42 GiB，全部文件已重新读取并做 SHA-256
 绑定。这个结果不是工程失败，而是证明当前 policy 没有为 sampled action-local credit
-提供支持；按预注册规则不运行无法区分 credit 效果的三组 controls，也不事后改变
+提供可执行支持；按预注册规则不运行无法区分 credit 效果的三组 controls，也不事后改变
 prompt、seed、temperature 或阈值。
+
+随后只读 raw-response 诊断发现 48/64 是 `FINAL ANSWER`，16/64 是裸
+`focus_on_*` intent；15 条可被 Python AST 解析，但 0 条满足真实三参数工具签名，另
+1 条混入最终答案。因此正式 stop 不变，但“64 条全部 direct/latent intent 为零”被纠正。
+当前 baseline 的 prompt 只枚举函数名与变量、未给签名或可执行模板；下一步必须把
+typed-action V2 作为 baseline correctness 独立修复，同时继续对真正新方法做碰撞审计。
+进一步检查发现 V1 prompt 所称可用的 `x_values_bbox/y_values_bbox` 并未注入实际
+execution context，canonical prompt-following code 会 `NameError`；实际 aliases 是
+`columns_bbox/rows_bbox`。B0 CPU core 已在 commit `150803a` 用后两者实现 strict
+renderer/parser，并在 pinned runtime 对 x/y 两类调用真执行通过；这仍不是模型结果。
 
 ## 已完成的证据链
 
@@ -196,11 +207,19 @@ prompt、seed、temperature 或阈值。
     全真、score mean `0.53125`、tool call `0/32`；缺失 step 2，不能执行正式 stop
     decision。实测 checkpoint 已知 shards 至少 40.39 GiB，原 32 GiB gate 已被否定。
 25. 存储修复后的 Job `206205` 在 clean revision `9c6bdc4` 上正常完成两步、64 行
-    rollout 与唯一 `global_step_2` checkpoint。正式 analysis 为 tool call `0/64`、
+    rollout 与唯一 `global_step_2` checkpoint。正式 analysis 为 parser-valid tool call `0/64`、
     rate `0.0`、overall score/utility `0.546875`、10/10 checks 全真，decision
     `paired_signed_g1_stop_rule_triggered`。当前 on-policy H5 路线正式停止，不进入
     zero/shuffled/outcome-only controls。完整审计见
     `vtool-g1-signed-result-job-206205-v1.md`。
+26. Job `206205` raw-response 事后诊断 13/13 checks 全真：48 条 final answer、16 条
+    裸 focus intent；15 条 AST 可解析但真实参数签名合法为 0，另 1 条语法无效，故
+    `fence_only_repair_executable=0`。决定码为
+    `g1_zero_parser_valid_support_with_malformed_bare_tool_intent`；正式 G1 decision 未改。
+27. Typed-action B0 CPU gate 在 commit `150803a` 通过。V1 prompt SHA-256 未变；V2
+    固定 x/columns 与 y/rows grammar，strict parser 覆盖非法 fence、display、axis、bbox、
+    kwargs、label 和额外语句；两类 canonical call 在 pinned runtime 均返回 PIL image。
+    全仓 532 passed、35 expected skips。本项不含模型 generation 或 GPU。
 
 ## 当前最佳结果与解释边界
 
@@ -225,6 +244,7 @@ prompt、seed、temperature 或阈值。
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
 | HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
 | 真实 paired rollout 与最多 2-step optimizer smoke | Job 206205 完成；tool call 0/64，触发冻结停止规则，当前 H5 不晋级 |
+| Typed-action reliable baseline | B0 CPU grammar/runtime gate 通过；真实模型 generation 尚未验证 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -236,8 +256,9 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 12:41 HKT，Job `206205` 已正常结束且 controller 已清除其短期
-记录，实时 `squeue -u yihangc` 为空。该任务配置了
+截至 2026-09-03 13:11 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
+222,000 分钟总额、42,281 已用、179,719 剩余（约 2,995.32 GPU-hours）。Job `206205`
+已正常结束且 controller 已清除其短期记录。该任务配置了
 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
 范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；结果封存和下一
 候选审计仅在本地进行，未 push GitHub。
@@ -251,7 +272,8 @@ generalization 四个实质台阶。现在不能承诺日期。
   classifier family 的事后搜索；
 - answer hidden-state/contextual embedding/grounding reliability probe 作为独立新
   方法；generic group-DRO、IRM 或 conformal threshold 的局部替代；
-- 当前 sampled on-policy same-prefix action-credit H5；Job `206205` 的零工具调用使
+- 当前 sampled on-policy same-prefix action-credit H5；Job `206205` 的零 parser-valid
+  工具调用使
   方法特有 credit 无支持，不运行无法区分该效应的后续 controls；
 - 用已打开 train outcomes 选择有利 operating point，或用 privileged oracle
   冒充部署结果。
@@ -267,7 +289,8 @@ generalization 四个实质台阶。现在不能承诺日期。
 - 即使新的 train OOF 候选通过，仍需独立 calibration、sealed formal 和至少一个
   generalization axis，时间不只由单次 GPU runtime 决定。
 - Same-prefix action credit 与 ToolVision 的 stepwise evidence gain 存在强碰撞，且
-  Job `206205` 已显示 sampled on-policy credit 有更基础的零 action-support 问题。新的
+  Job `206205` 已显示 sampled on-policy credit 有更基础的零 parser-valid support 问题。
+  Raw 输出虽有 16 条 intent，但 0 条签名合法。新的
   解法若只是 forced-call、SFT/curriculum、tool bonus 或 off-policy hints，也会与近期
   工作直接碰撞，不能构成顶会主张。
 - Upstream FP8 3B script 默认把 `test.parquet` 同时作为 train/val；直接运行会造成
@@ -277,7 +300,7 @@ generalization 四个实质台阶。现在不能承诺日期。
   暴露失去 sealed 资格，formal 必须使用从未打开的独立 benchmark/split。
 - 隔离环境、完整数据 processor、fake paired generation、单卡 vLLM load/generation、
   Ray 多进程、两步 optimizer、rollout export 和 checkpoint 均已通过真实运行；但 64 条
-  均为 direct，真实 tool/paired branch 和 action-credit metrics 仍没有支持。
+  中没有 parser-valid action，真实 tool/paired branch 和 action-credit metrics 仍没有支持。
 - Job `205902` 暴露出 shell jq object predicate 未被旧静态字符串测试实际执行；两处
   同类表达式现已修正并加入真实 jq 正/负回归；全仓测试与静态检查已通过。重新提交前
   仍需在 clean commit 上执行完整 worker/Hydra 前置合同，避免再次用排队换取可在登录
@@ -290,7 +313,7 @@ generalization 四个实质台阶。现在不能承诺日期。
   `non_tensor_batch` 的 ndarray 类型合同。根因已用同 runtime `DataProto.chunk(2)`
   稳定复现并修复；新的 4-way preflight 在 `sbatch` 前和 worker 启动前都执行，避免
   再用模型初始化验证纯 CPU 可检出的类型错误。
-- Job `206205` 已确认真实 G1 为 tool call `0/64`；不能靠事后改 prompt/temperature/
+- Job `206205` 已确认真实 G1 为 parser-valid tool call `0/64`；不能靠事后改 prompt/temperature/
   seed 制造正结果。现在必须重新审计 exploration/support 假设，且新解法需要独立
   新颖性，不能套用已有 forced-tool curriculum。
 - 一个完整 distributed checkpoint 实测至少约 40.39 GiB；64 GiB gate 只保证当前
@@ -300,9 +323,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 ## 下一步最优行动
 
 不再做 VTool 等价性审计，也不再重跑当前 G1。Job `206205` 已把工程链路推进到两步
-rollout、optimizer、analyzer 与完整 checkpoint，但以 tool call `0/64` 正式触发停止
-规则。下一步最高信息价值行动是完成零 on-policy action support 下候选算法的一手文献
-碰撞与可行性审计：候选必须保留具体 action/observation 的 signed sibling supervision，
-又不能退化为已有 forced-tool SFT、curriculum、tool bonus 或普通 off-policy hints。
-在形成明确新 estimand、可证伪假设、强基线和 synthetic/CPU gate 前不提交 GPU；若
-候选不能满足顶会新颖性，则关闭并继续选择实质不同路线，不降低投稿目标。
+rollout、optimizer、analyzer 与完整 checkpoint，但以 parser-valid tool call `0/64`
+正式触发停止规则。下一步先完成互相隔离的两个 gate：B0 用 exact typed grammar 建立
+可靠 how-to-call baseline，但不把 prompt/SFT/forced-call 当新方法；B0 CPU core 已通过，
+下一步是独立 V2 单行 official-train processor/fake executor。N0 同时形式化
+action-boundary interventional objective，要求它在零 valid support 下仍有梯度，且不
+退化为 ToolVision、GapSight、representation steering、logit bias、LIRE/LiPO 或
+ToolPrefer 已覆盖的目标。两者先做 renderer/parser round-trip、非法动作拒绝和 synthetic
+finite-action CPU gate；N0 新颖性未通过前不提交 GPU。若候选形式化后只是普通
+full-information/listwise loss，则关闭并继续选择实质不同路线，不降低投稿目标。

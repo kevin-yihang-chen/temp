@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 12:16（Asia/Hong_Kong）
+更新时间：2026-09-03 13:27（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -830,7 +830,7 @@
   gate；实时复核至少 64 GiB 空闲后只重提 signed arm。正式两步 stop 失败则关闭路线，
   通过才规划 matched controls 的存储与执行。
 
-## E-20260903-06：四卡 paired-signed G1 正常完成但零工具调用，正式停止
+## E-20260903-06：四卡 paired-signed G1 正常完成但零 parser-valid 工具调用，正式停止
 
 - 假设：存储 gate 修复后的 clean revision
   `9c6bdc46f60b31d57b11d7a5c95a4712eef5fd44` 能完成两步 paired rollout、optimizer、
@@ -846,8 +846,8 @@
   cost-adjusted utility 均为 `0.546875`。两步 actor grad norm 分别为 `66.4326` /
   `9.9353`，说明普通 outcome GRPO 更新执行；但 action-credit tool trajectory count、
   applied credit 与 tool-call rate 两步均为 0。
-- 正式结果：64 行全部 direct，tool call `0/64`、rate `0.0`，低于冻结 `0.01`；机械
-  decision 为 `paired_signed_g1_stop_rule_triggered`，唯一 stop reason 为
+- 正式结果：严格 parser 与运行时 audit 记录 tool call `0/64`、rate `0.0`，低于冻结
+  `0.01`；机械 decision 为 `paired_signed_g1_stop_rule_triggered`，唯一 stop reason 为
   `tool_call_rate_below_frozen_threshold`。10/10 rollout checks 全真，pair mismatch 与
   judge failure 均为 0，protected split 未访问。由于没有 tool pairs，harmful/rescue/
   no-effect/tool-success 和 mean signed credit 不可定义。
@@ -860,12 +860,105 @@
   `5f1b2809...11f3`、`d8c49508...6c21`、`22eb7f41...dd5be`、`f5def800...facec`；
   step-1/2 rollout 为 `04ba5634...e6f` / `4b07ae08...55b`。完整审计见
   `vtool-g1-signed-result-job-206205-v1.md`。
-- 结论：当前 sampled on-policy H5 路线因零 action support 无法激活其特有 credit，G1
-  正式失败并停止。按预注册规则不运行 zero/shuffled/outcome-only controls，不调整
-  seed/prompt/temperature/threshold 追结果；这些 controls 在没有 action token 时不能
-  区分 credit 因果效应。
+- 结论：当前 sampled on-policy H5 路线因零 parser-valid action support 无法激活其特有
+  credit，G1 正式失败并停止。按预注册规则不运行 zero/shuffled/outcome-only controls，
+  不调整 seed/prompt/temperature/threshold 追结果；这些 controls 在没有有效 action
+  token 时不能区分 credit 因果效应。
 - 资源：12:41 HKT 队列为空；222,000 GPU 分钟总额、42,284 已用、179,716 剩余；
   checkpoint 后持久盘可用 37,988,859,904 bytes（约 35.38 GiB）。
 - 下一步：在不提交 GPU 的前提下审计能在零 on-policy action support 下产生训练信号的
   新 estimand/算法。简单 forced-call、tool bonus、SFT/curriculum 或 off-policy hints 已有
   强文献碰撞，不能作为投稿方法；只有新候选通过一手文献与实现 gate 才进入实验。
+
+## E-20260903-07：G1 raw 工具意图与格式/API 合同事后诊断
+
+- 问题：E-20260903-06 的正式 analyzer 把所有 `vtool_tool_attempted=false` 响应统称为
+  direct，但这一分类是否等价于“模型没有工具意图”尚未检查。该区别决定下一步应处理
+  exploration、格式合同还是方法 credit。
+- 假设区分：H-A 为 64 条均是自然语言 direct；H-B 为存在裸工具调用且只缺代码围栏；
+  H-C 为存在工具意图但函数参数/response protocol 也不合法。诊断预期只读已有 raw
+  outputs，不执行工具、不修复输出、不改变 reward 或正式 decision。
+- 实现：新增 `scripts/analyze_vtool_g1_intent_format.py` 与独立回归测试。诊断器绑定原
+  official analysis、step 1/2 SHA-256、trajectory ID、raw output 与 audit payload；逐条
+  检查 final/focus prefix、Python fence、AST、唯一 allowed focus call、`display`、真实
+  `(image_1, [labels], columns_bbox/rows_bbox)` 签名、prompt label membership 与
+  fence-only recoverability。
+- 数据/范围：只读 Job `206205` 已冻结的 64 条 official-train-derived rollout；不读取
+  Parquet image/answer、validation/test/reserve，不加载模型，不执行工具，无新 outcome。
+- 结果：13/13 artifact/runtime checks 全真；48/64 raw outputs 为 `FINAL ANSWER`，16/64 为裸
+  `focus_on_*` intent。Step 1/2 裸意图分别为 12/32（37.5%）与 4/32（12.5%）。其中
+  15 条是 AST-valid single focus expression，1 条混入 final answer 而语法无效；15 条
+  均缺 `display` 且真实三参数签名合法为 0。因此 `fence_only_repair_executable=0/16`。
+- 决定：`g1_zero_parser_valid_support_with_malformed_bare_tool_intent`。H-A 与 H-B 被
+  否定，H-C 获支持。正式 `paired_signed_g1_stop_rule_triggered` 保持不变；不能事后
+  把 16 条算作 tool calls，也不能说 latent tool intent 为零。
+- Prompt/runtime 根因证据：冻结 V1 prompt 只列函数名和变量，未提供签名/可执行模板；
+  parser 无 ` ```python ` 时无条件 `NOTOOL`；运行时六个函数均要求 image、label list、
+  bbox mapping 三参数。更严重的是，prompt 声称 `x_values_bbox/y_values_bbox` 可用，实际
+  agent context 只注入 `columns_bbox/rows_bbox`；前者会 `NameError`。这支持 baseline
+  action contract 不充分，但不证明模板修复后会产生有用调用。
+- Tokenizer 诊断：同一冻结 tokenizer 下 `FINAL ANSWER:` 首 token 为 `98848`，六个
+  focus 函数共用 first token `17414`；` ```python ` 为 `[73594,12669]`，`<tool_call>`
+  为单 token `151657`。这证明 intent boundary 可观测，但不构成新方法。
+- 产物：JSON SHA-256
+  `df19920bd426e62d1d2152d85bf2afce596c7b111c247e5807e4a5ba17a44160`；完整审计
+  `vtool-g1-format-contract-and-next-route-audit-20260903-v1.md`。原 analysis/rollout
+  SHA-256 仍为 `d8c49508...6c21`、`04ba5634...e6f`、`4b07ae08...55b`。
+- 额外纠正：Job `206184` 的 step 1 严格 tool call 仍为 `0/32`，但 raw 文本是 19 条
+  final answer 与 13 条裸 focus intent；由于缺 step 2，它仍不是正式 gate。
+- 文献 gate：ToolVision 与 Tool-RL collapse 已覆盖 capability-aligned SFT、benefit
+  reward、format/control-token collapse；Tunable Tool-Call Rates 与 black-box logit
+  bias 已覆盖 call propensity steering；LIRE/LiPO/ToolPrefer 已覆盖 offline/listwise/
+  step-wise preference；GapSight 已覆盖 candidate crop loss-gap router。因此 prompt、
+  forced-call、SFT curriculum、steering、普通 listwise reward 和 crop utility router
+  只能作 baseline/comparator，不能作为新方法。
+- 当前最佳结果：正式方法结果未改善；新证据把根因从“零 latent intent”收敛到“有 25%
+  裸 intent、但零 syntax/API-valid support”。
+- 下一步：B0 独立建立 exact typed-action V2 baseline，先做 renderer/parser round-trip
+  与真实 fake executor；N0 只保留 action-boundary interventional objective 作为待审
+  主方法候选。它必须证明不同于 whole-response LIRE/LiPO、ToolVision benefit reward、
+  GapSight router，并在 zero-valid-support 下有可验证梯度；若退化为普通 full-information
+  contextual-bandit/listwise loss，则 CPU gate 关闭。N0 通过前不提交 GPU。
+
+## E-20260903-08：Typed-action V2 baseline 的 CPU 与真实 runtime 合同
+
+- 假设：不修改冻结 V1/Job `206205` 的情况下，可以定义唯一、可 round-trip 的 typed
+  action grammar，并让它在 pinned VTool context 中真实执行，从而先修复 how-to-call
+  baseline，再讨论新方法。
+- 实现 commit：`150803ac113008f9ad5555f00f743aa17df9746c`。新增
+  `RefocusTypedAction`、canonical renderer 与 strict AST parser；V2 prompt 通过独立
+  `build_typed_action_prompt()` 暴露，不接入旧 converter。V1 prompt SHA-256 仍为
+  `d8e1b93a3635901c6a5afcbf618e255e4923b01b11001ea56ca31de9fefca24f`，未改变。
+- Runtime 合同修正：pinned agent context 实际只注入 `image_1`、`columns_bbox`、
+  `rows_bbox`、`display`。因此 canonical x/y action 分别固定为
+  `focus_on_x_...(image_1, [labels], columns_bbox)` 与
+  `focus_on_y_...(image_1, [labels], rows_bbox)`；不再使用 V1 误称可用、实际会
+  `NameError` 的 `x_values_bbox/y_values_bbox`。
+- 拒绝边界：strict parser 拒绝无完整 Python fence、缺 `display`、非唯一 expression、
+  kwargs、错误 image/bbox、空/重复/非 literal labels、越界 labels、额外 print/import
+  或同 response final answer。它不执行任意 model text；只有 renderer 生成的固定
+  canonical code 在测试中进入 `exec`。
+- 真实最小执行：在 pinned `refocus_tools.py` context 中分别构造 vertical-bar x-label
+  draw 与 horizontal-bar y-label highlight，两条 renderer→parser→runtime→display
+  round-trip 均得到唯一非空 PIL image。72 行冻结 G1 数据的 source/axis 结构只读审计为
+  41 条 `chartqa_v_bar` 且仅 x labels、31 条 `chartqa_h_bar` 且仅 y labels，和 alias
+  映射一致。该检查读取既有 official-train Parquet 的 `source/extra_info` 列；后者使
+  已开放的 train answer 同时被载入内存，但 answer 未用于统计/选择。Image 列与任何
+  protected split 均未读取。
+- 代码/测试 SHA-256：typed core
+  `ab60245ca2b55faeb63bd413d022efdd709453af145e4ebcef404478e0c3c737`；dataset/prompt
+  module `293352da81c5685c9ac394e1e64736a7da33a56a4eb2ad57315b3e5049ae2970`；typed tests
+  `fa6973d9632e563bc014a768cd888a5a5c5bd25f429d4f6c0fd8d34aef2f8e19`；V2 prompt
+  `7bf336ccba8044b011e569ade23bb021890e276511fe6dac88a5f44234325679`。
+- 验证：相关 21 tests 全部通过；全仓 JUnit 记录 567 tests、0 failure、0 error、35
+  expected skips，即 532 passed。5-file mypy、compileall、Black `24.8.0` in-process
+  check、diagnostic deterministic byte comparison、JSON semantic assertions、credential
+  scan 与 `git diff --check` 通过。
+- 环境/资源：CPU-only；无模型生成、GPU、Slurm 或邮件事件。原 checkpoint 保留，当前
+  约 35.38 GiB 可用空间不影响本项。
+- 结果：`typed_action_b0_cpu_contract_passed`。这只证明语法、静态安全边界和 pinned
+  executor 兼容，不证明 V2 prompt 能诱导合法调用，更不证明 action credit 有效。
+- 下一步：为 V2 创建独立版本/hash 的 official-train-only 单行数据并通过真实 Qwen
+  processor + fake executor；随后才允许一次无 checkpoint 的 1×H800 first-response
+  generation smoke。必须分别报告 intent/syntax/argument/execution rate，不得用总
+  tool-call rate 掩盖失败层级。N0 新颖性 gate 与 B0 性能不能混为同一主张。

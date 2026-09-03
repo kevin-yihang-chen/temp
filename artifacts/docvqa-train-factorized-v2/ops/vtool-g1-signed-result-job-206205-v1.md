@@ -4,6 +4,10 @@
 给出 `paired_signed_g1_stop_rule_triggered`。这是 H5 当前 on-policy 实现路线的正式
 G1 负 gate，不是工程失败，也不证明“若存在工具动作，signed action credit 必然无效”。
 
+更正：2026-09-03 13:11 HKT 的 raw-response 事后审计发现 16 条裸 `focus_on_*`
+工具意图。正式结果应表述为“parser-valid 工具调用 `0/64`”，而不是“64 条原始文本
+全部为自然语言 direct answer”。该更正不改变冻结 decision，详见本文后续专节。
+
 ## 假设与不可变设置
 
 - 待检验假设：同 prefix factual/no-op 的 signed、cost-aware action credit 能只作用于
@@ -32,6 +36,27 @@ G1 负 gate，不是工程失败，也不证明“若存在工具动作，signed
   但 H5 特有的 action-local credit 路径没有收到任何支持；不能把普通更新解释为 H5
   方法学习成功。
 
+## Raw-response 格式事后诊断
+
+- 原始文本中 48/64 以 `FINAL ANSWER:` 开头，16/64 以允许的 `focus_on_*` 函数名
+  开头；后者在 step 1/2 分别为 12/32 与 4/32。
+- 16 条裸工具意图全部缺少 Python 围栏；15 条可由 Python AST 解析为单个 focus call，
+  1 条混入最终答案而语法无效。
+- 15 条可解析调用中没有一条满足真实
+  `(image_1, [axis labels], columns_bbox/rows_bbox)` 三参数调用合同，也均未包在 `display(...)`
+  中，因此只补围栏可恢复的调用为 `0/16`。
+- 冻结 parser 在缺少 ` ```python ` 时返回 `NOTOOL`，所以正式 analyzer 将这些响应按
+  no-tool path 处理。这意味着“可执行 action support 为零”仍成立，但“latent tool
+  intent 为零”不成立。
+- 进一步静态与真实执行检查发现，V1 prompt 虽声称 `x_values_bbox/y_values_bbox` 可用，
+  实际 agent context 只注入 `columns_bbox/rows_bbox`；按 prompt 声明使用前两者会
+  `NameError`。该 baseline 合同缺陷不改变原判定，但 V2 必须使用真实 aliases。
+- 机器可读诊断为
+  `vtool-g1-intent-format-posthoc-job-206205-v1.json`，SHA-256
+  `df19920bd426e62d1d2152d85bf2afce596c7b111c247e5807e4a5ba17a44160`；完整解释见
+  `vtool-g1-format-contract-and-next-route-audit-20260903-v1.md`。这是 post-hoc 诊断，
+  不重算 reward、tool-call rate 或停止规则。
+
 ## Checkpoint 与复现证据
 
 - 唯一 checkpoint 为 `global_step_2`；`latest_checkpointed_iteration.txt` 为 `2`。
@@ -57,16 +82,19 @@ G1 负 gate，不是工程失败，也不证明“若存在工具动作，signed
 ## 科学解释与决策
 
 冻结 G1 协议要求 tool-call rate `<1%` 时停止并重新审计，不能扩大作业。Job `206205`
-满足该停止条件。当前 on-policy policy 从初始 checkpoint 不产生工具动作，故 action-local
-credit 没有可训练 support；继续运行 paired-zero、paired-shuffled 或 outcome-only controls
-不能检验 credit 的因果效果，只会复现“没有 action token”这一边界。因此：
+满足该停止条件。当前 on-policy policy 从初始 checkpoint 没有产生 parser-valid、可执行
+工具动作，故 action-local credit 没有可训练 support；16 条裸意图也因语法/API 参数不合法
+而没有 action token。继续运行 paired-zero、paired-shuffled 或 outcome-only controls 不能
+检验 credit 的因果效果，只会复现“没有有效 action token”这一边界。因此：
 
 1. 不运行三组 G1 controls，不改 prompt、temperature、seed、threshold 或 call rate 追结果；
 2. H5 的当前 on-policy sampled-action 实现路线关闭，不进入 G2、calibration 或 formal；
-3. 下一步只做 pre-GPU 新颖性/可行性审计：候选必须在零 on-policy action support 下仍能
-   定义可学习信号，并与 ToolVision/ToolsRL/forced-tool SFT/curriculum/off-policy supervision
-   明确区分；简单强制调用、SFT 或 tool bonus 不构成新方法；
-4. 只有新的 estimand 与算法通过一手文献碰撞审计，并先通过 synthetic/CPU gate，才允许
+3. V2 typed-action prompt/grammar 只能作为新的可靠 baseline 修复，不能事后挽救 H5，
+   也不能作为论文方法；
+4. 主方法候选必须在零 parser-valid support 下仍能定义可学习信号，并与
+   ToolVision/ToolsRL/forced-tool SFT/curriculum/off-policy supervision 明确区分；简单
+   强制调用、SFT、tool bonus、call-rate steering 或普通 listwise reward 不构成新方法；
+5. 只有新的 estimand 与算法通过一手文献碰撞审计，并先通过 synthetic/CPU gate，才允许
    新 GPU smoke。
 
 ## 资源状态
