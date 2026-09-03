@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 09:40（Asia/Hong_Kong）
+更新时间：2026-09-03 09:51（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -625,7 +625,10 @@
 - 验证：完整仓库 `516 passed, 34 skipped`；skip 均为 base env 缺少可选 Torch/资源项。
   12-file mypy、Python compileall、Black in-process、全部 shell/JSON syntax、隔离环境
   `pip check`、实际 72 行 report jq、credential scan 与 `git diff --check` 全部通过。
-  目标 preflight test 为 `7 passed`。最终 clean-revision Hydra gate 尚待完成。
-- 下一步：本地 commit 后重新生成并冻结 Hydra report，绑定新的
-  worker/launcher/config/audit hashes；实时复核队列与预算后只重提 paired-signed G1，
-  不运行 controls、不改变科学配置。
+  目标 preflight test 为 `7 passed`。修复 commit
+  `8c0f6c010a4dfeb1bf01d955054da2287691896e` 的 clean-revision Hydra v13 进一步以
+  59/59 checks 全真通过；launch manifest SHA-256
+  `29e24dabdbf4986c981a737297227d4f6b2ee365ce45c6e9a9b9aff7aca28fe8`，resolved config
+  SHA-256 `cda71307a9c6ebc7fd634114bf5cac76664723d0e124c83351f3d8a12680ac43`。
+- 下一步：提交本次 docs-only 记录后在最终 HEAD 复跑同一 Hydra gate，实时复核队列、
+  磁盘与预算后只重提 paired-signed G1；不运行 controls、不改变科学配置。

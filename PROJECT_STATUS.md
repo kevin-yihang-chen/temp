@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 09:40（Asia/Hong_Kong）
+更新时间：2026-09-03 09:51（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -30,7 +30,8 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
 通过。Job `205902` 随后获得 4×H800，但在模型加载前因 worker 的 jq 对象全真断言
 语法错误同秒 fail closed；没有训练输出目录、rollout、optimizer step 或 checkpoint。
 因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未真正开始，工程断言已定位
-并修复，待新 revision 重提”。
+并修复，待新 revision 重提”。修复 commit `8c0f6c0` 的 clean-revision Hydra v13
+已经以 59/59 resolved-config checks 全真通过，科学配置与 E-20260902-16 相同。
 
 ## 已完成的证据链
 
@@ -159,6 +160,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，因此开始与失败均在
 Slurm 状态通知范围内。当前修复只保留在本地，未 push GitHub。
 
+修复 commit `8c0f6c0` 的 Hydra v13 decision 为
+`vtool_action_credit_g1_hydra_dry_run_passed`；launch manifest SHA-256
+`29e24dabdbf4986c981a737297227d4f6b2ee365ce45c6e9a9b9aff7aca28fe8`，resolved config
+SHA-256 `cda71307a9c6ebc7fd634114bf5cac76664723d0e124c83351f3d8a12680ac43`。
+59 项检查全部为真，manifest 的 worktree status 为空、protected split 未访问。
+
 09:40 HKT 的 live quota 为 GPU 222,000 分钟总额、42,242 已用、179,758 剩余
 （2,995.97 GPU-hours，19.03% 已用）；association 上限为 4 GPU、4 H800、48 CPU。
 accounting storage 已禁用，无法从 `sacct` 获得更细粒度计费，但同秒退出且没有模型
@@ -209,8 +216,9 @@ accounting storage 已禁用，无法从 `sacct` 获得更细粒度计费，但�
 
 不再做 VTool 等价性审计。Job `205902` 的失败已定位为 jq object-values 断言语法，
 不属于科学负结果。全量回归已通过；下一步本地 commit 后完成真实 jq/worker 前置
-合同与最终 Hydra gate，实时复核 quota/queue/disk 后以新 revision 重新提交唯一
-4×H800、最多 2-step paired-signed G1。
+合同与最终 Hydra gate。修复 commit 的 Hydra v13 已通过；文档 commit 后在最终 HEAD
+复跑相同 gate，实时复核 quota/queue/disk 后以新 revision 重新提交唯一 4×H800、
+最多 2-step paired-signed G1。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。

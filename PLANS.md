@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 09:40（Asia/Hong_Kong）
+更新时间：2026-09-03 09:51（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -117,7 +117,10 @@ optimizer step，因此 H5 仍停在“G1 已可重新提交”，不是处于�
 checkpoint；因此这不是 H5 的正/负结果。两处同类断言已改为二参数形式
 `.checks | all(.[]; . == true)`，并加入真实 jq 正/负回归。下一次重提前必须完成
 全量回归、重新生成最终 Hydra gate 并以新 commit 绑定 worker 哈希。全量回归现已
-通过；剩余工程 gate 是 clean commit 上的最终 Hydra/worker 预检。
+通过；修复 commit `8c0f6c010a4dfeb1bf01d955054da2287691896e` 上的 Hydra v13
+也以 59/59 checks 全真通过，launch manifest/resolved config SHA-256 分别为
+`29e24dab...8fe8` / `cda71307...ac43`。文档 commit 后将在最终 HEAD 再跑一次同一
+gate，然后实时复核资源并只重提 signed arm。
 
 ### 顶会约束
 
@@ -177,8 +180,9 @@ checkpoint；因此这不是 H5 的正/负结果。两处同类断言已改为�
 8. 重提的 Job `205902` 在 2026-09-03 00:56 HKT 获得资源，但因 worker 的 jq
    object-values 断言语法错误同秒 fail closed；没有创建输出目录或产生科学结果。
    根因已由相同 jq/相同 72 行 audit report 稳定复现，并已修正两处同类断言。
-9. 全量回归已通过；下一步本地 commit 后完成最终 Hydra/worker 预检，再以新 revision
-   重新提交唯一 4×H800、最多 2 optimizer-step 的 paired-signed G1。只有实际
+9. 全量回归与修复 commit 上的 Hydra v13 已通过；下一步在最终 docs-only commit 后
+   复跑相同 gate，再以新 revision 重新提交唯一 4×H800、最多 2 optimizer-step 的
+   paired-signed G1。只有实际
    tool-call rate、pair validity 与训练稳定性通过冻结 stop rules，才以同一 revision
    顺序运行 zero/shuffled/outcome-only controls；失败则按预注册规则停止，不调整
    prompt、seed、temperature 或阈值追结果。
