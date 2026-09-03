@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 19:55（Asia/Hong_Kong）
+更新时间：2026-09-03 20:00（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -50,6 +50,12 @@ image/source-disjoint 数据冻结现已完成：ChartQA 为 `3600/900/1000` sta
 train 的 32 states，获得不被两次模型加载时间主导的实测 states/hour、GPU memory 与
 artifact growth；这仍不用于选模型或方法。只有据此冻结总 GPU-hours、shard count、
 checkpoint interval 和失败恢复合同后，才运行三 benchmark 的 train/validation。
+
+32-state ChartQA Job `206629` 已在 67 秒完成，折合约 `1719 states/H800-hour`。按三套
+train/validation 共 18,720 states 线性外推为 `10.9 H800-hours`，在尚未测 DocVQA 与
+HRBench 的情况下暂按 1.5 倍保守系数预留 `16.4 H800-hours`。下一 gate 是 DocVQA 与
+HRBench train 各 8 states 的结构/吞吐 smoke；不读取它们的 test，也不以 smoke endpoint
+调整协议。
 
 当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
 threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。

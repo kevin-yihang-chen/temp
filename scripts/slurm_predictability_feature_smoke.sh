@@ -12,6 +12,7 @@ set -euo pipefail
 required=(
   BE_PRED_EXPECTED_CODE_REVISION
   BE_PRED_EXPECTED_GPU_TOKEN
+  BE_PRED_BENCHMARK
   BE_PRED_RUN_ROOT
   BE_PRED_SMOKE_COUNT
   BE_PRED_WORKER_SHA256
@@ -32,7 +33,6 @@ done
 
 repo_dir=/userhome/cs3/yihangc/Documents/beyond-entropy
 python_bin=/userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python
-source_manifest="${repo_dir}/data/predictability-audit-v1/chartqa/train/manifest.jsonl"
 protocol="${repo_dir}/configs/predictability_audit_v1.json"
 worker="${repo_dir}/scripts/slurm_predictability_feature_smoke.sh"
 collector_cli="${repo_dir}/src/beyond_entropy/cli.py"
@@ -42,6 +42,24 @@ features_module="${repo_dir}/src/beyond_entropy/predictability_features.py"
 audit_module="${repo_dir}/src/beyond_entropy/predictability_audit.py"
 model=Qwen/Qwen2.5-VL-3B-Instruct
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
+case "${BE_PRED_BENCHMARK}" in
+  chartqa)
+    source_manifest="${repo_dir}/data/predictability-audit-v1/chartqa/train/manifest.jsonl"
+    scorer=chartqa
+    ;;
+  docvqa)
+    source_manifest="${repo_dir}/data/predictability-audit-v1/docvqa/train/manifest.jsonl"
+    scorer=docvqa
+    ;;
+  hrbench)
+    source_manifest="${repo_dir}/data/predictability-audit-v1/hrbench/train/manifest.jsonl"
+    scorer=hrbench
+    ;;
+  *)
+    echo "unsupported predictability smoke benchmark: ${BE_PRED_BENCHMARK}" >&2
+    exit 2
+    ;;
+esac
 run_dir="${BE_PRED_RUN_ROOT}/job-${SLURM_JOB_ID}"
 manifest="${run_dir}/manifest.jsonl"
 rollouts="${run_dir}/rollouts.jsonl"
@@ -199,7 +217,7 @@ cd "${repo_dir}"
   --checkpoint-interval 1 \
   --model "${model}" \
   --model-revision "${model_revision}" \
-  --scorer chartqa \
+  --scorer "${scorer}" \
   --candidate-count 4 \
   --proposer ug-grid \
   --visual-crop-ratio 2.0 \
@@ -207,7 +225,7 @@ cd "${repo_dir}"
   --generation-seeds 0 \
   --bootstrap-resamples 100 \
   --bootstrap-seed 20260903 \
-  --scientific-status "opened ChartQA engineering smoke; not a benchmark claim" \
+  --scientific-status "train-role ${BE_PRED_BENCHMARK} engineering smoke; not a benchmark claim" \
   --max-new-tokens 16 \
   --min-pixels 200704 \
   --max-pixels 602112 \
@@ -271,7 +289,11 @@ if metadata.get("dataset_role") != "retrospective_smoke":
 report = {
     "schema": "predictability_feature_real_smoke_v1",
     "passed": True,
-    "scientific_status": "engineering smoke on opened ChartQA; not a benchmark claim",
+    "scientific_status": (
+        f"engineering smoke on {os.environ.get('BE_PRED_BENCHMARK')} train role; "
+        "not a benchmark claim"
+    ),
+    "benchmark": os.environ.get("BE_PRED_BENCHMARK"),
     "code_revision": os.environ.get("BE_CODE_REVISION"),
     "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
     "gpu": os.environ.get("CUDA_VISIBLE_DEVICES"),

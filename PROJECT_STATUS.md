@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 19:55（Asia/Hong_Kong）
+更新时间：2026-09-03 20:00（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -48,6 +48,13 @@ Transformers `apply_chat_template(tokenize=True)` 不接受字符串形式的 sy
 `6147`、L3 `6147`；H800 峰值 allocated/reserved 显存约 `7.13/7.25 GiB`。该结果只证明
 实现可运行，不说明 predictor 有用。下一步是 32-state opened ChartQA throughput smoke，
 据其冻结分片和预算；test 仍封存。
+
+32-state ChartQA throughput Job `206629` 进一步 `COMPLETED`、`ExitCode=0:0`、67 秒：
+160 条 rollout、32 条 feature、四次收费与全部数值/身份/hash checks 均通过。端到端速率
+约 `1719 states/H800-hour`；rollout + feature 最终文件约 `1.96MB`，约 `61KB/state`。
+将 18,720 个 train/validation states 线性外推为约 `10.9 H800-hours` 与约 `1.15GB`
+最终特征/rollout，当前保守预算为 `16.4 H800-hours`。由于 ChartQA 不代表文档与超高
+分辨率输入，正式分片前还要完成 DocVQA/HRBench train 各 8-state smoke。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均

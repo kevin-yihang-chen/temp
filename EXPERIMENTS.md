@@ -1424,3 +1424,24 @@
 - 边界与下一步：这是 opened-data 工程证据，正式矩阵仍为 `0/36`，不能推断效用可预测。
   下一步用相同代码扩为 32-state opened ChartQA throughput smoke，以剔除两次模型加载的
   固定开销并冻结 states/hour、GPU-hours、shards 与 checkpoint cadence；test 继续封存。
+
+## E-20260903-21：ChartQA 32-state 端到端吞吐 gate
+
+- 范围：Job `206629`，1×H800，opened ChartQA train 前 32 states，code revision
+  `ebf859f16a0c1f5d9278fea9cd4add0322ebe100`；不读取 test，Slurm 邮件为 `ALL`。
+- 结果：`COMPLETED`、`ExitCode=0:0`、67 秒；160 条 sibling rollout、32 条 feature，
+  固定工具每 state 恰为 4 calls。L0/L1/L2/L3 维度在全部 32 states 稳定为
+  `3/22/6147/6147`。独立复核 report/execution、coverage、四次收费、唯一 identity、
+  provenance hashes 与全部有限数值共 7/7 checks 全真。
+- 哈希/资源：manifest/rollout/feature SHA-256 分别为 `a19b78a5...bcb`、
+  `be2939ed...78a`、`b84b93f3...8a8`；report/execution SHA-256 为
+  `2dd00b57...2cf` / `01895562...ce8`。H800 peak allocated/reserved bytes 为
+  `7858722816/8319401984`（约 `7.32/7.75 GiB`）。
+- 吞吐/存储：包含两次模型加载的端到端速率为 `32/67*3600=1719.4`
+  states/H800-hour；最终 rollout `578220B`、feature `1381122B`，合计约
+  `61229B/state`。三 benchmark train+validation 共 18,720 states，线性外推
+  `10.9 H800-hours` 与约 `1.15GB` 最终文件；未测跨数据集前使用 1.5 倍保守预算
+  `16.4 H800-hours`。
+- 边界与下一步：smoke 不用于查看或选择 endpoint，正式矩阵仍为 `0/36`。下一步以同一
+  code path 在 DocVQA 与 HRBench train 各跑 8 states，验证 scorer、重复图片、文档图像和
+  高分辨率路径；二者通过后才冻结正式 shard size/checkpoint interval 并提交开发数据。
