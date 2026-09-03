@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 09:51（Asia/Hong_Kong）
+更新时间：2026-09-03 12:16（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -781,3 +781,51 @@
   只有真实 rollout、pair/tool-call、optimizer/checkpoint gate 通过，才补齐并运行
   zero/shuffled/outcome-only controls；否则按预注册规则停止或仅修复新证据明确指向的
   工程错误。
+
+## E-20260903-05：四卡 G1 checkpoint 写满磁盘与存储 gate 修复
+
+- 假设：DataProto 类型修复后的 clean revision
+  `83f6e53fe1fdd4d83e4d5cd1bae7a0ab00e02b80` 能完成两步 paired rollout、token-local
+  optimizer、最终可恢复 checkpoint 与冻结 stop-rule analyzer。
+- 提交：Job `206184`，4×H800、48 CPU、384 GiB、2 小时上限，
+  `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`；11:27:40--11:32:35 HKT，
+  此前实时 Slurm 查询记录为 `FAILED`、`ExitCode=1:0`、`RunTime=00:04:55`、零
+  restart。12:09 HKT 当前队列为空，quota helper 为 222,000 GPU 分钟总额、42,268
+  已用、179,732 剩余；controller 此后已清除该短期 job record。
+- 新证据：worker 内 exact DataProto smoke 7/7 checks 全真；四个 actor/vLLM/agent-loop
+  启动并实际保存 `rollouts/1.jsonl`。32 行 schema、score、trajectory、direct/tool、
+  pair 合同 10/10 全真，task score mean `0.53125`，pair/judge failure 均为 0。
+- 单步风险：step 1 的工具调用为 `0/32`。临时单步 analyzer 会触发 `<1%` 条款，
+  但冻结正式协议要求 step 1/2 共 64 行，当前必须保持
+  `scientific_decision=not_available`。第二步至少一次调用会得到 aggregate 1.5625%，
+  所以不得提前关闭，也不得把临时诊断当正式结果。
+- 失败根因：worker 仅要求 32 GiB 空闲。checkpoint 写满盘前已生成四个
+  3,755,065,659-byte model shards，以及四个 6,945,898,496 / 7,189,561,344 /
+  7,062,945,792 / 7,148,797,952-byte optimizer shards，合计 43,367,466,220 bytes
+  （约 40.39 GiB）；extra-state、dataloader state、tracker 尚未完成。upstream 在
+  step-2 actor update 后先保存 checkpoint、再写当步 rollout，因此盘满同时导致
+  `rollouts/2.jsonl` 和 analyzer 缺失。
+- 产物：step-1 rollout SHA-256
+  `a2118345d04633d235659812ba5319284131c3a5b782ef4575f576598ad9e75c`；Slurm log
+  `7e88271055f5ead7b5ca641706f6099b81efebbd20ab23d6dd3aba376e4f6722`；launch manifest
+  `f8e6383718bb74c12f618606314e8cfce7a1f0ec828f9ade3c99062aa45d894b`。没有完整
+  checkpoint、step-2 rollout、execution、worker status 或正式 analysis。
+- 清理：用户明确授权后永久删除不可恢复 checkpoint，并删除约 37 GiB 可重建的
+  Hugging Face Arrow dataset cache；Qwen cache、Hub source blobs、正式 artifacts、
+  rollout 与日志保留。可用空间恢复至约 77.1 GiB。
+- 修复：资源合同新增 `minimum_free_persistent_disk_gib=64`；submitter 在 `sbatch`
+  前、worker 在模型加载前分别从冻结 config 读取并校验同一数值。相对已知 40.39 GiB
+  shards 留约 23.6 GiB 余量，不改变任何科学设置。
+- 验证：目标测试通过；显式 `PYTHONPATH=.:src` 的全仓回归为 `519 passed, 35
+  skipped`，零 failure/error；4-file mypy、compileall、Black formatter API、两份
+  shell syntax、JSON、exact pinned-runtime DataProto 7/7、credential scan 与
+  `git diff --check` 全部通过。首次在非登录 shell 直接运行 pytest 因仓库根目录未在
+  import path 而出现 16 个 `scripts` collection errors；修正命令环境后同一完整 suite
+  通过，不是代码回归。Black CLI 在 NFS 上完成输出后未退出，改用同版本 formatter
+  API 验证内容，未改格式规则。
+- 解释边界：这是存储/可观测性失败，不是 H5 的正或负结果；但 0/32 工具调用是必须
+  保留的负面风险证据。每臂只保存一个 `global_step_2` checkpoint；若 signed 通过，
+  后续三臂的独立 checkpoint 不能在当前盘无界累积。
+- 下一步：完成目标/full regression、静态检查、clean commit 与最终 Hydra/DataProto
+  gate；实时复核至少 64 GiB 空闲后只重提 signed arm。正式两步 stop 失败则关闭路线，
+  通过才规划 matched controls 的存储与执行。

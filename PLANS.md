@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 11:09（Asia/Hong_Kong）
+更新时间：2026-09-03 12:16（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -203,6 +203,13 @@ gate，然后实时复核资源并只重提 signed arm。
    action-credit adapter 把 donor trajectory IDs 作为 Python list 注入而在 verl
    `DataProto.chunk()` 失败。该 runtime 要求全部 `non_tensor_batch` 值为 ndarray；
    同一 runtime 的最小复现已从断言失败变为 4-way chunk 7/7 checks 全真。commit
-   `ea489f7c520880ab087af761a620b03f357b18e0` 修复类型并把 exact CPU smoke 加入
-   submitter/worker。科学配置和 stop rules 未变；最终 clean Hydra gate 后允许一次重提。
-12. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+    `ea489f7c520880ab087af761a620b03f357b18e0` 修复类型并把 exact CPU smoke 加入
+    submitter/worker。科学配置和 stop rules 未变；最终 clean Hydra gate 后允许一次重提。
+12. 重提的 Job `206184` 已完成 32 行 step-1 rollout 并进入最终 checkpoint 保存，
+    但原 32 GiB 空间 gate 低于实测至少 40.39 GiB 的 checkpoint shards，持久盘写满后
+    无法写出 step-2 rollout、完整 checkpoint 或 analyzer。step-1 结构审计 10/10
+    checks 全真、task score `0.53125`，但工具调用为 0；这只提高正式 stop 风险，不能
+    替代两步判定。不可恢复 checkpoint 与可重建 Arrow cache 已按用户授权清理，当前
+    空间约 77.1 GiB；资源合同提高为 submitter/worker 双重 64 GiB fail-closed gate。
+    验证并 clean commit 后只重提 signed arm。
+13. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

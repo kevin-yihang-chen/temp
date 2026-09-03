@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 11:09（Asia/Hong_Kong）
+更新时间：2026-09-03 12:16（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -55,6 +55,15 @@ trainer 进入 `0/2` 并调用第一次 `_update_actor`。它在把 batch 分给
 runtime 稳定复现；commit `ea489f7c520880ab087af761a620b03f357b18e0` 改为 object
 ndarray，并新增真实 4-way chunk preflight，提交前及 worker 启动前均 fail closed。
 该作业没有持久化 rollout、optimizer step、checkpoint 或 H5 指标，仍不是方法负结果。
+
+修复后的 Job `206184` 首次持久化了 32 行 step-1 rollout，并在第二步 checkpoint
+保存阶段因磁盘写满失败。原 gate 只要求 32 GiB，而四个 model 与四个 optimizer
+shards 尚未写完就已达 43,367,466,220 bytes（约 40.39 GiB）；extra-state、dataloader
+state 与 tracker 均缺失，checkpoint 不可恢复。授权清理后持久盘可用约 77.1 GiB，
+资源 gate 已提高为 submitter/worker 双重 64 GiB。step-1 rollout 的结构合同全部通过、
+task score mean 为 `0.53125`，但 32 条均为 direct、工具调用率为 0。由于冻结协议要求
+两步 64 条，当前 scientific decision 仍为 `not_available`；这不是 H5 的正式失败，
+但使最终触发 `<1%` stop rule 的风险明显上升。
 
 ## 已完成的证据链
 
@@ -170,6 +179,11 @@ ndarray，并新增真实 4-way chunk preflight，提交前及 worker 启动前�
     launch/execution SHA-256 分别为 `9e9c21b0...a07d`、`1afe3867...7906`、
     `ddb40676...94ff`、`e660444d...f1b2`。修复后的同 runtime 4-way synthetic chunk
     7/7 checks 全真，且 submission/worker 均新增该 CPU preflight；没有 H5 性能结果。
+24. 修复后的 Job `206184` 于 11:27:40--11:32:35 HKT 运行，保存 step-1 的 32 行
+    rollout 后在最终 checkpoint 阶段写满磁盘。rollout/log/launch SHA-256 分别为
+    `a2118345...e75c` / `7e882710...722` / `f8e63837...94b`。单步诊断 10/10 checks
+    全真、score mean `0.53125`、tool call `0/32`；缺失 step 2，不能执行正式 stop
+    decision。实测 checkpoint 已知 shards 至少 40.39 GiB，原 32 GiB gate 已被否定。
 
 ## 当前最佳结果与解释边界
 
@@ -193,7 +207,7 @@ ndarray，并新增真实 4-way chunk preflight，提交前及 worker 启动前�
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
 | HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
-| 真实 paired rollout 与最多 2-step optimizer smoke | Job 206179 到达首个 actor-update dispatch；DataProto 类型错误前零 optimizer step，已修复并新增 exact preflight |
+| 真实 paired rollout 与最多 2-step optimizer smoke | Job 206184 保存了 step-1 rollout，并进入 step-2 checkpoint；磁盘失败导致 step-2 rollout/完整 checkpoint 缺失，正式结果仍不可用 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -205,10 +219,11 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 11:09 HKT，Job `206179` 已终止，实时 `squeue -u yihangc` 为空。
-该任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/FAIL 在 Slurm
-状态通知范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行，修复已在
-本地 commit `ea489f7`，未 push GitHub。
+截至 2026-09-03 12:16 HKT，Job `206184` 已终止且已从 controller 短期缓存清除，
+实时 `squeue -u yihangc` 为空。该任务配置了
+`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/FAIL 在 Slurm 状态通知
+范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；存储修复仍在
+本地验证，未 push GitHub。
 
 ## 已关闭的路线
 
@@ -258,14 +273,20 @@ generalization 四个实质台阶。现在不能承诺日期。
   再用模型初始化验证纯 CPU 可检出的类型错误。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
+- Job `206184` 的 step-1 工具调用率为 0/32；正式两步结果尚缺失，但第二步必须至少
+  出现一次调用才能使 aggregate rate 达到 1.5625% 并越过冻结 1% 门槛。若仍为零，
+  必须按规则关闭，不允许用改 seed/prompt/temperature 重试。
+- 一个完整 distributed checkpoint 实测至少约 40.39 GiB；64 GiB gate 只保证当前
+  单臂有界运行。若 signed 通过，四个实验臂的 checkpoint 位于独立目录，必须先制定
+  有哈希和可恢复性的迁移/保留方案，不能在当前盘同时无界累计约 164 GiB。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。Job `206179` 已证明真实四卡栈可到达 actor-update dispatch，
-并暴露、复现、修复唯一的 donor ndarray 类型错误。下一步在最终 clean docs commit 上
-复跑完整 Hydra gate 与 exact 4-way DataProto preflight，实时复核 quota/queue/disk，
-然后以完全相同的科学配置重新提交唯一 4×H800、最多 2-step paired-signed G1；该作业
-仍是 paired rollout、optimizer 与 checkpoint 的最小真实 gate。
+不再做 VTool 等价性审计。Job `206184` 已把工程边界推进到真实 step-1 rollout 与
+最终 checkpoint，并暴露原 32 GiB gate 必然不足。下一步完成 64 GiB 双重磁盘 gate 的
+测试和 clean commit，在最终 revision 复跑 Hydra 与 exact DataProto preflight，实时
+复核 quota/queue/disk，然后以完全相同的科学配置重新提交唯一 4×H800、最多 2-step
+paired-signed G1；该作业仍是两步 rollout、optimizer 与 checkpoint 的最小真实 gate。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。

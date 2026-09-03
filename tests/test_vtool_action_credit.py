@@ -308,6 +308,7 @@ def test_g1_config_freezes_matched_controls_and_stop_rules() -> None:
         == config["training"]["data_train_batch_size"]
     )
     assert config["resources"]["gpu_count"] == 4
+    assert config["resources"]["minimum_free_persistent_disk_gib"] == 64
     assert config["resources"]["slurm_mail_type"] == "ALL"
     assert config["stop_rules"]["tool_call_rate_below"] == pytest.approx(0.01)
     assert config["preflight"]["action_gradient_report_sha256"] == (

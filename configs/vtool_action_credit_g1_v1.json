@@ -116,6 +116,7 @@
   "resources": {
     "gpu_count": 4,
     "gpu_type": "H800",
+    "minimum_free_persistent_disk_gib": 64,
     "max_optimizer_steps": 2,
     "max_walltime_minutes": 120,
     "notification_email": "yihangc@connect.hku.hk",

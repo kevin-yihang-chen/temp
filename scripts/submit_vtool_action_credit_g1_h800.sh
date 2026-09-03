@@ -22,6 +22,17 @@ if [[ ! -x "${jq_bin}" ]]; then
 fi
 runtime_audit_relative=$("${jq_bin}" -er '.preflight.full_train_runtime_audit_report' "${config}")
 runtime_audit="${repo}/${runtime_audit_relative}"
+minimum_free_gib=$("${jq_bin}" -er '.resources.minimum_free_persistent_disk_gib' "${config}")
+if [[ ! "${minimum_free_gib}" =~ ^[0-9]+$ || "${minimum_free_gib}" -ne 64 ]]; then
+  echo "G1 frozen persistent-disk requirement must be 64 GiB" >&2
+  exit 2
+fi
+minimum_free_kb=$((minimum_free_gib * 1024 * 1024))
+available_kb=$(df -Pk "${repo}" | awk 'NR==2 {print $4}')
+if [[ -z "${available_kb}" || "${available_kb}" -lt "${minimum_free_kb}" ]]; then
+  echo "G1 requires at least ${minimum_free_gib} GiB free persistent disk before submission" >&2
+  exit 2
+fi
 
 revision=$(git rev-parse HEAD)
 if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then

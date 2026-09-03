@@ -149,6 +149,7 @@ if ! "${jq_bin}" -e '
   .frozen_before_g1_results == true and
   .resources.gpu_count == 4 and
   .resources.gpu_type == "H800" and
+  .resources.minimum_free_persistent_disk_gib == 64 and
   .resources.max_walltime_minutes == 120 and
   .resources.slurm_mail_type == "ALL" and
   .training.total_optimizer_steps == 2 and
@@ -166,9 +167,15 @@ if ! "${jq_bin}" -e '
   exit 2
 fi
 
+minimum_free_gib=$("${jq_bin}" -er '.resources.minimum_free_persistent_disk_gib' "${config}")
+if [[ ! "${minimum_free_gib}" =~ ^[0-9]+$ || "${minimum_free_gib}" -ne 64 ]]; then
+  echo "G1 frozen persistent-disk requirement must be 64 GiB" >&2
+  exit 2
+fi
+minimum_free_kb=$((minimum_free_gib * 1024 * 1024))
 available_kb=$(df -Pk "${repo}" | awk 'NR==2 {print $4}')
-if [[ -z "${available_kb}" || "${available_kb}" -lt 33554432 ]]; then
-  echo "G1 requires at least 32 GiB free persistent disk for one resumable checkpoint" >&2
+if [[ -z "${available_kb}" || "${available_kb}" -lt "${minimum_free_kb}" ]]; then
+  echo "G1 requires at least ${minimum_free_gib} GiB free persistent disk for one resumable checkpoint" >&2
   exit 2
 fi
 if [[ -z "${CUDA_VISIBLE_DEVICES:-}" ]]; then

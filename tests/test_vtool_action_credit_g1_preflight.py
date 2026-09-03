@@ -386,6 +386,11 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "#SBATCH --time=02:00:00" in worker
     assert "#SBATCH --mail-user=yihangc@connect.hku.hk" in worker
     assert "#SBATCH --mail-type=ALL" in worker
+    assert ".resources.minimum_free_persistent_disk_gib == 64" in worker
+    assert worker.count("minimum_free_kb=$((minimum_free_gib * 1024 * 1024))") == 1
+    assert submit.count("minimum_free_kb=$((minimum_free_gib * 1024 * 1024))") == 1
+    assert "requires at least ${minimum_free_gib} GiB free persistent disk" in worker
+    assert "requires at least ${minimum_free_gib} GiB free persistent disk" in submit
     assert "paired_signed_credit" in worker
     assert "runtime dataset audit contract failed" in worker
     assert "runtime audit provenance contract failed" in worker
