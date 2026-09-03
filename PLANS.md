@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 09:51（Asia/Hong_Kong）
+更新时间：2026-09-03 10:34（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -180,10 +180,19 @@ gate，然后实时复核资源并只重提 signed arm。
 8. 重提的 Job `205902` 在 2026-09-03 00:56 HKT 获得资源，但因 worker 的 jq
    object-values 断言语法错误同秒 fail closed；没有创建输出目录或产生科学结果。
    根因已由相同 jq/相同 72 行 audit report 稳定复现，并已修正两处同类断言。
-9. 全量回归与修复 commit 上的 Hydra v13 已通过；下一步在最终 docs-only commit 后
-   复跑相同 gate，再以新 revision 重新提交唯一 4×H800、最多 2 optimizer-step 的
-   paired-signed G1。只有实际
+9. jq 修复后的 Job `206170` 已真正进入四个 FSDP actor 初始化，但 pinned runtime
+   默认强制 `flash_attention_2`，隔离环境没有 `flash_attn`，四个 rank 在权重加载前
+   以相同 ImportError 退出。没有 rollout、optimizer step、checkpoint 或 H5 指标。
+   进一步源码诊断发现，只覆盖为 SDPA 仍不充分：`use_remove_padding=true` 会把 Qwen
+   attention forward 再替换回自定义 FlashAttention 路径。因此所有实验臂共同冻结为
+   `attn_implementation=sdpa` 且 `use_remove_padding=false`；这属于首次科学结果前的
+   对称运行时修复，不改变方法或比较定义。
+10. commit `22b89a5ca872356c621203f7bb724042c846a091` 已加入 fail-closed 配置审计和
+   单 H800 真实图片 actor-load/forward smoke。无权重 meta gate 已确认 Qwen actor、
+   model/text/vision 三层 SDPA dispatch 与原生 attention forward；Hydra 61 项配置
+   检查全真。下一步只提交该单卡 smoke；通过后才重新提交唯一 4×H800、最多 2
+   optimizer-step 的 paired-signed G1。只有实际
    tool-call rate、pair validity 与训练稳定性通过冻结 stop rules，才以同一 revision
    顺序运行 zero/shuffled/outcome-only controls；失败则按预注册规则停止，不调整
    prompt、seed、temperature 或阈值追结果。
-10. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+11. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

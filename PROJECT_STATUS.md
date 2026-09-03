@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 09:51（Asia/Hong_Kong）
+更新时间：2026-09-03 10:34（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -27,11 +27,18 @@ matched controls 下改善任务分数、cost-adjusted utility 和 harmful-call 
 当前工程 gate 已前进：官方 Apache-2.0 ReFocus train、token-local adapter 的真实
 autograd、隔离 runtime、单行及完整 72 行 Qwen processor、paired fake-server、单卡
 H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-config gate 均已
-通过。Job `205902` 随后获得 4×H800，但在模型加载前因 worker 的 jq 对象全真断言
-语法错误同秒 fail closed；没有训练输出目录、rollout、optimizer step 或 checkpoint。
-因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未真正开始，工程断言已定位
-并修复，待新 revision 重提”。修复 commit `8c0f6c0` 的 clean-revision Hydra v13
-已经以 59/59 resolved-config checks 全真通过，科学配置与 E-20260902-16 相同。
+通过。Job `205902` 的 jq 前置错误修复后，Job `206170` 已进入四个 FSDP actor 的
+Hugging Face 模型初始化，但 pinned runtime 默认强制 `flash_attention_2`，而冻结环境
+没有 `flash_attn`，四个 rank 在权重加载前以同一 ImportError 退出。输出目录只有空
+Hydra log、launch manifest 与失败 execution report，没有 rollout、optimizer step、
+checkpoint 或 H5 指标。因此当前仍不是“新方法失败”，而是“关键性能实验尚未开始”。
+
+根因诊断还发现：只设 `attn_implementation=sdpa` 会把错误推迟到首次前向，因为
+`use_remove_padding=true` 会让 verl 把 Qwen attention forward 替换为自定义
+FlashAttention 路径。commit `22b89a5ca872356c621203f7bb724042c846a091` 因此对所有
+实验臂共同冻结 SDPA 并关闭 remove-padding，加入真实图片 HF actor-load/forward 单卡
+smoke；这发生在任何科学结果前，不改变数据、方法、reward、seed、prompt 或对照。
+无权重 meta gate 已通过，Hydra 对新增两项在内的 61 项 resolved-config checks 全真。
 
 ## 已完成的证据链
 
@@ -119,6 +126,17 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
     报 `Cannot iterate over boolean`。相同 jq 与冻结 72 行 report 已稳定复现；改为
     `.checks | all(.[]; . == true)` 后，全真输入通过、含假输入拒绝。训练输出目录
     不存在，未发生模型加载、rollout、optimizer 或 checkpoint；本项不是 H5 结果。
+21. jq 修复后的 paired-signed Job `206170` 使用 commit `1fd694c`，于
+    2026-09-03 09:55:15--09:57:18 HKT 运行，worker status 为 `failed`、exit 1、
+    `scientific_decision=not_available`。四个 actor rank 均在
+    `AutoModelForImageTextToText.from_pretrained` 前置 attention dispatch 报
+    `FlashAttention2 ... flash_attn seems to be not installed`；这把原因锁定为运行时
+    backend，而非模型显存、数据、Ray 启动或 action-credit 数值。status/log SHA-256
+    分别为 `316e6038...27a0` / `38ceb188...79c`。修复后的 meta report 决策为
+    `vtool_hf_actor_meta_dispatch_passed`：actor class 为
+    `Qwen2_5_VLForConditionalGeneration`，model/text/vision 三层均为 SDPA，原生
+    attention forward 保留，verl 多模态 model forward 仍应用；report SHA-256
+    `6e6afe77...bda5`。该报告不加载权重，仍需单 H800 真实图片前向 gate。
 
 ## 当前最佳结果与解释边界
 
@@ -141,7 +159,8 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
 | 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
-| 真实 paired rollout 与最多 2-step optimizer smoke | Job 205902 在模型加载前因 jq 断言秒退；已修复，仍待新 revision 重提 |
+| HF actor backend/真实图片前向 | Job 206170 暴露 FA2 缺依赖；SDPA+关闭 remove-padding 的 meta gate 已通过，单 H800 smoke 待提交 |
+| 真实 paired rollout 与最多 2-step optimizer smoke | 尚未产生；只有 actor smoke 通过后才重提 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -153,23 +172,18 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 09:40 HKT，Job `205902` 已终止且不再出现在活动队列；当前没有
-正在运行/排队的 G1。worker status 为 `failed`、exit 2、开始与结束 epoch 均为
-`1788368160`，科学 decision 不可用。日志只包含 jq 的
-`Cannot iterate over boolean (true)` 与 fail-closed 提示，训练输出目录不存在。
-任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，因此开始与失败均在
-Slurm 状态通知范围内。当前修复只保留在本地，未 push GitHub。
+截至 2026-09-03 10:34 HKT，活动队列为空。Job `206170` 已终止，worker status 为
+`failed`、exit 1、开始/结束 epoch 为 `1788400515` / `1788400638`，科学 decision
+不可用。任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，因此开始与
+失败均在 Slurm 状态通知范围内；不能据此确认邮件客户端实际送达。Slurm controller
+随后已清除该历史 job ID，终态由当时的实时查询、不可变 worker status 与日志共同
+保留。当前没有训练在后台运行，修复只在本地 commit，未 push GitHub。
 
-修复 commit `8c0f6c0` 的 Hydra v13 decision 为
-`vtool_action_credit_g1_hydra_dry_run_passed`；launch manifest SHA-256
-`29e24dabdbf4986c981a737297227d4f6b2ee365ce45c6e9a9b9aff7aca28fe8`，resolved config
-SHA-256 `cda71307a9c6ebc7fd634114bf5cac76664723d0e124c83351f3d8a12680ac43`。
-59 项检查全部为真，manifest 的 worktree status 为空、protected split 未访问。
-
-09:40 HKT 的 live quota 为 GPU 222,000 分钟总额、42,242 已用、179,758 剩余
-（2,995.97 GPU-hours，19.03% 已用）；association 上限为 4 GPU、4 H800、48 CPU。
-accounting storage 已禁用，无法从 `sacct` 获得更细粒度计费，但同秒退出且没有模型
-加载。算力仍足以支持一次有界 3B matched-control RL 研究。
+SDPA pre-commit Hydra gate decision 为
+`vtool_action_credit_g1_hydra_dry_run_passed`；launch manifest/resolved config
+SHA-256 为 `75a55090...73f` / `afceaece...8bb`，61 项检查全部为真。由于这是 dirty
+worktree 上的诊断 gate，它只证明 override 可解析；提交单卡 smoke 前还会在最终 clean
+revision 复跑，不能把它当作正式 G1 授权。
 
 ## 已关闭的路线
 
@@ -209,16 +223,21 @@ accounting storage 已禁用，无法从 `sacct` 获得更细粒度计费，但�
   同类表达式现已修正并加入真实 jq 正/负回归；全仓测试与静态检查已通过。重新提交前
   仍需在 clean commit 上执行完整 worker/Hydra 前置合同，避免再次用排队换取可在登录
   节点发现的语法错误。
+- Job `206170` 暴露出 vLLM model-load smoke 没有覆盖 FSDP actor 的 Hugging Face
+  attention dispatch。单设 SDPA 又会被 remove-padding monkey patch 绕回
+  FlashAttention，因此新 smoke 必须覆盖完整权重加载、verl patch 和真实图片前向；
+  仅 meta gate 不能授权四卡训练。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。Job `205902` 的失败已定位为 jq object-values 断言语法，
-不属于科学负结果。全量回归已通过；下一步本地 commit 后完成真实 jq/worker 前置
-合同与最终 Hydra gate。修复 commit 的 Hydra v13 已通过；文档 commit 后在最终 HEAD
-复跑相同 gate，实时复核 quota/queue/disk 后以新 revision 重新提交唯一 4×H800、
-最多 2-step paired-signed G1。
+不再做 VTool 等价性审计。Job `206170` 的失败已定位为 FSDP actor 默认
+FlashAttention2 与环境缺依赖，并确认 remove-padding 会形成第二条隐式 FA2 路径；
+不属于科学负结果。下一步在最终 clean commit 上复跑配置 gate、实时复核
+quota/queue/disk，然后只提交 1×H800、30 分钟上限的 HF actor-load/真实图片前向
+smoke。只有该 smoke 完整通过，才以同一 backend 设置重新提交唯一 4×H800、最多
+2-step paired-signed G1。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。

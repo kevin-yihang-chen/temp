@@ -632,3 +632,62 @@
   SHA-256 `cda71307a9c6ebc7fd634114bf5cac76664723d0e124c83351f3d8a12680ac43`。
 - 下一步：提交本次 docs-only 记录后在最终 HEAD 复跑同一 Hydra gate，实时复核队列、
   磁盘与预算后只重提 paired-signed G1；不运行 controls、不改变科学配置。
+
+## E-20260903-02：G1 FSDP actor FlashAttention 启动失败与 SDPA 运行时修复
+
+- 假设：jq 修复后的 clean revision `1fd694c96c6a5bb6800bb2a1a6049b1b6c251cc3`
+  能让 paired-signed G1 进入真实 actor 权重加载、paired rollout 与最多 2 个 optimizer
+  steps。
+- 提交：Job `206170`，4×H800、48 CPU、384 GiB、2 小时上限，
+  `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`；2026-09-03 09:55:15 HKT
+  开始，09:57:18 结束。科学配置、数据、模型、seed、prompt、reward、stop rules 与
+  E-20260903-01 后的冻结设置相同。
+- 结果：`fsdp_actor_attention_backend_failed_no_scientific_result`。worker status
+  `decision=failed`、`exit_code=1`、`scientific_decision=not_available`。Ray core 已
+  启动并建立四个 actor rank，但四个 rank 均在 Hugging Face
+  `from_pretrained` 的 attention backend 检查处报
+  `FlashAttention2 ... flash_attn seems to be not installed`。输出目录只有空 Hydra
+  log、launch manifest 与 execution report，没有 rollout、optimizer step、checkpoint、
+  task score、utility 或 harmful-call 指标，不能解释为 H5 正/负结果。
+- 根因区分：冻结环境为 torch `2.9.0+cu128`、Transformers `4.57.6`，没有
+  `flash_attn`；pinned `fsdp_workers.py` 在未提供 override 时显式默认
+  `flash_attention_2`。进一步源码审计发现 `use_remove_padding=true` 会在加载后把
+  Qwen attention forward 替换为自定义 FlashAttention 实现，因此只设 SDPA 会把失败
+  推迟到第一次 actor forward，并不构成完整修复。Ray dashboard MetricsHead 曾报
+  EOF，但 Ray core 随后成功启动，且四个 rank 有一致、更下游的 ImportError，因此
+  dashboard 事件不是本次根因。
+- 修复：commit `22b89a5ca872356c621203f7bb724042c846a091` 在所有四个实验臂共同的
+  model config 上冻结 `attn_implementation=sdpa` 且
+  `use_remove_padding=false`；launcher、Hydra resolved-config audit 与 worker 均
+  fail closed 拒绝漂移。没有安装/编译新的 `flash_attn`，避免在仅约 40 GiB 可用磁盘
+  上引入未冻结 wheel/source build。该更改发生在任何 G1 科学结果前，且对 signed、
+  zero、shuffled、outcome-only 对称，不改变方法、数据、reward、seed、prompt 或指标。
+- 新最小 gate：新增单 H800、30 分钟上限的 HF actor-load smoke。它复用 official-train
+  单行真实图片，按 FSDP worker 相同的 AutoModel class dispatch 加载权重、应用 verl
+  多模态 monkey patch，并完成一次 SDPA actor forward；不执行 optimizer。worker
+  绑定 code/config/data/model/runtime/patch 哈希、拒绝覆盖产物、保存失败 status，并用
+  `--mail-type=ALL` 覆盖全部状态通知。
+- CPU/meta 证据：最终脚本在不加载权重时得到
+  `vtool_hf_actor_meta_dispatch_passed`；actor class 为
+  `Qwen2_5_VLForConditionalGeneration`，model/text/vision 三层 backend 均为 SDPA，
+  原生 attention forward 保留，verl 多模态 model forward 已应用，全部 4 项 checks
+  为真。报告 SHA-256
+  `6e6afe772e058ca31e11b8f49eb6a8bc5196e57231260bf35ab71cf2151bbda5`；模型权重未
+  加载、protected split 未访问。
+- Hydra：dirty-worktree 诊断 gate 对新增两项在内的 61 项 resolved values 全真，
+  launch manifest/resolved config SHA-256 为
+  `75a55090da833e2bcf8946d3da95afe1212d044bba1961c49ea7ec83c89a573f` /
+  `afceaecee891c736a37108b1fc2e1f022b8f419ac01d4116d9e239f7fac798bb`。该 gate 只
+  验证 override 能被 Hydra 正确解析；最终 clean revision 必须重跑。
+- 失败产物：Job `206170` worker status SHA-256
+  `316e6038465b55c5d85d5c3572d857d5594bfdc3f3ae6283969fb05b9fdc27a0`；Slurm log
+  SHA-256 `38ceb1882ac46cf34216b00fd57f9bca0095b787f0eb7b7850fb1c91235a179c`。
+- 验证：完整仓库 `518 passed, 34 skipped`；15-file mypy、Python compileall、
+  Black in-memory formatter、四个相关 shell syntax、JSON、隔离环境 `pip check`、
+  credential scan 与 `git diff --check` 通过。一次检查命令误把 Python 文件传给
+  `bash -n` 并如预期报 Python 语法；修正目标后全部实际 shell 通过，不是代码失败。
+- 当前最佳结果：仍无 H5 性能结果；本项只把失败从不可执行默认 backend 收敛到一个
+  可独立验证的 runtime amendment。
+- 下一步：先在最终 clean commit 复跑 Hydra gate 并提交唯一 1×H800 actor-load/真实
+  图片前向 smoke。只有权重加载、patch、forward、显存与 artifact checks 全部通过，
+  才重提 4×H800 paired-signed G1；若失败，按新错误定位，不重复四卡作业。
