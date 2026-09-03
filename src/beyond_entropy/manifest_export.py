@@ -194,7 +194,9 @@ def hash_ranked_source_group_indices(
         )
     selected = set(eligible_groups[:count])
     return [
-        index for index, group_id in enumerate(normalized_groups) if group_id in selected
+        index
+        for index, group_id in enumerate(normalized_groups)
+        if group_id in selected
     ]
 
 
@@ -481,8 +483,9 @@ def export_benchmark_manifest(
     dataset_split: str | None = None,
     selection: str = "seeded round-robin stratified sample",
     selection_metadata: Mapping[str, Any] | None = None,
+    preserve_hrbench_image_encoding: bool = False,
 ) -> dict[str, Any]:
-    """Save decoded images and a frozen manifest with a provenance sidecar."""
+    """Save images and a frozen manifest with a provenance sidecar."""
 
     if task not in BENCHMARK_SPECS:
         raise ValueError(f"unsupported benchmark task: {task}")
@@ -490,6 +493,10 @@ def export_benchmark_manifest(
         raise ValueError("rows and source_indices must have the same length")
     if not rows:
         raise ValueError("rows must not be empty")
+    if preserve_hrbench_image_encoding and task not in {"hrbench4k", "hrbench8k"}:
+        raise ValueError(
+            "preserve_hrbench_image_encoding is only valid for HRBench tasks"
+        )
     resolved_split = (
         BENCHMARK_SPECS[task].split
         if dataset_split is None
@@ -503,15 +510,44 @@ def export_benchmark_manifest(
     payloads: list[dict[str, Any]] = []
     screenqa_image_cache: dict[str, tuple[str, str]] = {}
     for row, source_index in zip(rows, source_indices):
-        screenqa_raw_id = str(row.get("image_id", "")).strip() if task == "screenqa" else ""
+        screenqa_raw_id = (
+            str(row.get("image_id", "")).strip() if task == "screenqa" else ""
+        )
         cached_image = screenqa_image_cache.get(screenqa_raw_id)
         if cached_image is None:
-            image = _decode_row_image(row, task=task)
+            encoded_image: bytes | None = None
+            encoded_suffix: str | None = None
+            if preserve_hrbench_image_encoding:
+                try:
+                    encoded_image = base64.b64decode(str(row["image"]), validate=True)
+                    from PIL import Image  # type: ignore[import-untyped]
+
+                    with Image.open(io.BytesIO(encoded_image)) as loaded:
+                        image_format = str(loaded.format).upper()
+                        image = loaded.convert("RGB")
+                    encoded_suffix = {
+                        "BMP": ".bmp",
+                        "JPEG": ".jpg",
+                        "PNG": ".png",
+                        "TIFF": ".tiff",
+                        "WEBP": ".webp",
+                    }.get(image_format)
+                    if encoded_suffix is None:
+                        raise ValueError(
+                            f"unsupported source image encoding: {image_format}"
+                        )
+                except Exception as exc:
+                    raise ValueError("could not preserve HRBench base64 image") from exc
+            else:
+                image = _decode_row_image(row, task=task)
             image_id = image_digest(image)
-            image_name = f"{image_id}.png"
+            image_name = f"{image_id}{encoded_suffix or '.png'}"
             image_destination = image_dir / image_name
             if not image_destination.exists():
-                image.save(image_destination, format="PNG")
+                if encoded_image is None:
+                    image.save(image_destination, format="PNG")
+                else:
+                    image_destination.write_bytes(encoded_image)
             if task == "screenqa":
                 screenqa_image_cache[screenqa_raw_id] = (image_id, image_name)
         else:
@@ -556,6 +592,9 @@ def export_benchmark_manifest(
         "unique_images": len({payload["image_id"] for payload in payloads}),
         "unique_sources": len({payload["source_id"] for payload in payloads}),
         "state_namespace": state_namespace or task,
+        "image_storage": (
+            "source_encoding" if preserve_hrbench_image_encoding else "decoded_rgb_png"
+        ),
         "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "python": sys.version.split()[0],
         "packages": {},

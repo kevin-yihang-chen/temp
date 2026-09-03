@@ -375,6 +375,7 @@ def freeze_hrbench(
             state_namespace=f"hrbench8k-predictability-{role}",
             dataset_split=str(config["split"]),
             selection="source/RGB connected-component deterministic allocation",
+            preserve_hrbench_image_encoding=True,
         )
         reports[role] = {
             "manifest": str(Path(exported["manifest"]).relative_to(stage)),

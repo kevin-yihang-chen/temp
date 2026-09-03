@@ -21,7 +21,9 @@ def test_stratified_indices_are_balanced_and_deterministic():
     first = stratified_sample_indices(labels, count=9, seed=3)
     second = stratified_sample_indices(labels, count=9, seed=3)
     assert first == second
-    counts = {label: sum(labels[index] == label for index in first) for label in set(labels)}
+    counts = {
+        label: sum(labels[index] == label for index in first) for label in set(labels)
+    }
     assert counts == {"a": 4, "b": 3, "c": 2}
     assert len(first) == 9
 
@@ -48,7 +50,9 @@ def test_stratified_unique_group_indices_are_balanced_and_group_disjoint():
     )
     assert first == second
     assert len({groups[index] for index in first}) == 6
-    assert {label: sum(labels[index] == label for index in first) for label in set(labels)} == {
+    assert {
+        label: sum(labels[index] == label for index in first) for label in set(labels)
+    } == {
         "a": 3,
         "b": 3,
     }
@@ -154,16 +158,23 @@ def test_cross_benchmark_specs_are_revision_pinned():
 
 
 def test_cross_benchmark_strata_use_only_pre_outcome_fields():
-    assert benchmark_stratum(
-        {"question_types": ["table", "figure"]}, task="docvqa"
-    ) == "figure+table"
+    assert (
+        benchmark_stratum({"question_types": ["table", "figure"]}, task="docvqa")
+        == "figure+table"
+    )
     assert benchmark_stratum({"ocr_tokens": []}, task="textvqa") == "ocr-000"
-    assert benchmark_stratum(
-        {"ocr_tokens": [str(index) for index in range(6)]}, task="textvqa"
-    ) == "ocr-006-015"
-    assert benchmark_stratum(
-        {"category": "cross", "cycle_category": "text"}, task="hrbench4k"
-    ) == "cross:text"
+    assert (
+        benchmark_stratum(
+            {"ocr_tokens": [str(index) for index in range(6)]}, task="textvqa"
+        )
+        == "ocr-006-015"
+    )
+    assert (
+        benchmark_stratum(
+            {"category": "cross", "cycle_category": "text"}, task="hrbench4k"
+        )
+        == "cross:text"
+    )
     assert benchmark_stratum({}, task="screenqa") == (
         "allocated-app-duplicate-component"
     )
@@ -270,7 +281,8 @@ def test_export_docvqa_groups_questions_from_the_same_document(tmp_path):
         seed=19,
     )
     payloads = [
-        json.loads(line) for line in (tmp_path / "manifest.jsonl").read_text().splitlines()
+        json.loads(line)
+        for line in (tmp_path / "manifest.jsonl").read_text().splitlines()
     ]
     assert payloads[0]["source_id"] == payloads[1]["source_id"]
     assert payloads[0]["image_id"] == payloads[1]["image_id"]
@@ -444,6 +456,39 @@ def test_export_hrbench_decodes_base64_and_pairs_resolution_source(tmp_path):
     }
     exported = Image.open(tmp_path / payload["image_path"])
     assert exported.size == (14, 9)
+
+
+def test_export_hrbench_can_preserve_source_image_encoding(tmp_path):
+    buffer = io.BytesIO()
+    Image.new("RGB", (14, 9), "green").save(buffer, format="JPEG", quality=91)
+    encoded = buffer.getvalue()
+    row = {
+        "index": 7,
+        "question": "Which option is visible?",
+        "answer": "C",
+        "category": "single",
+        "cycle_category": "text",
+        "A": "alpha",
+        "B": "beta",
+        "C": "gamma",
+        "D": "delta",
+        "image": base64.b64encode(encoded).decode(),
+    }
+    result = export_benchmark_manifest(
+        [row],
+        source_indices=[7],
+        task="hrbench8k",
+        dataset_id="DreamMr/HR-Bench",
+        dataset_revision="revision",
+        output_dir=tmp_path,
+        seed=29,
+        preserve_hrbench_image_encoding=True,
+    )
+    payload = json.loads((tmp_path / "manifest.jsonl").read_text())
+    exported_path = tmp_path / payload["image_path"]
+    assert exported_path.suffix == ".jpg"
+    assert exported_path.read_bytes() == encoded
+    assert result["image_storage"] == "source_encoding"
 
 
 def test_collect_qwen_rejects_changed_manifest_before_model_load(tmp_path):
