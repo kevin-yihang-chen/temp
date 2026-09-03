@@ -22,6 +22,12 @@
   "fixed_visual_tool": {
     "policy": "entropy_search",
     "candidate_bank": "four_frozen_ug_grid_crops",
+    "candidate_action_ids": [
+      "ug-grid-00",
+      "ug-grid-01",
+      "ug-grid-02",
+      "ug-grid-03"
+    ],
     "candidate_count": 4,
     "execution": "evaluate_all_candidates_then_select_minimum_post_action_entropy",
     "tie_break": "ascending_action_id",
@@ -166,6 +172,40 @@
     "uniform_random_crop_expectation_with_matched_gate",
     "exhaustive_ug_entropy_search_charged_four_calls"
   ],
+  "strong_baseline_implementation": {
+    "amended_at": "2026-09-03T20:27:03+08:00",
+    "amendment_scope": "operationalize frozen baseline names before validation or test outcomes are generated",
+    "answer_now": "never_call",
+    "entropy_gate_fixed_visual_tool": {
+      "score": "entropy_before",
+      "direction": "call_if_score_greater_than_or_equal_to_threshold",
+      "threshold_selection": "validation_source_balanced_utility_then_fewer_calls_then_ascending_threshold",
+      "called_action": "fixed_four_crop_entropy_search",
+      "charged_calls": 4
+    },
+    "random_gate_fixed_visual_tool": {
+      "score": "sha256_first_64_bits_uniform_v1(seed,state_id,replicate_id)",
+      "seed": 20260903,
+      "direction": "call_if_score_greater_than_or_equal_to_threshold",
+      "threshold_selection": "validation_source_balanced_utility_then_fewer_calls_then_ascending_threshold",
+      "called_action": "fixed_four_crop_entropy_search",
+      "charged_calls": 4
+    },
+    "fixed_crop_with_matched_gate": {
+      "gate": "reuse_entropy_gate_fixed_visual_tool_threshold_and_call_mask",
+      "action_selection": "choose_one_global_action_id_on_validation_by_source_balanced_utility_then_lower_cost_then_lower_call_rate_then_ascending_action_id",
+      "charged_calls": 1
+    },
+    "uniform_random_crop_expectation_with_matched_gate": {
+      "gate": "reuse_entropy_gate_fixed_visual_tool_threshold_and_call_mask",
+      "evaluation": "exact_uniform_expectation_over_the_four_registered_crop_outcomes",
+      "selection_uses_crop_outcomes": false,
+      "charged_calls": 1
+    },
+    "exhaustive_ug_entropy_search_charged_four_calls": "always_execute_all_four_crops_and_select_minimum_post_action_entropy",
+    "strongest_baseline_selection": "validation_source_balanced_utility_then_lower_cost_then_lower_call_rate_then_ascending_name",
+    "test_outcomes_used_for_selection": false
+  },
   "verdict_rules": {
     "priority": [
       "STOP",

@@ -25,6 +25,16 @@ def test_partial_matrix_runner_preserves_incomplete_status() -> None:
     assert report["matrix"]["complete"] is False
     assert report["formal_claim_eligible"] is False
     assert all(value["passed"] for value in report["split_audits"].values())
+    assert set(report["strong_baselines"]) == {"chartqa", "docvqa", "hrbench"}
+    assert all(
+        value["selection_role"] == "validation_only"
+        for value in report["strong_baselines"].values()
+    )
+    assert all(
+        cell["strongest_baseline"]
+        == report["strong_baselines"][cell["benchmark"]]["strongest_baseline"]
+        for cell in report["cells"]
+    )
 
 
 def test_formal_matrix_rejects_partial_grid() -> None:
@@ -39,5 +49,19 @@ def test_formal_matrix_rejects_partial_grid() -> None:
             seeds=(17,),
             predictor_levels=("l0_uncertainty",),
             target_families=("direct_gain",),
+            formal_claim_eligible=True,
+        )
+
+
+def test_formal_matrix_rejects_unfrozen_strong_baseline_seed() -> None:
+    with pytest.raises(ValueError, match="complete frozen"):
+        run_predictability_matrix(
+            build_synthetic_datasets(),
+            lambda_cost=0.05,
+            bootstrap_resamples=20,
+            bootstrap_confidence=0.95,
+            bootstrap_seed=17,
+            call_rates=(0.0, 1.0),
+            strong_baseline_random_seed=29,
             formal_claim_eligible=True,
         )

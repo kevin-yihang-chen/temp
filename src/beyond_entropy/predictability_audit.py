@@ -216,6 +216,33 @@ class BinaryToolOutcome:
     tool_cost: float
     tool_calls: int
 
+    def __post_init__(self) -> None:
+        if not all(
+            (
+                self.state_id,
+                self.replicate_id,
+                self.image_id,
+                self.source_id,
+                self.selected_action_id,
+            )
+        ):
+            raise ValueError("binary tool outcome identities must be non-empty")
+        for name in ("y0", "y_tool"):
+            value = _finite_float(getattr(self, name), name=name)
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} must be in [0, 1]")
+        cost = _finite_float(self.tool_cost, name="tool_cost")
+        if cost < 0.0:
+            raise ValueError("tool_cost must be non-negative")
+        if not isinstance(self.tool_calls, int) or self.tool_calls < 0:
+            raise ValueError("tool_calls must be a non-negative integer")
+        if self.tool_calls == 0 and cost != 0.0:
+            raise ValueError("zero-call outcome must have zero tool cost")
+
+    @property
+    def decision_id(self) -> tuple[str, str]:
+        return self.state_id, self.replicate_id
+
     @property
     def gain(self) -> float:
         return self.y_tool - self.y0

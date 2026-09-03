@@ -9,12 +9,14 @@ from typing import Sequence
 from .predictability_audit import AUDIT_BENCHMARKS, BinaryToolOutcome, PreActionInputs
 from .predictability_matrix import BenchmarkAuditData, run_predictability_matrix
 from .predictability_modeling import AuditExample
+from .schema import ActionRecord, BBox
 
 
 def _synthetic_role(
     *, benchmark_index: int, role_index: int, count: int
-) -> list[AuditExample]:
+) -> tuple[list[AuditExample], list[ActionRecord]]:
     examples: list[AuditExample] = []
+    records: list[ActionRecord] = []
     for index in range(count):
         value = ((index * 7 + role_index) % 10) / 9.0
         y0 = 1.0 if index % 5 == 0 else 0.0
@@ -50,23 +52,83 @@ def _synthetic_role(
         )
         rgb_hash = f"{benchmark_index * 100000 + role_index * 1000 + index + 1:064x}"
         examples.append(AuditExample(inputs, outcome, rgb_hash))
-    return examples
+        records.append(
+            ActionRecord(
+                state_id=inputs.state_id,
+                image_id=inputs.image_id,
+                source_id=inputs.source_id,
+                question="synthetic question",
+                original_image=f"{inputs.image_id}.png",
+                replicate_id="replicate-000",
+                generation_seed=0,
+                action_id="answer-now",
+                action_type="ANSWER",
+                candidate_bbox=None,
+                entropy_before=inputs.entropy_before,
+                entropy_after=inputs.entropy_before,
+                answer_before="baseline",
+                answer_after="baseline",
+                correct_before=y0,
+                correct_after=y0,
+                tool_cost=0.0,
+                pre_action_features={},
+                metadata={},
+            )
+        )
+        for action_index in range(4):
+            records.append(
+                ActionRecord(
+                    state_id=inputs.state_id,
+                    image_id=inputs.image_id,
+                    source_id=inputs.source_id,
+                    question="synthetic question",
+                    original_image=f"{inputs.image_id}.png",
+                    replicate_id="replicate-000",
+                    generation_seed=0,
+                    action_id=f"ug-grid-0{action_index}",
+                    action_type="ZOOM",
+                    candidate_bbox=BBox(
+                        0.25 * (action_index % 2),
+                        0.25 * (action_index // 2),
+                        0.5 + 0.25 * (action_index % 2),
+                        0.5 + 0.25 * (action_index // 2),
+                    ),
+                    entropy_before=inputs.entropy_before,
+                    entropy_after=0.1 + 0.1 * action_index,
+                    answer_before="baseline",
+                    answer_after=f"crop-{action_index}",
+                    correct_before=y0,
+                    correct_after=(
+                        y_tool
+                        if action_index == 0
+                        else y0 if action_index == 1 else 0.0
+                    ),
+                    tool_cost=1.0,
+                    pre_action_features={},
+                    metadata={},
+                )
+            )
+    return examples, records
 
 
 def build_synthetic_datasets() -> dict[str, BenchmarkAuditData]:
     result = {}
     for benchmark_index, benchmark in enumerate(AUDIT_BENCHMARKS):
-        train = _synthetic_role(benchmark_index=benchmark_index, role_index=0, count=40)
-        validation = _synthetic_role(
+        train, _ = _synthetic_role(
+            benchmark_index=benchmark_index, role_index=0, count=40
+        )
+        validation, validation_siblings = _synthetic_role(
             benchmark_index=benchmark_index, role_index=1, count=20
         )
-        test = _synthetic_role(benchmark_index=benchmark_index, role_index=2, count=20)
+        test, test_siblings = _synthetic_role(
+            benchmark_index=benchmark_index, role_index=2, count=20
+        )
         result[benchmark] = BenchmarkAuditData(
             train=train,
             validation=validation,
             test=test,
-            strongest_baseline_name="answer_now_synthetic_only",
-            strongest_baseline_test_calls=[False] * len(test),
+            validation_siblings=validation_siblings,
+            test_siblings=test_siblings,
         )
     return result
 

@@ -11,11 +11,19 @@ from .predictability_audit import (
     TARGET_FAMILIES,
     SplitIdentity,
     audit_split_disjointness,
+    collapse_fixed_entropy_tool,
     matrix_completion_report,
+)
+from .predictability_baselines import (
+    apply_strong_baselines,
+    fit_strong_baselines,
+    strong_baseline_report,
+    trace_by_name,
+    validate_fixed_tool_outcomes,
 )
 from .predictability_evaluation import (
     calls_at_threshold,
-    paired_source_bootstrap_utility,
+    paired_source_bootstrap_policy_difference,
     policy_curve,
     prediction_metrics,
 )
@@ -24,6 +32,10 @@ from .predictability_modeling import (
     evaluate_frozen_audit_cell,
     fit_frozen_audit_cell,
 )
+from .schema import ActionRecord
+
+
+STRONG_BASELINE_RANDOM_SEED = 20260903
 
 
 @dataclass(frozen=True)
@@ -31,8 +43,8 @@ class BenchmarkAuditData:
     train: Sequence[AuditExample]
     validation: Sequence[AuditExample]
     test: Sequence[AuditExample]
-    strongest_baseline_name: str
-    strongest_baseline_test_calls: Sequence[bool]
+    validation_siblings: Sequence[ActionRecord]
+    test_siblings: Sequence[ActionRecord]
 
     def validate(self) -> dict[str, Any]:
         roles = {
@@ -42,8 +54,16 @@ class BenchmarkAuditData:
         }
         if any(not values for values in roles.values()):
             raise ValueError("all benchmark roles must be non-empty")
-        if len(self.strongest_baseline_test_calls) != len(self.test):
-            raise ValueError("strongest baseline call mask must align with test role")
+        if not self.validation_siblings or not self.test_siblings:
+            raise ValueError("strong baseline sibling records must be non-empty")
+        validate_fixed_tool_outcomes(
+            [item.outcome for item in self.validation],
+            collapse_fixed_entropy_tool(self.validation_siblings),
+        )
+        validate_fixed_tool_outcomes(
+            [item.outcome for item in self.test],
+            collapse_fixed_entropy_tool(self.test_siblings),
+        )
         identities: list[SplitIdentity] = []
         assignments = {}
         for role, examples in roles.items():
@@ -76,6 +96,7 @@ def run_predictability_matrix(
     seeds: Sequence[int] = AUDIT_SEEDS,
     predictor_levels: Sequence[str] = PREDICTOR_LEVELS,
     target_families: Sequence[str] = TARGET_FAMILIES,
+    strong_baseline_random_seed: int = STRONG_BASELINE_RANDOM_SEED,
     formal_claim_eligible: bool = False,
 ) -> dict[str, Any]:
     if set(datasets) != set(AUDIT_BENCHMARKS):
@@ -90,17 +111,36 @@ def run_predictability_matrix(
         tuple(seeds) != AUDIT_SEEDS
         or tuple(predictor_levels) != PREDICTOR_LEVELS
         or tuple(target_families) != TARGET_FAMILIES
+        or strong_baseline_random_seed != STRONG_BASELINE_RANDOM_SEED
     ):
         raise ValueError(
             "formal matrix requires the complete frozen levels, targets, and seeds"
         )
 
     split_audits = {name: data.validate() for name, data in datasets.items()}
+    baseline_freezes = {
+        name: fit_strong_baselines(
+            data.validation_siblings,
+            lambda_cost=lambda_cost,
+            random_gate_seed=strong_baseline_random_seed,
+        )
+        for name, data in datasets.items()
+    }
+    baseline_test_traces = {
+        name: apply_strong_baselines(baseline_freezes[name], data.test_siblings)
+        for name, data in datasets.items()
+    }
+    baseline_reports = {
+        name: strong_baseline_report(baseline_freezes[name], baseline_test_traces[name])
+        for name in datasets
+    }
     cell_reports: list[dict[str, Any]] = []
     completed_cells: list[tuple[str, str, str]] = []
     for benchmark in AUDIT_BENCHMARKS:
         data = datasets[benchmark]
         test_outcomes = [item.outcome for item in data.test]
+        strongest_name = baseline_freezes[benchmark].strongest_name
+        strongest = trace_by_name(baseline_test_traces[benchmark], strongest_name)
         for level in predictor_levels:
             for target in target_families:
                 seed_reports: list[dict[str, Any]] = []
@@ -134,10 +174,11 @@ def run_predictability_matrix(
                                 lambda_cost=lambda_cost,
                                 call_rates=call_rates,
                             ),
-                            "paired_vs_strongest_baseline": paired_source_bootstrap_utility(
+                            "paired_vs_strongest_baseline": paired_source_bootstrap_policy_difference(
                                 test_outcomes,
                                 candidate_calls,
-                                data.strongest_baseline_test_calls,
+                                strongest.outcomes,
+                                strongest.calls,
                                 lambda_cost=lambda_cost,
                                 resamples=bootstrap_resamples,
                                 confidence_level=bootstrap_confidence,
@@ -150,7 +191,7 @@ def run_predictability_matrix(
                         "benchmark": benchmark,
                         "predictor_level": level,
                         "target": target,
-                        "strongest_baseline": data.strongest_baseline_name,
+                        "strongest_baseline": strongest_name,
                         "seeds": seed_reports,
                         "mean_test_incremental_utility": mean(
                             float(item["test_policy"]["incremental_utility"])
@@ -165,6 +206,7 @@ def run_predictability_matrix(
         "lambda_cost": lambda_cost,
         "seeds": list(seeds),
         "split_audits": split_audits,
+        "strong_baselines": baseline_reports,
         "matrix": matrix_completion_report(completed_cells),
         "cells": cell_reports,
     }

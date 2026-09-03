@@ -58,6 +58,29 @@ incremental utility；不确定性使用 20,000 次 paired source bootstrap 的 
 random crop expectation，以及按四次成本收费的 exhaustive UG entropy search。阈值只在
 validation 上按 utility 最大、调用更少、阈值升序的顺序确定。
 
+### 强基线操作化修订（2026-09-03 20:27 HKT）
+
+这次修订发生在正式 validation/test outcome 生成前，只消除上述名称的实现歧义，不改变
+研究问题、模型、数据角色、endpoint 或终局门槛：
+
+- 四个 crop action ID 固定为 `ug-grid-00/01/02/03`；entropy gate 以
+  `entropy_before` 为分数，高于等于 validation 阈值时执行固定四-crop 工具并收四次成本；
+- random gate 以 seed `20260903`、`state_id` 和 `replicate_id` 的 SHA-256 前 64 bits
+  构造 `[0,1)` 分数，按同一 validation-only 规则选阈值，调用时也执行固定四-crop 工具；
+- matched-gate fixed crop 完全复用 entropy gate 的阈值与 call mask，只在 validation 上
+  选择一个全局固定 action ID，调用时只收一次对应 crop 的成本；
+- uniform-random crop 复用相同 gate，评测时对四个已注册 crop outcome 取精确均值以消除
+  Monte Carlo seed 方差，不用 crop outcome 做选择，调用成本为一个 crop；
+- exhaustive UG 总是执行四个 crops，按 post-action entropy 和 action ID 稳定选答案，
+  收取四次成本；answer-now 永不调用；
+- strongest baseline 只按 validation 的 source-balanced utility 选择；并列时依次选择成本
+  更低、call rate 更低、名称字典序更小者。冻结后的 threshold、random seed、fixed action
+  和 strongest baseline 原样应用到 test，test outcome 不参与任何选择。
+
+比较 learned candidate 与 strongest baseline 时，两者保留各自逐样本 `Ytool`、tool cost
+和 call mask，再在相同 source 上做 paired bootstrap；禁止把 one-crop baseline 错套到
+four-crop outcome/cost ledger。
+
 ## 当前证据与缺口
 
 现有 ChartQA、DocVQA、V*Bench sibling bank 足以验证固定工具的标签构造和 runner，但不

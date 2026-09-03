@@ -57,6 +57,58 @@ def align_predictions(
     return [indexed[(item.state_id, item.replicate_id)] for item in outcomes]
 
 
+def _decision_id(outcome: BinaryToolOutcome) -> DecisionId:
+    return outcome.state_id, outcome.replicate_id
+
+
+def align_policy_outcomes(
+    reference: Sequence[BinaryToolOutcome],
+    outcomes: Sequence[BinaryToolOutcome],
+    calls: Sequence[bool],
+) -> tuple[list[BinaryToolOutcome], list[bool]]:
+    """Align an independent policy ledger to a reference decision order.
+
+    Different policies may execute different tool actions and incur different
+    costs. They must nevertheless refer to the same paired decisions and the
+    same answer-now outcome. This function makes that contract explicit before
+    any policy difference is computed.
+    """
+
+    if not reference or len(outcomes) != len(calls):
+        raise ValueError("policy alignment requires non-empty aligned inputs")
+    reference_ids = [_decision_id(item) for item in reference]
+    if len(set(reference_ids)) != len(reference_ids):
+        raise ValueError("reference policy decision IDs must be unique")
+    indexed: dict[DecisionId, tuple[BinaryToolOutcome, bool]] = {}
+    for outcome, call in zip(outcomes, calls):
+        decision_id = _decision_id(outcome)
+        if decision_id in indexed:
+            raise ValueError("comparison policy decision IDs must be unique")
+        indexed[decision_id] = outcome, bool(call)
+    if set(indexed) != set(reference_ids):
+        missing = sorted(set(reference_ids) - set(indexed))
+        extra = sorted(set(indexed) - set(reference_ids))
+        raise ValueError(
+            f"policy coverage mismatch; missing={missing[:3]}, extra={extra[:3]}"
+        )
+
+    aligned_outcomes: list[BinaryToolOutcome] = []
+    aligned_calls: list[bool] = []
+    for expected in reference:
+        actual, call = indexed[_decision_id(expected)]
+        if (
+            actual.image_id != expected.image_id
+            or actual.source_id != expected.source_id
+            or not math.isclose(actual.y0, expected.y0, abs_tol=1e-12)
+        ):
+            raise ValueError(
+                f"paired policy identity or Y0 mismatch for {_decision_id(expected)!r}"
+            )
+        aligned_outcomes.append(actual)
+        aligned_calls.append(call)
+    return aligned_outcomes, aligned_calls
+
+
 def _source_mean(
     outcomes: Sequence[BinaryToolOutcome], values: Sequence[float]
 ) -> float:
@@ -107,17 +159,34 @@ def policy_metrics(
     }
 
 
-def select_validation_threshold(
+def _finite_no_call_threshold(scores: Sequence[float]) -> float:
+    maximum = max(scores)
+    threshold = math.nextafter(maximum, math.inf)
+    if not math.isfinite(threshold):
+        raise ValueError("scores are too large to construct a finite no-call threshold")
+    return threshold
+
+
+def select_score_threshold(
     outcomes: Sequence[BinaryToolOutcome],
-    predictions: Sequence[Prediction],
+    scores: Sequence[float],
     *,
     lambda_cost: float,
 ) -> dict[str, float | int]:
-    aligned = align_predictions(outcomes, predictions)
-    thresholds = [math.inf, *sorted({item.score for item in aligned}, reverse=True)]
+    """Tune a high-score call threshold on validation outcomes only."""
+
+    if not outcomes or len(outcomes) != len(scores):
+        raise ValueError("threshold selection requires aligned non-empty inputs")
+    normalized_scores = [float(value) for value in scores]
+    if not all(math.isfinite(value) for value in normalized_scores):
+        raise ValueError("threshold scores must be finite")
+    thresholds = [
+        _finite_no_call_threshold(normalized_scores),
+        *sorted(set(normalized_scores), reverse=True),
+    ]
     candidates: list[tuple[float, int, float, dict[str, float | int | None]]] = []
     for threshold in thresholds:
-        calls = [item.score >= threshold for item in aligned]
+        calls = [score >= threshold for score in normalized_scores]
         metrics = policy_metrics(outcomes, calls, lambda_cost=lambda_cost)
         utility_value = metrics["incremental_utility"]
         call_count = metrics["calls"]
@@ -134,7 +203,7 @@ def select_validation_threshold(
             )
         )
     utility, negative_calls, negative_threshold, metrics = max(
-        candidates, key=lambda x: x[:3]
+        candidates, key=lambda item: item[:3]
     )
     threshold = -negative_threshold
     call_rate = metrics["call_rate"]
@@ -146,6 +215,20 @@ def select_validation_threshold(
         "validation_calls": -negative_calls,
         "validation_call_rate": float(call_rate),
     }
+
+
+def select_validation_threshold(
+    outcomes: Sequence[BinaryToolOutcome],
+    predictions: Sequence[Prediction],
+    *,
+    lambda_cost: float,
+) -> dict[str, float | int]:
+    aligned = align_predictions(outcomes, predictions)
+    return select_score_threshold(
+        outcomes,
+        [item.score for item in aligned],
+        lambda_cost=lambda_cost,
+    )
 
 
 def calls_at_threshold(
@@ -282,18 +365,62 @@ def paired_source_bootstrap_utility(
     confidence_level: float,
     seed: int,
 ) -> dict[str, Any]:
+    return paired_source_bootstrap_policy_difference(
+        outcomes,
+        candidate_calls,
+        outcomes,
+        baseline_calls,
+        lambda_cost=lambda_cost,
+        resamples=resamples,
+        confidence_level=confidence_level,
+        seed=seed,
+    )
+
+
+def paired_source_bootstrap_policy_difference(
+    candidate_outcomes: Sequence[BinaryToolOutcome],
+    candidate_calls: Sequence[bool],
+    baseline_outcomes: Sequence[BinaryToolOutcome],
+    baseline_calls: Sequence[bool],
+    *,
+    lambda_cost: float,
+    resamples: int,
+    confidence_level: float,
+    seed: int,
+) -> dict[str, Any]:
+    """Bootstrap candidate-minus-baseline utility from independent ledgers."""
+
     if (
-        not outcomes
-        or len(outcomes) != len(candidate_calls)
-        or len(outcomes) != len(baseline_calls)
+        not candidate_outcomes
+        or len(candidate_outcomes) != len(candidate_calls)
+        or len(baseline_outcomes) != len(baseline_calls)
     ):
         raise ValueError("paired bootstrap requires aligned non-empty inputs")
     if resamples <= 0 or not 0.0 < confidence_level < 1.0:
         raise ValueError("invalid bootstrap configuration")
+    if lambda_cost < 0.0:
+        raise ValueError("lambda_cost must be non-negative")
+    aligned_baseline, aligned_baseline_calls = align_policy_outcomes(
+        candidate_outcomes, baseline_outcomes, baseline_calls
+    )
     by_source: dict[str, list[float]] = defaultdict(list)
-    for outcome, candidate, baseline in zip(outcomes, candidate_calls, baseline_calls):
-        net = outcome.incremental_utility(lambda_cost)
-        by_source[outcome.source_id].append(net * (float(candidate) - float(baseline)))
+    candidate_values: list[float] = []
+    baseline_values: list[float] = []
+    for candidate_outcome, candidate, baseline_outcome, baseline in zip(
+        candidate_outcomes,
+        candidate_calls,
+        aligned_baseline,
+        aligned_baseline_calls,
+    ):
+        candidate_value = (
+            candidate_outcome.incremental_utility(lambda_cost) if candidate else 0.0
+        )
+        baseline_value = (
+            baseline_outcome.incremental_utility(lambda_cost) if baseline else 0.0
+        )
+        candidate_values.append(candidate_value)
+        baseline_values.append(baseline_value)
+        by_source[candidate_outcome.source_id].append(candidate_value - baseline_value)
     source_differences = {name: mean(values) for name, values in by_source.items()}
     sources = sorted(source_differences)
     rng = random.Random(seed)
@@ -304,6 +431,8 @@ def paired_source_bootstrap_utility(
     alpha = (1.0 - confidence_level) / 2.0
     return {
         "point": mean(source_differences.values()),
+        "candidate_utility": _source_mean(candidate_outcomes, candidate_values),
+        "baseline_utility": _source_mean(candidate_outcomes, baseline_values),
         "lower": _percentile(samples, alpha),
         "upper": _percentile(samples, 1.0 - alpha),
         "confidence_level": confidence_level,
