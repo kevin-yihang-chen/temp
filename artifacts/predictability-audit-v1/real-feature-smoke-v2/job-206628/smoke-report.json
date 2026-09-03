@@ -1,0 +1,20 @@
+{
+  "code_revision": "a1306bd4200734bb5527da93777e5f097619bc1b",
+  "feature_dimensions": {
+    "l0_uncertainty": 3,
+    "l1_shallow": 22,
+    "l2_semantic": 6147,
+    "l3_frozen_qwen": 6147
+  },
+  "features_sha256": "a8c13a1e50dacd1d1df37b77c345a633ebaba17f6dd686b90a8853edd3221aba",
+  "fixed_tool_calls": 4,
+  "gpu": "0",
+  "manifest_sha256": "136d9d89a9a4c0035427f04bd2620d7320b702f7604ddbe9dcb5c2baeeee3f11",
+  "passed": true,
+  "records": 5,
+  "rollouts_sha256": "ede270f74541da33e9652838ef62532d2b4b51771f124a59cdb0fa9f73f278db",
+  "schema": "predictability_feature_real_smoke_v1",
+  "scientific_status": "engineering smoke on opened ChartQA; not a benchmark claim",
+  "slurm_job_id": "206628",
+  "states": 1
+}

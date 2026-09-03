@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 19:51（Asia/Hong_Kong）
+更新时间：2026-09-03 19:55（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -41,6 +41,13 @@ Transformers `apply_chat_template(tokenize=True)` 不接受字符串形式的 sy
 具有 `[1,317]` input IDs 与 `[1088,1176]` pixel values。修复已加入单测；下一步重跑同一
 单行 smoke。作业使用单 GPU、clean revision、输入/代码哈希、离线模型、原子产物、
 四次工具收费和邮件 `ALL` 状态通知。代码保持本地，除非用户再次明确要求，否则不 push。
+
+修复后的 Job `206628` 已于 21 秒内 `COMPLETED`、`ExitCode=0:0`。独立复核 11/11 checks
+全真：5 条 sibling rollout、1 条 feature、四次工具收费、manifest/rollout/feature hash
+绑定、code revision、role 与全部有限数值均通过。真实维度为 L0 `3`、L1 `22`、L2
+`6147`、L3 `6147`；H800 峰值 allocated/reserved 显存约 `7.13/7.25 GiB`。该结果只证明
+实现可运行，不说明 predictor 有用。下一步是 32-state opened ChartQA throughput smoke，
+据其冻结分片和预算；test 仍封存。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均

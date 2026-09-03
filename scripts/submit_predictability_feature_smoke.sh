@@ -2,11 +2,16 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 1 ]]; then
-  echo "usage: $0 {h100|h800|rtx_4090}" >&2
+if [[ "$#" -lt 1 || "$#" -gt 2 ]]; then
+  echo "usage: $0 {h100|h800|rtx_4090} [state-count]" >&2
   exit 2
 fi
 gpu_type=$1
+smoke_count=${2:-1}
+if [[ ! "${smoke_count}" =~ ^[1-9][0-9]*$ || "${smoke_count}" -gt 64 ]]; then
+  echo "predictability smoke state-count must be in [1, 64]" >&2
+  exit 2
+fi
 case "${gpu_type}" in
   h100)
     partition=q-hgpu-small
@@ -40,7 +45,7 @@ backend_module="${repo_dir}/src/beyond_entropy/qwen_backend.py"
 semantic_module="${repo_dir}/src/beyond_entropy/qwen_semantic.py"
 features_module="${repo_dir}/src/beyond_entropy/predictability_features.py"
 audit_module="${repo_dir}/src/beyond_entropy/predictability_audit.py"
-run_root="${repo_dir}/artifacts/predictability-audit-v1/real-feature-smoke-v2"
+run_root="${repo_dir}/artifacts/predictability-audit-v1/real-feature-smoke-chartqa-${smoke_count}-v1"
 model=Qwen/Qwen2.5-VL-3B-Instruct
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
 
@@ -95,7 +100,7 @@ PY
 digest() {
   sha256sum "$1" | cut -d ' ' -f 1
 }
-export_args="ALL,BE_PRED_EXPECTED_CODE_REVISION=${code_revision},BE_PRED_EXPECTED_GPU_TOKEN=${gpu_token},BE_PRED_RUN_ROOT=${run_root},BE_PRED_WORKER_SHA256=$(digest "${worker}"),BE_PRED_CLI_SHA256=$(digest "${collector_cli}"),BE_PRED_BACKEND_SHA256=$(digest "${backend_module}"),BE_PRED_SEMANTIC_SHA256=$(digest "${semantic_module}"),BE_PRED_FEATURES_SHA256=$(digest "${features_module}"),BE_PRED_AUDIT_SHA256=$(digest "${audit_module}"),BE_PRED_SOURCE_MANIFEST_SHA256=$(digest "${source_manifest}"),BE_PRED_PROTOCOL_SHA256=$(digest "${protocol}")"
+export_args="ALL,BE_PRED_EXPECTED_CODE_REVISION=${code_revision},BE_PRED_EXPECTED_GPU_TOKEN=${gpu_token},BE_PRED_RUN_ROOT=${run_root},BE_PRED_SMOKE_COUNT=${smoke_count},BE_PRED_WORKER_SHA256=$(digest "${worker}"),BE_PRED_CLI_SHA256=$(digest "${collector_cli}"),BE_PRED_BACKEND_SHA256=$(digest "${backend_module}"),BE_PRED_SEMANTIC_SHA256=$(digest "${semantic_module}"),BE_PRED_FEATURES_SHA256=$(digest "${features_module}"),BE_PRED_AUDIT_SHA256=$(digest "${audit_module}"),BE_PRED_SOURCE_MANIFEST_SHA256=$(digest "${source_manifest}"),BE_PRED_PROTOCOL_SHA256=$(digest "${protocol}")"
 
 submission=$(
   /usr/local/slurm/bin/sbatch \
@@ -112,5 +117,5 @@ if [[ ! "${job_id}" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 printf '%s\n' "${submission}"
-printf 'predictability_feature_smoke_job_id=%s gpu_type=%s code_revision=%s remaining_gpu_minutes_before_submit=%s\n' \
-  "${job_id}" "${gpu_type}" "${code_revision}" "${gpu_remaining}"
+printf 'predictability_feature_smoke_job_id=%s gpu_type=%s states=%s code_revision=%s remaining_gpu_minutes_before_submit=%s\n' \
+  "${job_id}" "${gpu_type}" "${smoke_count}" "${code_revision}" "${gpu_remaining}"

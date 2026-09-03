@@ -1,0 +1,8 @@
+{
+  "code_revision": "2bfb11b078e2cdaf6ac15b9a5cc1400c3bf86e35",
+  "exit_code": 1,
+  "finished_at_utc": "2026-09-03T11:47:44.279096+00:00",
+  "schema": "predictability_feature_smoke_execution_v1",
+  "slurm_job_id": "206627",
+  "status": "failed"
+}

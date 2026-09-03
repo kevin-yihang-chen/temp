@@ -13,6 +13,7 @@ required=(
   BE_PRED_EXPECTED_CODE_REVISION
   BE_PRED_EXPECTED_GPU_TOKEN
   BE_PRED_RUN_ROOT
+  BE_PRED_SMOKE_COUNT
   BE_PRED_WORKER_SHA256
   BE_PRED_CLI_SHA256
   BE_PRED_BACKEND_SHA256
@@ -150,7 +151,7 @@ from huggingface_hub import snapshot_download
 snapshot_download(repo_id=sys.argv[1], revision=sys.argv[2], local_files_only=True)
 PY
 
-"${python_bin}" - "${source_manifest}" "${manifest}" <<'PY'
+"${python_bin}" - "${source_manifest}" "${manifest}" "${BE_PRED_SMOKE_COUNT}" <<'PY'
 import hashlib
 import json
 import os
@@ -159,11 +160,27 @@ from pathlib import Path
 
 source = Path(sys.argv[1]).resolve()
 destination = Path(sys.argv[2]).resolve()
+count = int(sys.argv[3])
+if count <= 0:
+    raise SystemExit("smoke count must be positive")
+rows = []
 with source.open(encoding="utf-8") as handle:
-    row = json.loads(next(line for line in handle if line.strip()))
-image = Path(str(row["image_path"]))
-row["image_path"] = str((image if image.is_absolute() else source.parent / image).resolve())
-payload = (json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n").encode()
+    for line in handle:
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        image = Path(str(row["image_path"]))
+        row["image_path"] = str(
+            (image if image.is_absolute() else source.parent / image).resolve()
+        )
+        rows.append(row)
+        if len(rows) == count:
+            break
+if len(rows) != count:
+    raise SystemExit(f"requested {count} smoke rows, found {len(rows)}")
+payload = "".join(
+    json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows
+).encode()
 temporary = destination.with_name(destination.name + ".tmp")
 with temporary.open("xb") as handle:
     handle.write(payload)
@@ -211,7 +228,7 @@ cd "${repo_dir}"
   --max-pixels 602112 \
   --checkpoint-interval 1
 
-"${python_bin}" - "${manifest}" "${rollouts}" "${features}" "${run_dir}/smoke-report.json" <<'PY'
+"${python_bin}" - "${manifest}" "${rollouts}" "${features}" "${run_dir}/smoke-report.json" "${BE_PRED_SMOKE_COUNT}" <<'PY'
 import hashlib
 import json
 import math
@@ -223,22 +240,30 @@ from beyond_entropy.dataset import read_jsonl
 from beyond_entropy.predictability_audit import collapse_fixed_entropy_tool
 from beyond_entropy.predictability_features import load_predictability_feature_dataset
 
-manifest, rollouts, features, output = map(lambda value: Path(value).resolve(), sys.argv[1:])
+manifest, rollouts, features, output = map(
+    lambda value: Path(value).resolve(), sys.argv[1:5]
+)
+expected_states = int(sys.argv[5])
 records = read_jsonl(rollouts)
 payload, examples = load_predictability_feature_dataset(features)
-if len(records) != 5 or len(examples) != 1:
-    raise SystemExit("smoke coverage differs from one state with four sibling crops")
+if len(records) != 5 * expected_states or len(examples) != expected_states:
+    raise SystemExit("smoke coverage differs from states with four sibling crops")
 outcomes = collapse_fixed_entropy_tool(records)
-if len(outcomes) != 1 or outcomes[0].tool_calls != 4 or outcomes[0].tool_cost != 4.0:
+if len(outcomes) != expected_states or any(
+    outcome.tool_calls != 4 or outcome.tool_cost != 4.0 for outcome in outcomes
+):
     raise SystemExit("fixed visual tool did not charge exactly four calls")
-example = examples[0]
 dimensions = {
-    level: len(example.inputs.feature_vector(level))
+    level: sorted({len(example.inputs.feature_vector(level)) for example in examples})
     for level in ("l0_uncertainty", "l1_shallow", "l2_semantic", "l3_frozen_qwen")
 }
-if dimensions["l0_uncertainty"] != 3 or dimensions["l1_shallow"] != 22:
+if dimensions["l0_uncertainty"] != [3] or dimensions["l1_shallow"] != [22]:
     raise SystemExit(f"L0/L1 dimension contract failed: {dimensions}")
-if not all(math.isfinite(value) for value in example.inputs.feature_vector("l0_uncertainty")):
+if not all(
+    math.isfinite(value)
+    for example in examples
+    for value in example.inputs.feature_vector("l0_uncertainty")
+):
     raise SystemExit("L0 confidence statistics are non-finite")
 metadata = payload["metadata"]
 if metadata.get("dataset_role") != "retrospective_smoke":
@@ -252,8 +277,11 @@ report = {
     "gpu": os.environ.get("CUDA_VISIBLE_DEVICES"),
     "records": len(records),
     "states": len(examples),
-    "fixed_tool_calls": outcomes[0].tool_calls,
-    "feature_dimensions": dimensions,
+    "fixed_tool_calls_per_state": sorted({outcome.tool_calls for outcome in outcomes}),
+    "feature_dimensions": {
+        level: values[0] if len(values) == 1 else values
+        for level, values in dimensions.items()
+    },
     "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
     "rollouts_sha256": hashlib.sha256(rollouts.read_bytes()).hexdigest(),
     "features_sha256": hashlib.sha256(features.read_bytes()).hexdigest(),

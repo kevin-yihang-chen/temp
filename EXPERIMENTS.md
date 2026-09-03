@@ -1405,3 +1405,22 @@
 - 验证与下一步：新增 structured-system helper 单测；相关 semantic/predictability tests、
   mypy、Black、bash syntax 与 diff check 通过。下一步在新 artifact root 重跑同一单行
   smoke；通过前不提交正式 train/validation，也不打开 test。
+
+## E-20260903-20：真实 L0--L3 单行 smoke 通过
+
+- 范围：修复后 Job `206628`，1×H800，opened ChartQA train 同一首行，code revision
+  `a1306bd4200734bb5527da93777e5f097619bc1b`；不读取新 test，邮件为 `ALL`。
+- 结果：Slurm `COMPLETED`、`ExitCode=0:0`、runtime 21 秒。完整生成 5 条 sibling rollout
+  与 1 条 feature；固定工具 `tool_calls=4/tool_cost=4.0`。L0/L1/L2/L3 实际维度分别为
+  `3/22/6147/6147`，所有元素有限。rollout SHA-256
+  `ede270f74541da33e9652838ef62532d2b4b51771f124a59cdb0fa9f73f278db` 与失败前完全相同；
+  feature SHA-256 `a8c13a1e50dacd1d1df37b77c345a633ebaba17f6dd686b90a8853edd3221aba`。
+- 独立复核：report、execution、5 siblings、1 feature row、四次收费、role、code revision、
+  manifest/rollout/feature hashes 与四层有限数值共 11/11 checks 全真。smoke report/execution
+  SHA-256 为 `9dd31b91...be88` / `fae94194...40a6`。
+- 运行合同：Qwen2.5-VL-3B revision `662855...cd3`，Transformers `5.4.0`、PyTorch
+  `2.4.0+cu121`、bf16、SDPA、离线 cache；H800 peak allocated/reserved bytes 为
+  `7658491392/7786725376`（约 `7.13/7.25 GiB`）。
+- 边界与下一步：这是 opened-data 工程证据，正式矩阵仍为 `0/36`，不能推断效用可预测。
+  下一步用相同代码扩为 32-state opened ChartQA throughput smoke，以剔除两次模型加载的
+  固定开销并冻结 states/hour、GPU-hours、shards 与 checkpoint cadence；test 继续封存。

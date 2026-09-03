@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 19:51（Asia/Hong_Kong）
+更新时间：2026-09-03 19:55（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -45,6 +45,11 @@ image/source-disjoint 数据冻结现已完成：ChartQA 为 `3600/900/1000` sta
 在第二次模型加载后因 Transformers 要求结构化 system text block 而 fail-closed。plain
 与 structured 表示经真实 processor 验证生成完全相同的模板文本与 tokenization；当前只
 修正输入容器类型并重跑同一个工程 gate，不改变 prompt、模型、数据、指标或科学协议。
+
+修复后的 Job `206628` 已完整通过单行 gate。下一步先把同一 smoke 扩为 opened ChartQA
+train 的 32 states，获得不被两次模型加载时间主导的实测 states/hour、GPU memory 与
+artifact growth；这仍不用于选模型或方法。只有据此冻结总 GPU-hours、shard count、
+checkpoint interval 和失败恢复合同后，才运行三 benchmark 的 train/validation。
 
 当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
 threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。
