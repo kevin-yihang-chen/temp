@@ -415,12 +415,47 @@ def audit_outputs(stage: Path, reports: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def summarize_existing_benchmark(stage: Path, benchmark: str) -> dict[str, Any] | None:
+    role_manifests = {
+        role: stage / benchmark / role / "manifest.jsonl"
+        for role in ("train", "validation", "test")
+    }
+    existing = {role: path.is_file() for role, path in role_manifests.items()}
+    if not any(existing.values()):
+        return None
+    if not all(existing.values()):
+        raise ValueError(
+            f"partial staged benchmark cannot be resumed: {benchmark} {existing}"
+        )
+    reports: dict[str, Any] = {}
+    for role, path in role_manifests.items():
+        rows = read_manifest(path)
+        reports[role] = {
+            "manifest": str(path.relative_to(stage)),
+            "manifest_sha256": sha256_file(path),
+            "states": len(rows),
+            "sources": len({str(row["source_id"]) for row in rows}),
+            "images": len({str(row["image_id"]) for row in rows}),
+            "historically_opened": benchmark != "hrbench" and role != "test",
+            "resumed_from_complete_staging": True,
+        }
+        provenance = path.with_name("manifest.provenance.json")
+        if provenance.is_file():
+            payload = json.loads(provenance.read_text(encoding="utf-8"))
+            if payload.get("manifest_sha256") != reports[role]["manifest_sha256"]:
+                raise ValueError(f"staged provenance hash mismatch: {provenance}")
+            if isinstance(payload.get("source_indices"), list):
+                reports[role]["source_indices"] = payload["source_indices"]
+    return reports
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Freeze the three predictability datasets"
     )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--repository-root", type=Path, default=Path("."))
+    parser.add_argument("--resume-staging", action="store_true")
     args = parser.parse_args()
     root = args.repository_root.resolve()
     config_path = args.config.resolve()
@@ -429,33 +464,46 @@ def main() -> None:
         raise ValueError("unexpected allocation config schema")
     destination = (root / str(config["output_root"])).resolve()
     stage = destination.with_name(destination.name + ".staging")
-    if destination.exists() or stage.exists():
-        raise FileExistsError("allocation output or staging path already exists")
-    stage.mkdir(parents=True)
+    if destination.exists():
+        raise FileExistsError("allocation output already exists")
+    if stage.exists() and not args.resume_staging:
+        raise FileExistsError(
+            "allocation staging path exists; explicit resume is required"
+        )
+    stage.mkdir(parents=True, exist_ok=args.resume_staging)
     blockers = scan_blocked_manifests(root, destination)
     seed = int(config["seed"])
-    reports = {
-        "chartqa": freeze_chartqa(
+    chartqa = summarize_existing_benchmark(stage, "chartqa")
+    if chartqa is None:
+        chartqa = freeze_chartqa(
             root=root,
             stage=stage,
             config=config["chartqa"],
             blocked_images=blockers["blocked_image_ids"],
             seed=seed,
-        ),
-        "docvqa": freeze_docvqa(
+        )
+    docvqa = summarize_existing_benchmark(stage, "docvqa")
+    if docvqa is None:
+        docvqa = freeze_docvqa(
             root=root,
             stage=stage,
             config=config["docvqa"],
             blocked_images=blockers["blocked_image_ids"],
             blocked_sources=blockers["blocked_source_ids"],
             seed=seed,
-        ),
-        "hrbench": freeze_hrbench(
+        )
+    hrbench = summarize_existing_benchmark(stage, "hrbench")
+    if hrbench is None:
+        hrbench = freeze_hrbench(
             root=root,
             stage=stage,
             config=config["hrbench"],
             seed=seed,
-        ),
+        )
+    reports = {
+        "chartqa": chartqa,
+        "docvqa": docvqa,
+        "hrbench": hrbench,
     }
     output_audit = audit_outputs(stage, reports)
     report = {
