@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 15:05（Asia/Hong_Kong）
+更新时间：2026-09-03 15:33（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -132,6 +132,18 @@ Illusion 覆盖 fixed-prefix observation contrast，ToolVision 覆盖 with/witho
 supervision；novelty 0/6。N3 因
 `n3_public_initializer_exists_but_joint_gate_failed_before_download` 关闭，未下载模型、未提交
 GPU、未产生 checkpoint。公开权重仍可作为未来强 baseline，但不能单独恢复当前 H5。
+
+N4 已完成零成本 problem-selection formal gate。最初的“从低分辨率 preview 自监督预测
+未观察 crop，再算 VOI”候选因 VOILA、active visual completion、AdaptVision 等直接邻近
+工作而在实现前放弃。替代候选是 information-set-correct visual acquisition evaluation：
+逐方法登记 selector 动作前可见字段，只在相同信息集、action bank 和净效用定义下给主
+排名，并检查跨信息集 rank reversal。机器报告 14/14 checks 全真；toy exact alias 的
+`V_full/V_obs` 为 `1.0/0.5`，并成功检测 preview-only 与 full-resolution selector 输入下的
+方法排序反转及 acquisition+proposer 双成本导致的排序变化。但 aliasing-regret 分解已被
+Self-Certification 直接覆盖，cost ledger 也被 VQABench 部分覆盖，不能作为新贡献。当前
+仅剩 selector information ledger、matched-visibility comparison 与 cross-information-set
+rank-reversal test 三项暂未发现直接覆盖；它们仍需 N5 的真实数据、预注册结果才能成立。
+本轮没有打开既有 action outcome、没有训练/GPU，新增 checkpoint 为 0。
 
 ## 已完成的证据链
 
@@ -312,6 +324,7 @@ GPU、未产生 checkpoint。公开权重仍可作为未来强 baseline，但不
 | Typed-action reliable baseline | V2 CPU/runtime 通过；Job 206227 真实 generation 因 11/11 intents 复制无效 MODE、0/16 参数合法而失败并关闭 |
 | N0 action-boundary interventional objective | 零支持数值与一手文献 gate 完成；退化为既有 listwise/AWR/value-router 家族，GPU 前关闭 |
 | N3 公开 checkpoint 与 novelty 联合 gate | VTool 3B/7B 可用，但 artifact provenance 不完整且 H5 core claims 全部碰撞；下载/GPU/checkpoint 均为 0 |
+| N4 selector information-boundary formal gate | 14/14 checks 通过；三项评测协议暂过碰撞初筛，但尚无真实 rank reversal/效应证据 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -323,13 +336,13 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 15:05 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
+截至 2026-09-03 15:33 HKT，本轮开始时实时 `squeue -u yihangc` 为空；GPU quota 快照为
 222,000 分钟总额、42,275 已用、179,725 剩余（约 2,995.42 GPU-hours）。Job `206227`
 已正常结束，Slurm 仍可查询到 `COMPLETED` 终态。该任务配置了
 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
 范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 V2 的 CPU、
 runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes（约 35.37 GiB）。
-修改仅在本地，未 push GitHub。
+修改仅在本地，未 push GitHub。N4 是 CPU-only 审计，没有新的计算任务邮件事件。
 
 ## 已关闭的路线
 
@@ -397,12 +410,17 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes�
 - 一个完整 distributed checkpoint 实测至少约 40.39 GiB；64 GiB gate 只保证当前
   单臂有界运行。若 signed 通过，四个实验臂的 checkpoint 位于独立目录，必须先制定
   有哈希和可恢复性的迁移/保留方案，不能在当前盘同时无界累计约 164 GiB。
+- N4 的 aliasing/representation adequacy 数学已被同期工作覆盖；如果真实评测没有显示
+  selector 信息边界会造成稳健且实质的方法排名变化，剩余三项协议贡献不足以支撑顶会。
+- 当前所谓“未发现直接覆盖”只是截至本轮的一手文献初筛；Self-Certification 与 VQABench
+  已说明同期碰撞风险很高，N5 前后都需继续 collision audit。
 
 ## 下一步最优行动
 
 不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
-`206205`、Job `206227`、N0、N1、N2 与 N3 均已按各自 gate 关闭。下一步 N4 先做零成本
-problem-selection gate：候选必须引入一个不依赖答案标签或已有 tool rollout、且不能由
-普通 value router、The Illusion 的 observation intervention、TACO/TAPO 的 action credit
-和 ToolVision benefit filter 直接组合得到的机制。先写明确 estimand、最小可证伪预测与
-一手文献差异；这些条件未满足前不下载公开权重、不打开新 outcome、不提交 GPU。
+`206205`、Job `206227`、N0、N1、N2 与 N3 均已按各自 gate 关闭；N4 只通过 formal/
+collision-screen gate，尚未通过现实效应 gate。下一步 N5 在读取既有 sibling outcome 前，
+冻结 selector 信息集、相同 UG action bank、完整 cost ledger、entropy/random/fixed/
+exhaustive/learned-router baselines、source bootstrap、primary rank-reversal statistic 与最小
+实际效应。只允许用 `ranker_training` 拟合、`risk_calibration` 做一次性 screen，继续封存
+`formal_test/reserve`。若 matched-visibility 排名无稳健实质变化，立即关闭 N4，不提交 GPU。

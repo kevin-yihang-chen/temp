@@ -1217,3 +1217,49 @@
 - 下一步：N4 先做零成本 problem-selection gate。候选必须给出不依赖答案标签/既有 tool
   rollout 的独立机制、明确 estimand、能在 CPU/已有资产上推翻它的预测，以及相对
   The Illusion/TACO/TAPO/ToolVision/普通 value router 的不可约差异；未满足前不实现或开 GPU。
+
+## E-20260903-15：N4 selector information-boundary 形式化与碰撞 gate
+
+- 实现 commit：`42ce7ea66d4b25e10746b1ba4e5a144f3807dae9`。
+- 问题与假设：视觉工具/裁剪方法的结论可能依赖 selector 在动作前获得的信息。如果逐方法
+  显式登记 selector-visible fields，并在相同信息集、action bank 和完整净效用下比较，
+  则已有方法排序可能相对允许 full-resolution selector leakage 的结果发生实质反转。
+- 候选更换：原拟议“低分辨率 preview 自监督预测未观察 crop，再计算 prospective VOI”
+  因 VOILA、Learning to Look Around、AdaptVision 与 Starve to Perceive 的直接邻近而在
+  GPU/模型实现前放弃。N4 改为 information-set-correct evaluation 候选。
+- 形式化：对世界 `w`、允许观察状态 `z(w)` 和已扣除 acquisition/proposer cost 的
+  `U(w,a)`，验证 `V_full-V_pi=(V_full-V_obs)+(V_obs-V_pi)`。Exact visual alias fixture
+  中两个不同 2×4 raster 具有相同 1×2 preview，`V_full=1.0`、`V_obs=0.5`、aliasing
+  regret `0.5`；细化观察或 alias cell 共享最优动作时该项为 0。
+- 新颖性边界：Self-Certification of Representation Adequacy 已直接覆盖 representation
+  aliasing regret/action conflict，VQABench 已部分覆盖 preprocessing/end-to-end cost；这两
+  项不能主张新颖。初筛后暂未发现直接覆盖的联合单元仅为 selector-input ledger、matched-
+  visibility comparison 与 cross-information-set rank-reversal test；“暂未发现”不是证明。
+- 机器结果：`n4_information_boundary_candidate_survives_formal_gate`，14/14 checks 全真。
+  Preview-only toy 排名为 conservative `0.6` > adaptive `0.5`；full-resolution selector
+  条件为 adaptive `1.0` > conservative `0.6`，严格 pairwise reversal 被检出。另一个 fixture
+  中 raw task utility `0.70` 的方法扣除 `0.05` acquisition 与 `0.06` proposer cost 后为
+  `0.59`，低于无额外成本 baseline 的 `0.65`；信息边界不匹配的比较 fail closed。
+- 真实数据 seed：绑定既有 RICO integrity report，35,352/35,352 required images decode，
+  三项必要可用性 gate 全真；19 个 dimension mismatch 原样保留为 QC 风险。ScreenQA 既有
+  allocation 含 6,007 ranker-training、4,001 risk-calibration、6,000 formal-test、1,004
+  reserve、11,348 untouched images，image/component 跨角色 overlap 均为 0。本项没有读取
+  action outcome。
+- 产物：registry/module/runner/test/report SHA-256 分别为
+  `25dd301a...eebe12f` / `eea7468b...25d7a0d` / `5740d5d6...e0e0fc6` /
+  `8e2baa9e...2c925a0` / `d34449b6...aa6ef5c`；上游 N3 report hash 为
+  `6d145cba...394f5c`。完整审计见
+  `n4-selector-information-boundary-formal-gate-20260903-v1.md`。
+- 验证：12 个 N4 tests、N4+N2 共 24 个 targeted tests 与全仓 pytest 均通过；三文件
+  mypy、compileall、Black in-process check、两次 report 字节比较、N3 hash 负路径、JSON
+  断言、凭证扫描和 `git diff --check` 通过。Black CLI 在 NFS 环境等待超过 60 秒后终止，
+  用同版本无 cache formatter 复验通过；不是代码或格式失败。
+- 资源/泄漏：CPU-only；existing outcomes opened `0`、Slurm/GPU `0`、optimizer `0`、新增
+  checkpoint `0`；formal-test/reserve 未访问，没有计算任务邮件事件。
+- 当前最佳结果：项目仍无 deployable 正主结果。N4 只通过 formal/collision-screen gate，
+  尚无真实 rank reversal、实际效应、跨数据集结果或论文主张。
+- 下一步与止损：N5 在 outcome 前冻结 selector 信息集、相同 UG action bank、完整成本、
+  entropy/random/fixed/exhaustive/learned-router 强基线、source bootstrap、primary reversal
+  statistic 与最小实际效应。只用 ranker-training 拟合、risk-calibration 一次性 screen，
+  继续封存 formal-test/reserve。若无稳健实质反转、效应仅在 privileged full-resolution
+  成立或文献直接覆盖剩余三项，则关闭 N4，不提交 GPU 追结果。

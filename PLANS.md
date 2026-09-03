@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 15:05（Asia/Hong_Kong）
+更新时间：2026-09-03 15:33（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -158,6 +158,15 @@ benefit supervision 而为 0/6。最终决定
 `n3_public_initializer_exists_but_joint_gate_failed_before_download`；没有下载、GPU 或新
 checkpoint，当前 H5 不能靠换初始化重开。
 
+N4 的零成本 problem-selection gate 已完成。最初的 prospective crop-completion/VOI 机制
+因 VOILA、Learning to Look Around、AdaptVision 等直接邻近工作而关闭。替代候选把
+selector 动作前可见的信息集作为评测合同：同可见性、同 action bank、同净效用定义内做
+方法比较，并测试跨信息集的排名反转。形式化与机器实现 14/14 checks 通过，但其中
+aliasing-regret decomposition 已被 Self-Certification 直接覆盖，完整成本账本也被 VQABench
+部分覆盖。N4 当前只以 selector-input ledger、matched-visibility comparison 和
+cross-information-set rank reversal 三项联合协议进入 N5；这是待证伪的 benchmark/evaluation
+候选，不是方法或主结果。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -214,10 +223,11 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 5. N3 已关闭：公开 tool-capable initializer 存在，但 artifact-level prompt/parser/support
    provenance 不完整，且当前 H5 的核心训练主张已被 TACO/TAPO/The Illusion/ToolVision
    覆盖；不下载模型、不提交 GPU；
-6. 下一候选 N4 先做零成本 problem-selection gate：只允许提出一个不依赖答案标签或既有
-   tool rollout、并且不能由上述 observation intervention、signed credit、benefit filter
-   与普通 value router 直接组合得到的机制。写出明确 estimand、可证伪预测和一手文献差异
-   前，不实现、不打开 outcome、不运行 GPU。
+6. N4 formal gate 已通过：14/14 机器检查验证信息边界、toy rank reversal 与完整成本排序，
+   但不把已碰撞的 aliasing 理论作为贡献，也不把 toy 结果当现实证据；
+7. 下一步 N5 先冻结真实数据 rank-reversal protocol，再一次性读取 `risk_calibration`
+   outcome。主比较必须匹配 selector visibility/action bank/cost definition，并覆盖 entropy、
+   random/fixed crop、exhaustive UG 与现有 learned router。没有稳健实质反转则关闭，不开 GPU。
 
 ## 止损规则
 
@@ -326,8 +336,11 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
     prompt/parser contract 与 exact-artifact execution trace 失败，baseline 4/7。TACO、TAPO、
     The Illusion、ToolVision 已覆盖五个候选 core claims，novelty 0/6；联合 gate 失败，
     `downloaded_checkpoint_bytes=0`、新 GPU/checkpoint `0/0`。
-23. N4 只做 method-space problem-selection audit：先定义独立机制与能推翻它的 CPU/已有资产
-    prediction，再判断是否需要新的数据或公开 checkpoint。没有不可约主张时保持 GPU gate
-    关闭。
+23. N4 information-boundary audit 已完成：14/14 checks 全真，RICO 35,352/35,352 required
+    images 可 decode；19 个 dimension mismatch 保留为 QC 风险。没有读取 action outcome、
+    GPU 或 checkpoint。
 24. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
     row/seed 预注册。其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+25. N5 在 outcome 前预注册 question-only/统一 preview/full-resolution privileged 三种信息
+    集、固定四格 action bank、全部成本、强基线、source bootstrap 和最小实际效应；只用
+    ranker-training 拟合、risk-calibration screen，formal-test/reserve 继续封存。
