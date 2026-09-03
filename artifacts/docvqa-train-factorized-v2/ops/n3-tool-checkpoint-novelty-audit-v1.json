@@ -1,0 +1,130 @@
+{
+  "audited_at": "2026-09-03T15:04:00+08:00",
+  "authorized_new_checkpoints": 0,
+  "authorized_new_gpu_jobs": 0,
+  "baseline_checks": {
+    "current_code_maps_exact_checkpoint": false,
+    "exact_checkpoint_has_parser_valid_execution_trace": false,
+    "exact_prompt_parser_contract_is_documented": false,
+    "full_immutable_revision_exists": true,
+    "public_ungated_checkpoint_exists": true,
+    "runtime_model_family_is_compatible": true,
+    "weights_license_is_permissive": true
+  },
+  "baseline_gate_passed": false,
+  "candidate_method_claims": [
+    "signed_tool_value",
+    "tool_responsibility_routing",
+    "fixed_prefix_observation_contrast",
+    "action_level_counterfactual_credit",
+    "with_without_tool_benefit_supervision"
+  ],
+  "checkpoint_candidates": [
+    {
+      "architecture": "Qwen2_5_VLForConditionalGeneration",
+      "current_code_checkpoint_mapping_documented": false,
+      "disabled": false,
+      "exact_parser_valid_execution_trace_available": false,
+      "exact_prompt_parser_contract_documented": false,
+      "gated": false,
+      "local_cache_present": false,
+      "model_card_bytes": 24,
+      "model_id": "VTOOL/VTool-Qwen2.5-3B",
+      "model_type": "qwen2_5_vl",
+      "parameter_count": 4065787904,
+      "private": false,
+      "revision": "0ca11e812287b5c024c7277db71859da5bda17ac",
+      "runtime_family_compatible": true,
+      "used_storage_bytes": 8143089840,
+      "weights_license": "mit"
+    },
+    {
+      "architecture": "Qwen2_5_VLForConditionalGeneration",
+      "current_code_checkpoint_mapping_documented": false,
+      "disabled": false,
+      "exact_parser_valid_execution_trace_available": false,
+      "exact_prompt_parser_contract_documented": false,
+      "gated": false,
+      "local_cache_present": false,
+      "model_card_bytes": 0,
+      "model_id": "VTOOL/VTool-Qwen2.5-7B",
+      "model_type": "qwen2_5_vl",
+      "parameter_count": 8292166656,
+      "private": false,
+      "revision": "b5c901087a12796ab1a783520e1098a194eaa540",
+      "runtime_family_compatible": true,
+      "used_storage_bytes": 16595836368,
+      "weights_license": "mit"
+    }
+  ],
+  "covered_core_claims": [
+    "action_level_counterfactual_credit",
+    "fixed_prefix_observation_contrast",
+    "signed_tool_value",
+    "tool_responsibility_routing",
+    "with_without_tool_benefit_supervision"
+  ],
+  "decision": "n3_public_initializer_exists_but_joint_gate_failed_before_download",
+  "downloaded_checkpoint_bytes": 0,
+  "joint_gate_passed": false,
+  "literature_collision": [
+    {
+      "overlaps": [
+        "signed_tool_value",
+        "tool_responsibility_routing"
+      ],
+      "source": "https://arxiv.org/abs/2606.30251",
+      "work": "TACO"
+    },
+    {
+      "overlaps": [
+        "action_level_counterfactual_credit"
+      ],
+      "source": "https://arxiv.org/abs/2606.05784",
+      "work": "TAPO"
+    },
+    {
+      "overlaps": [
+        "fixed_prefix_observation_contrast"
+      ],
+      "source": "https://arxiv.org/abs/2608.06270",
+      "work": "The Illusion of Visual Tool-Use"
+    },
+    {
+      "overlaps": [
+        "with_without_tool_benefit_supervision"
+      ],
+      "source": "https://arxiv.org/abs/2608.08907",
+      "work": "ToolVision"
+    }
+  ],
+  "local_cache_candidate_count": 0,
+  "local_code_repositories": {
+    "old_vtool": {
+      "apache_2_license": true,
+      "revision": "ae93c5457f7b5a397e3e70dda967a51b91a9a361"
+    },
+    "training_v2": {
+      "apache_2_license": true,
+      "revision": "d2aa28353ec10c7f91b39f502925003a81d6982d"
+    }
+  },
+  "n2_decision": "n2_additive_causal_regret_candidate_not_identified_and_not_novel",
+  "n2_report_sha256": "60b398454f6a495c4fbcb337a0c1eae075cc1536ea09f2f78b2f0a2c2ac99404",
+  "novelty_checks": {
+    "action_level_counterfactual_credit_is_not_covered": false,
+    "candidate_has_uncovered_core_claim": false,
+    "fixed_prefix_observation_contrast_is_not_covered": false,
+    "signed_tool_value_is_not_covered": false,
+    "tool_responsibility_routing_is_not_covered": false,
+    "with_without_tool_benefit_is_not_covered": false
+  },
+  "novelty_gate_passed": false,
+  "registry_sha256": "26e11938323078005d47053f25fe2b3909bc1f0ef2a62ce0b8e3344f4110ab2e",
+  "resource_audit_status": "not_run_because_joint_baseline_and_novelty_gate_failed",
+  "schema": "n3_tool_checkpoint_novelty_audit_v1",
+  "selected_candidate_download_bytes": 8143089840,
+  "selected_candidate_if_scientifically_authorized": "VTOOL/VTool-Qwen2.5-3B",
+  "selected_candidate_revision": "0ca11e812287b5c024c7277db71859da5bda17ac",
+  "uncovered_core_claims": []
+}
