@@ -1,0 +1,108 @@
+{
+  "analysis": {
+    "complete_python_fence_definition": "full response matches one complete lowercase python fence with no surrounding text",
+    "decision_codes": [
+      "typed_action_b0_format_gate_passed",
+      "typed_action_b0_insufficient_tool_intent_support",
+      "typed_action_b0_malformed_tool_intent"
+    ],
+    "intent_substrings": [
+      "focus_on_",
+      "display("
+    ],
+    "minimum_conditional_execution_rate": 0.8,
+    "minimum_tool_intents": 2,
+    "nested_metrics": [
+      "tool_intent",
+      "complete_python_fence",
+      "python_syntax_valid",
+      "argument_contract_valid",
+      "parser_valid",
+      "execution_success"
+    ],
+    "raw_model_text_execution_allowed": false
+  },
+  "data": {
+    "converter_report": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-typed-action-b0-one-row-v2/report.json",
+    "converter_report_sha256": "35c36a25384a09276686adb73f7068721109f1cc52ae61537eeaf3c88b496e8b",
+    "dataset": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-typed-action-b0-one-row-v2/b0_smoke.parquet",
+    "dataset_sha256": "2c6a6c9b0a2329199ca750ad6489d3b1fafdf17b91a106ab426c634510e8184c",
+    "development_split": "b0_smoke",
+    "official_dataset": "ReFocus/ReFocus_Data",
+    "official_revision": "6af42739216fd58047121bb51dba683277cfdfe3",
+    "processor_executor_report": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-typed-action-b0-one-row-v2/runtime-smoke.json",
+    "processor_executor_report_sha256": "c25e28a7f3d146d470b35118c33e14af4440d957a664aa619804ebc8f0cd001d",
+    "protected_split_contents_accessed": false,
+    "row_count": 1
+  },
+  "model": {
+    "hf_id": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "local_snapshot": "/userhome/cs3/yihangc/Data/hf_cache/hub/models--Qwen--Qwen2.5-VL-3B-Instruct/snapshots/66285546d2b821cf421d4f5eb2576359d3770cd3",
+    "revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+    "weight_blob_sha256": [
+      "41a8895c164b4d32bae6b302f4603fcbc1797f32dafa45c7e9bcda23c6755df8",
+      "365531ff8752420e89dee707b79d021fb2d6e25abafe486f080555a4fe6972e4"
+    ]
+  },
+  "prompt": {
+    "contract_version": "typed_action_v2",
+    "system_prompt_sha256": "8241e9f9930f4b61c997ea31d922c2c2907f05d076d7f155091623806b855b24"
+  },
+  "resources": {
+    "checkpoints_written": 0,
+    "cpus": 8,
+    "gpu_count": 1,
+    "gpu_type": "H800",
+    "max_walltime_minutes": 30,
+    "memory_gib": 64,
+    "minimum_free_persistent_disk_gib": 8,
+    "minimum_gpu_quota_reserve_minutes": 60,
+    "notification_email": "yihangc@connect.hku.hk",
+    "optimizer_steps": 0,
+    "partition": "q-h800",
+    "slurm_mail_type": "ALL"
+  },
+  "runtime": {
+    "environment": "/userhome/cs3/yihangc/anaconda3/envs/beyond-entropy-vtool-g1",
+    "patch_sha256": "9451c85857d4aa305e300e91d2d3a7fd8e76d6ad4db6109e40f8fc7a00d0aad1",
+    "refocus_tools_sha256": "04fc8f92a911f2df6f7e9692ce199c61185f53d605f337e5bde9c20f6644b037",
+    "upstream_commit": "d2aa28353ec10c7f91b39f502925003a81d6982d",
+    "worktree": "/userhome/cs3/yihangc/Documents/runtime/vtool-action-credit-g1"
+  },
+  "sampling": {
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "engine_seed": 20260903,
+    "enforce_eager": true,
+    "generation_count": 16,
+    "gpu_memory_utilization": 0.45,
+    "max_model_len": 5120,
+    "max_num_seqs": 16,
+    "max_tokens": 128,
+    "n": 1,
+    "seeds": [
+      2026090300,
+      2026090301,
+      2026090302,
+      2026090303,
+      2026090304,
+      2026090305,
+      2026090306,
+      2026090307,
+      2026090308,
+      2026090309,
+      2026090310,
+      2026090311,
+      2026090312,
+      2026090313,
+      2026090314,
+      2026090315
+    ],
+    "temperature": 0.7,
+    "top_k": -1,
+    "top_p": 0.9
+  },
+  "schema": "refocus_typed_action_b0_generation_protocol_v1",
+  "study_role": "baseline_correctness_only",
+  "uses_reward_target": false
+}
