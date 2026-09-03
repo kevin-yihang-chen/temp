@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 14:38（Asia/Hong_Kong）
+更新时间：2026-09-03 14:47（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -140,6 +140,14 @@ prefix、匹配 factual/counterfactual observation 与受控 continuation，evid
 diagnostic。N1 以 `n1_existing_assets_insufficient_for_top_tier_regret_benchmark` 关闭，
 不把规模当成完整因果 benchmark。
 
+N2 随后验证了“严格可加三/四段 causal regret”能否补救。Stop regret 与 action-selection
+regret 可以严格分成两个非负项；固定 action 时 prefix effect 与 real-vs-counterfactual
+visual-evidence effect 也严格可加，但它们是可正可负的 causal effects，不是 regret。
+真正的 evidence-use regret 需要未观测的 ideal continuation；相同观测可对应 `0` 或 `0.4`
+的不同 regret，而 best-of-k ceiling 又从 k=1 的 `0.6` 随 k=8 机械增到 `0.9993`。
+The Illusion 已直接覆盖 action-shortcut/observation-mediated 分解，GapSight 已覆盖 stop/action
+utility。N2 因 `n2_additive_causal_regret_candidate_not_identified_and_not_novel` 在 GPU 前关闭。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -191,9 +199,12 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
    不把 token-local mask 或 same-prefix effect 包装成新方法；
 3. N1 现有资产路线已关闭：前两项 regret 可识别，但 evidence-use、同数据集多 backbone、
    多动作族与随机重复四项 gate 失败；
-4. 下一候选 N2 只做严格可加 regret 分解的新颖性/可识别性证明与最小 factorial
-   augmentation 的 sample/算力/存储审计。它必须同时区别于 The Illusion 的 fixed-prefix
-   evidence gain 与 GapSight 的 crop-loss router；通过前不生成新 intervention data。
+4. N2 已关闭：两类 effects 虽可加但不是非负 regret，ideal continuation 不可识别，且
+   causal 路径与一手文献直接碰撞；不做 augmentation 成本估计或数据生成；
+5. 下一候选 N3 只先审计公开 tool-capable checkpoint 的权重、许可、prompt/parser
+   compatibility 与真实非零执行支持，判断 controlled credit study 是否技术可测。N3 只是
+   强 baseline gate，不会自动恢复 H5 新颖性；训练前仍需单独通过 ToolVision/TACO/CodeVision
+   区分 gate。
 
 ## 止损规则
 
@@ -295,8 +306,11 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 20. N1 流式机器盘点已完成：四主 bank `59,949` decisions / `299,745` rows，完整性与
     provenance 通过；stop/selection 可识别，evidence-use 不可识别，且动作族、replicate、
     同数据集主 backbone 因子不足。现有-assets benchmark 路线关闭。
-21. N2 在 CPU/纸面上先形式化严格可加的 stop/selection/prefix/evidence decomposition，
-    做一手文献碰撞，并计算最小 factorial augmentation 的统计功效和资源上界；未同时通过
-    新颖性、识别与成本 gate 前不提交 GPU。
-22. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
+21. N2 已完成并关闭：stop/selection 非负分解成立，prefix/evidence signed-effect 分解也
+    成立，但 ideal evidence-use regret 不可识别，且与 The Illusion/GapSight 直接碰撞；
+    `authorized_new_gpu_jobs/checkpoints=0/0`。
+22. N3 先只读盘点公开 tool-capable checkpoints 与本地 cache/repo，检查许可、revision、
+    prompt/tool schema、parser 与已报告 tool-call support；只有 baseline 和独立 novelty gate
+    都通过，才允许一个无训练 generation smoke。
+23. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
     row/seed 预注册。其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

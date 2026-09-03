@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 14:38（Asia/Hong_Kong）
+更新时间：2026-09-03 14:47（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -111,6 +111,16 @@ continuation。与此同时，主证据只有一个工具动作族、每状态�
 混杂；ScreenQA 的同数据集 3B/7B 重叠只有 512 个 opened-development diagnostic states。
 机器决定为 `n1_existing_assets_insufficient_for_top_tier_regret_benchmark`。因此现有资产不能
 直接包装为顶会完整 benchmark，本项没有提交 GPU 或产生 checkpoint。
+
+N2 又检验了是否能通过严格可加 causal decomposition 修复 N1。结果是：stop 与 selection
+regret 可严格、非负地相加；action-prefix 与 visual-evidence effect 也可严格相加，却可正
+可负而不是 regret。真正的 evidence-use regret 依赖未观测 ideal continuation；相同
+`(direct,counterfactual,real)` 观测可以对应不同 ideal regret，best-of-k 代理还会随 k
+机械膨胀。The Illusion 已直接分离 action-induced shortcut 与 observation-mediated path，
+GapSight 已覆盖 stop/action utility bank。N2 决定为
+`n2_additive_causal_regret_candidate_not_identified_and_not_novel`，同样没有授权 GPU 或
+checkpoint。这关闭了当前 causal-regret benchmark/decomposition 主贡献，而不是只说明
+数据量不够。
 
 ## 已完成的证据链
 
@@ -375,12 +385,10 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes�
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205`、Job `206227`、N0 与
-现有-assets N1 均已按各自 gate 关闭。N1 不是样本太少，而是缺少 evidence-use intervention
-合同、主证据同数据集多 backbone、多动作族与 stochastic replicate。下一步 N2 先在
-CPU/纸面上证明一个严格可加的 stop/selection/prefix/evidence decomposition，逐项审计其
-相对 The Illusion/GapSight 的不可约区别，并给最小 factorial augmentation 计算 sample、
-GPU-hour 与存储上界。只有新颖性、识别性、同数据集多 backbone、多动作族和统计功效可同时
-冻结才生成新数据；否则在 GPU 前关闭，不降低投稿目标。若论文强基线需要修复 V2，则 V3
-必须先枚举六个 concrete、parser-valid 模板并使用独立 row/seed，它只承担 baseline
-correctness。
+不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205`、Job `206227`、N0、N1
+与 N2 均已按各自 gate 关闭。下一步 N3 先只读审计是否存在公开、许可清晰、可固定 revision
+且与本项目 typed tool schema 可对接的 tool-capable checkpoint；目标只是找到具有真实
+parser-valid 非零 support 的强 baseline，判断 controlled credit study 是否技术可测。
+这不会自动恢复 H5/N0 的方法新颖性；任何训练或 GPU smoke 前仍须证明 signed same-prefix
+action credit 相对 ToolVision、TACO、CodeVision 的不可约区别，并先冻结唯一 checkpoint、
+tool contract、数据与停止规则。若两类 gate 任一失败则继续在 GPU 前关闭，不降低投稿目标。

@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 14:38（Asia/Hong_Kong）
+更新时间：2026-09-03 14:47（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1137,3 +1137,40 @@
 - 下一步：N2 先形式化严格可加的 stop/selection/prefix/evidence decomposition，做一手
   新颖性碰撞与最小 factorial augmentation 的 sample/GPU-hour/storage audit。未同时通过
   novelty、identifiability、同数据集多 backbone、多动作族和 power gate 前不生成新数据。
+
+## E-20260903-13：N2 严格可加 causal-regret 新颖性与识别 gate
+
+- 假设：可以把 tool-agent 总 regret 严格分为 stop、action selection、action-prefix 与
+  visual-evidence use 四个可识别、非负、可加的项，并以此形成不同于 The Illusion 和
+  GapSight 的主贡献。
+- 实现 commit：`0cc20ab7235b1be4c0af4fbe6d264c854f8cecaf`。新增 dependency-free
+  数值审计，绑定 N1 report SHA-256，覆盖三类 stop/call/selection 行为、固定 prefix 的
+  real/counterfactual observation、两组 observationally equivalent ideal continuations
+  与 best-of-k replication sensitivity。
+- 正结果边界：stop regret 与 selection regret 是非负严格分解；三个注册例的 additive
+  residual 都为 0。固定 action 后，`real-direct=(counterfactual-direct)+
+  (real-counterfactual)` 也严格成立。
+- 否决证据：后两个量是 signed effects；例中 prefix/evidence 分别为 `+0.1/-0.3`。真正
+  evidence-use regret 需要 ideal continuation；完全相同观测可产生 `0` 或 `0.4` regret，
+  因而不可识别。单次成功率 `0.6` 的 best-of-1/2/4/8 ceiling 为
+  `0.6/0.84/0.9744/0.99934464`，不是对 replicate 数不变的 estimand。
+- 文献：The Illusion 已以 causal graph 分离 action-induced shortcut 与 observation-mediated
+  path，并定义 fixed-prefix Visual Evidence Gain；GapSight 已从 global/crop loss gap 学
+  stop、utility 与 box；ToolVision 已把 stepwise evidence gain 和 with/without-tool benefit
+  用于 SFT/RL 数据构造。N2 不具备不可约新颖性。
+- 决定：七项 gate 通过四项，最终
+  `n2_additive_causal_regret_candidate_not_identified_and_not_novel`。关闭当前 causal-regret
+  benchmark/decomposition 主路线，不做 augmentation 资源估计或数据生成。
+- 产物：N2 JSON SHA-256
+  `60b398454f6a495c4fbcb337a0c1eae075cc1536ea09f2f78b2f0a2c2ac99404`；module/runner/test
+  SHA-256 为 `d5b94e5d...eacd2` / `27ecaf3e...85fa` / `e89a71ad...3295`；完整审计见
+  `n2-additive-causal-regret-novelty-identifiability-gate-20260903-v1.md`。
+- 验证：12 个 targeted tests、三文件 mypy、compileall、Black、deterministic report、
+  N1 hash 正/负路径、JSON decision、凭证扫描和 `git diff --check` 通过。
+- 资源/泄漏：CPU-only；无模型加载、Slurm、GPU、optimizer、checkpoint 或 protected
+  split；机器报告冻结 `authorized_new_gpu_jobs=0`、`authorized_new_checkpoints=0`。
+- 当前最佳结果：项目仍无 deployable 正主结果；N2 防止把 causal effect 改名成 regret，
+  或用可调 best-of-k privileged oracle 制造贡献。
+- 下一步：N3 只读审计公开 tool-capable checkpoint 的许可、固定 revision、prompt/parser
+  compatibility 与真实 tool support。它只建立强 baseline；任何训练前还需单独证明 signed
+  same-prefix credit 与 ToolVision/TACO/CodeVision 不同。
