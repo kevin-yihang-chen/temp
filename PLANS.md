@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 20:07（Asia/Hong_Kong）
+更新时间：2026-09-03 20:35（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -61,10 +61,14 @@ rollout + feature 约 `61KB/state`。此前按 18,720 个 train/validation state
 当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
 threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。
 完整 synthetic 36-cell × 3-seed smoke 已通过；这是 108 个 seed-runs 的工程证据，明确标记
-`formal_claim_eligible=false`。真实 manifest 与三域 feature path 阻塞已解除。正式运行前
-还有三个代码 gate：支持不同动作 outcome/成本的强基线比较层、唯一 post-action oracle
-probe，以及可恢复的 rollout/feature shard materialization 与 merge。完成这些合同和全仓
-回归测试前，不提交完整 train/validation，更不打开 test。
+`formal_claim_eligible=false`。真实 manifest 与三域 feature path 阻塞已解除。
+
+异构强基线 gate 已在 commit `daa43c148dc1f3a1e2fe5e1603ea1ae464ab7ed6` 完成：六个基线
+均只在 validation 冻结，one-crop 与 four-crop 方法保留各自逐样本 `Ytool`、cost 和 call
+mask，learned-vs-baseline 的 paired source bootstrap 不再共用错误 ledger。含完整六基线
+的 synthetic 36-cell × 3-seed 再次通过，656 个全仓测试也通过。正式运行前还剩两个代码
+gate：唯一 post-action oracle probe，以及可恢复的 rollout/feature shard materialization
+与 merge。完成这两项合同和全仓回归前，不提交完整 train/validation，更不打开 test。
 
 ## 当前核心判断
 

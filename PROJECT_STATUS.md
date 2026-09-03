@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 20:07（Asia/Hong_Kong）
+更新时间：2026-09-03 20:35（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -63,11 +63,13 @@ DocVQA Job `206630` 与 HRBench Job `206631` 均已 `COMPLETED`、`ExitCode=0:0`
 feature 与 execution hashes 已独立复核。至此真实执行路径跨 ChartQA、DocVQA、HRBench
 全部打通，但这些都是 opened-train 工程 smoke，不构成任何方法效果证据。
 
-当前真正阻塞正式实验的不是模型能否加载，而是 evaluator 合同尚未完整：现有 matrix
-runner 只能在同一 fixed-exhaustive outcome 上比较 call masks，不能公平表示 one-call
-fixed/random crop 与 four-call exhaustive UG；paired source bootstrap 也尚不能比较两种
-不同逐样本 outcome/cost ledger。唯一允许的 post-action oracle probe 和正式 feature shard
-merge 也未实现。上述三项完成并回归通过前，正式矩阵保持 `0/36`，test 继续封存。
+matrix runner 的异构强基线缺口已经关闭。commit
+`daa43c148dc1f3a1e2fe5e1603ea1ae464ab7ed6` 实现六个冻结基线、validation-only threshold/
+fixed-action/strongest-baseline selection，以及 one-crop 与 four-crop 各自真实的逐样本
+outcome/cost/call ledger；learned-vs-baseline 使用独立 ledger 做 paired source bootstrap。
+包含全部六基线的 synthetic 36-cell × 3-seed smoke 与 656 个全仓测试已通过。唯一允许的
+post-action oracle probe 和正式 feature shard merge 仍未实现；这两项完成并回归通过前，
+正式矩阵保持 `0/36`，test 继续封存。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均
@@ -427,7 +429,7 @@ GPU、新 checkpoint 或 protected outcome。
 | N4/N5 selector information-boundary 现实效应 gate | N4 formal 14/14 通过；N5 现实效应 8/8 条件失败，当前候选关闭 |
 | Fixed-tool predictability 数据冻结 | ChartQA/DocVQA/HRBench 的 source 与 decoded-RGB 双隔离 split 已完成，test 未打开 |
 | 三域真实 Qwen rollout + L0--L3 feature path | Jobs 206628--206631 通过；只证明工程可运行 |
-| 36-cell predictability 正式矩阵 | `0/36`；异构强基线、post-action probe 与 shard merge 尚未完成 |
+| 36-cell predictability 正式矩阵 | `0/36`；异构强基线已完成，post-action probe 与 shard merge 尚未完成 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -526,9 +528,9 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
 `206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。当前唯一行动是
-完成 fixed-tool predictability audit 的剩余合同：先实现 one-call fixed/random crop 与
-four-call exhaustive UG 的异构 outcome/cost ledger，扩展 paired source bootstrap，加入
-唯一 post-action diagnostic probe，再实现可恢复的 rollout/feature shard merge。上述代码
-与全仓回归通过后，才运行三个 benchmark 的 train/validation；threshold、variant 和
+完成 fixed-tool predictability audit 的剩余合同：异构 strong-baseline ledger 与独立 paired
+source bootstrap 已在 commit `daa43c1` 完成。现在先加入唯一 post-action diagnostic probe，
+再实现可恢复的 rollout/feature shard merge。上述代码与全仓回归通过后，才运行三个
+benchmark 的 train/validation；threshold、variant 和
 calibration 只在 validation 选择，test 只在全部选择冻结后打开一次。不得用更多相似 feature、
 阈值搜索或扩大模型容量重开已关闭路线；正式 36 cells 完成前不生成终局 verdict。

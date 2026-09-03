@@ -1,6 +1,6 @@
 # 项目发展记录
 
-更新时间：2026-09-03 20:07（Asia/Hong_Kong）
+更新时间：2026-09-03 20:35（Asia/Hong_Kong）
 
 ## 项目要解决的问题
 
@@ -144,8 +144,12 @@ baseline + 四 crop 后，因 Transformers 对 system content 的结构化输入
 固定工具四次成本以及 `3/22/6147/6147` 的 L0--L3 维度，特征均为有限值。
 
 因此项目现在跨过了“协议是否可执行、数据能否无泄漏冻结、真实三域特征能否导出”三个
-工程风险，但还没有跨过科学风险。正式矩阵仍为 `0/36`，test 未打开。下一步必须先补齐
-异构强基线（one-call fixed/random crop 与 four-call exhaustive tool）的逐样本 outcome/
-cost 比较、paired source bootstrap、唯一 post-action diagnostic probe，以及可恢复的
-rollout/feature shard merge。只有这些合同通过，才会生成 train/validation outcomes；
-最终 `PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出 `GO/PIVOT/REPRESENTATION/STOP`。
+工程风险，但还没有跨过科学风险。异构强基线随后也已在 commit `daa43c1` 操作化：六个
+基线的阈值、固定 crop 与 strongest 只由 validation 冻结，one-call 与 four-call 策略保留
+独立 outcome/cost/call ledger，再做 source-paired bootstrap。完整六基线的 synthetic
+36-cell × 3-seed runner 和全仓 656 tests 均通过。
+
+正式矩阵仍为 `0/36`，test 未打开。下一步只剩唯一 post-action diagnostic probe 与可恢复
+的 rollout/feature shard merge 两个代码 gate。只有这两项通过，才会生成 train/validation
+outcomes；最终 `PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出
+`GO/PIVOT/REPRESENTATION/STOP`。

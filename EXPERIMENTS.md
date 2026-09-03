@@ -1477,3 +1477,28 @@
   fixed crop、uniform-random crop、entropy gate 和 exhaustive UG 强基线比较；补齐 paired
   source bootstrap、唯一 post-action diagnostic probe 与 feature shard merge。test 继续
   封存，本项没有 optimizer 或 checkpoint。
+
+## E-20260903-23：异构强基线与独立 outcome/cost ledger gate
+
+- 假设与风险：one-crop fixed/random baseline 与 four-crop entropy-search tool 的实际
+  `Ytool`、成本和调用数不同。如果只比较 call mask、却把所有方法套到同一个 exhaustive
+  outcome/cost 上，会系统性错算强基线，也无法证明 strongest baseline 只由 validation
+  选择。本项只修正 evaluator 合同，不读取正式 validation/test outcome。
+- 实现：commit `daa43c148dc1f3a1e2fe5e1603ea1ae464ab7ed6` 冻结并实现六个基线：
+  answer-now、entropy gate、SHA-256 random gate、matched-gate global fixed crop、四 crop
+  的精确 uniform-random expectation，以及收费四次的 exhaustive entropy search。四个
+  action ID 固定为 `ug-grid-00/01/02/03`；threshold、global fixed action 和 strongest
+  baseline 只在 validation 选择，再原样应用到 test。
+- 比较合同：learned candidate 与 baseline 各自保留逐 decision outcome、cost 与 call
+  mask；比较前检查 decision/image/source/`Y0` 对齐，再按相同 source 做 paired bootstrap。
+  no-call threshold 改为有限的 next representable float，使严格 JSON 不再写入 Infinity。
+- 验证：23 个定向测试、mypy、逐文件 Black 与全仓 656 tests 全部通过。含六个真实基线
+  合同的 synthetic 3 benchmark × 4 levels × 3 targets × 3 seeds 运行完成 36/36 cells、
+  108 seed-runs，报告仍明确为 `formal_claim_eligible=false`。synthetic report SHA-256 为
+  `e8f533572160a68956d9f62a5d9e789795d20c0336f7799e7477a9c1d6929aba`。
+- 环境诊断：系统 Python 的 scikit-learn `1.5.1` 不支持当前 MLP `sample_weight` 合同；
+  pinned `qwen-vl` 环境为 `1.7.2` 并完整通过。项目 optional semantic dependency 已要求
+  `scikit-learn>=1.7`，因此前者是 fail-closed 环境负检查，不是方法结果。
+- 边界与下一步：正式矩阵仍为 `0/36`，未提交 GPU、未生成 checkpoint、未打开 test。
+  现在只剩唯一 post-action diagnostic probe 与可恢复 feature shard merge 两个代码 gate；
+  二者通过后才允许生成完整 train/validation outcomes。
