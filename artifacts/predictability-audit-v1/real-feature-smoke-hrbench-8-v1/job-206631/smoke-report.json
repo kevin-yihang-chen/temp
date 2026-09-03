@@ -1,0 +1,23 @@
+{
+  "benchmark": "hrbench",
+  "code_revision": "b071de227c1953266caf7eba0688d7d7d58b6edd",
+  "feature_dimensions": {
+    "l0_uncertainty": 3,
+    "l1_shallow": 22,
+    "l2_semantic": 6147,
+    "l3_frozen_qwen": 6147
+  },
+  "features_sha256": "3a29133fe055ab1de43e3500ae806e78b193726413a36911d2d17b7fbed31c59",
+  "fixed_tool_calls_per_state": [
+    4
+  ],
+  "gpu": "0",
+  "manifest_sha256": "311004d3bfc64804d3921d1f49c04fe8561f569f8fcae4a206cadc8a6c0aa64d",
+  "passed": true,
+  "records": 40,
+  "rollouts_sha256": "23897dd6a84189b910c23f724e1323e541aea6f3a91271d1fe4c3fe4dcfd6328",
+  "schema": "predictability_feature_real_smoke_v1",
+  "scientific_status": "engineering smoke on hrbench train role; not a benchmark claim",
+  "slurm_job_id": "206631",
+  "states": 8
+}

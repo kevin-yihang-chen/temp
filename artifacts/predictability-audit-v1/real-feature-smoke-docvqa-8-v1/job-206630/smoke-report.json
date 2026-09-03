@@ -1,0 +1,23 @@
+{
+  "benchmark": "docvqa",
+  "code_revision": "b071de227c1953266caf7eba0688d7d7d58b6edd",
+  "feature_dimensions": {
+    "l0_uncertainty": 3,
+    "l1_shallow": 22,
+    "l2_semantic": 6147,
+    "l3_frozen_qwen": 6147
+  },
+  "features_sha256": "ac3c16794a839315538b22efb9a0386f9ae2991f05cdd917853c8a8da896aeb0",
+  "fixed_tool_calls_per_state": [
+    4
+  ],
+  "gpu": "0",
+  "manifest_sha256": "891f0739970e531a881395c0a5899a87c161525231cb9ddc1c47d40148b8354c",
+  "passed": true,
+  "records": 40,
+  "rollouts_sha256": "6509c8ae866474d2323dd68fb2cefdff1ac85668ba092855aefbd2271a1297df",
+  "schema": "predictability_feature_real_smoke_v1",
+  "scientific_status": "engineering smoke on docvqa train role; not a benchmark claim",
+  "slurm_job_id": "206630",
+  "states": 8
+}

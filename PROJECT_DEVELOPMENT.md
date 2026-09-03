@@ -1,6 +1,6 @@
 # 项目发展记录
 
-更新时间：2026-09-03 17:47（Asia/Hong_Kong）
+更新时间：2026-09-03 20:07（Asia/Hong_Kong）
 
 ## 项目要解决的问题
 
@@ -88,7 +88,7 @@ risk-calibration 的 49,755 条 action records，也没有提交 GPU 或生成�
 同预算 privileged oracle 为 `+0.03117658`，再次表明正确动作确实有价值；当前失败的是
 outcome-free、可部署选择器对这部分价值的跨 source 提取能力。N4/N5 当前候选已关闭。
 
-## 当前状态与下一步原则
+## 截至 N5 的状态与下一步原则
 
 项目仍然存活，工程和评测资产可复用，但科学状态是“尚无可投稿正主结果”。已经关闭的
 路线不会靠换随机种子、调阈值、增加相似特征或扩大模型容量重开。ScreenQA calibration、
@@ -129,3 +129,23 @@ weight，模型 variant 与 calibration/threshold 只在 validation 选择；tes
 同时生成 AUROC/AUPRC/Brier/calibration、rescue/harm、policy curve 和 paired source
 bootstrap。Synthetic 三 benchmark 的 36 cells、三个 seeds 共 108 次训练/评估已经完整
 通过，证明 hard matrix 可以端到端执行；报告明确为非科学 smoke，不增加正式 `0/36` 计数。
+
+数据层随后冻结了 source 与 decoded-RGB 双重隔离的 ChartQA、DocVQA、HRBench
+train/validation/test，共 22,027 个 states。分配只使用数据身份和图像内容，不读取模型
+outcome；9,651 个实际图片路径全部存在，HRBench 151 个唯一图片又独立全量复核。冻结
+规模分别为 ChartQA `3600/900/1000`、DocVQA `10861/2719/2147`、HRBench
+`480/160/160`。约 1.2GB 的本地数据保持 git ignored，只提交分配报告和代码。
+
+真实 Qwen2.5-VL-3B 执行从一次可复现的接口失败推进到三域通过。Job `206627` 在已经写出
+baseline + 四 crop 后，因 Transformers 对 system content 的结构化输入要求而 fail-closed；
+修复前后 prompt 文本哈希完全一致。Job `206628` 随后通过同一单行；Job `206629` 又在
+67 秒内完成 ChartQA 32 states。最后，DocVQA Job `206630` 和 HRBench Job `206631`
+分别在 39 秒和 84 秒内完成各 8 states。三域全部保持每 state 五条 sibling rollout、
+固定工具四次成本以及 `3/22/6147/6147` 的 L0--L3 维度，特征均为有限值。
+
+因此项目现在跨过了“协议是否可执行、数据能否无泄漏冻结、真实三域特征能否导出”三个
+工程风险，但还没有跨过科学风险。正式矩阵仍为 `0/36`，test 未打开。下一步必须先补齐
+异构强基线（one-call fixed/random crop 与 four-call exhaustive tool）的逐样本 outcome/
+cost 比较、paired source bootstrap、唯一 post-action diagnostic probe，以及可恢复的
+rollout/feature shard merge。只有这些合同通过，才会生成 train/validation outcomes；
+最终 `PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出 `GO/PIVOT/REPRESENTATION/STOP`。

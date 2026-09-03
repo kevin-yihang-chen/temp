@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 20:00（Asia/Hong_Kong）
+更新时间：2026-09-03 20:07（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -9,10 +9,11 @@
 问题再次混入 `whether/when`。完整协议已冻结为 3 benchmark × 4 predictor levels × 3
 targets 的 36-cell 矩阵，并固定 split、强基线、成本、指标、bootstrap 与终局判定规则。
 
-当前完成的是协议、runner 与冻结数据层，不是实验成功：typed pre-action allowlist
-会阻止 post-action/label 字段进入模型；固定工具 collapse 会强制四个 sibling crops、稳定
-tie-break 和四次成本；matrix checker 会在少于 36 cells 时拒绝完成；终局 classifier 只能
-按冻结规则输出 `GO/PIVOT/REPRESENTATION/STOP`，证据不足则报 inconclusive。
+当前完成的是冻结协议、基础 matrix runner、数据层和三域真实 feature smoke，不是实验
+成功：typed pre-action allowlist 会阻止 post-action/label 字段进入模型；固定工具 collapse
+会强制四个 sibling crops、稳定 tie-break 和四次成本；matrix checker 会在少于 36 cells
+时拒绝完成；终局 classifier 只能按冻结规则输出 `GO/PIVOT/REPRESENTATION/STOP`，证据
+不足则报 inconclusive。
 
 对既有 opened bank 的只读 smoke 显示，固定工具的 privileged binary oracle utility 在
 ChartQA/DocVQA/V* proxy 分别为 `+0.02816/+0.01027/+0.05445`，说明该二元任务至少有非零
@@ -38,23 +39,35 @@ Transformers `apply_chat_template(tokenize=True)` 不接受字符串形式的 sy
 真实 processor 预检确认，将 system content 改成结构化 text block 后，生成的模板文本与
 原字符串版本字节完全一致（共同 SHA-256
 `84690aefd39673f4a571ec0701059d140c50aa32bc1d44759f3aaf8ab3fd2d84`），且 tokenize 输出
-具有 `[1,317]` input IDs 与 `[1088,1176]` pixel values。修复已加入单测；下一步重跑同一
-单行 smoke。作业使用单 GPU、clean revision、输入/代码哈希、离线模型、原子产物、
-四次工具收费和邮件 `ALL` 状态通知。代码保持本地，除非用户再次明确要求，否则不 push。
+具有 `[1,317]` input IDs 与 `[1088,1176]` pixel values。修复已加入单测并由后续同一
+单行 smoke 验证。作业使用单 GPU、clean revision、输入/代码哈希、离线模型、原子产物、
+四次工具收费和邮件 `ALL` 状态通知。
 
 修复后的 Job `206628` 已于 21 秒内 `COMPLETED`、`ExitCode=0:0`。独立复核 11/11 checks
 全真：5 条 sibling rollout、1 条 feature、四次工具收费、manifest/rollout/feature hash
 绑定、code revision、role 与全部有限数值均通过。真实维度为 L0 `3`、L1 `22`、L2
 `6147`、L3 `6147`；H800 峰值 allocated/reserved 显存约 `7.13/7.25 GiB`。该结果只证明
-实现可运行，不说明 predictor 有用。下一步是 32-state opened ChartQA throughput smoke，
-据其冻结分片和预算；test 仍封存。
+实现可运行，不说明 predictor 有用。后续 32-state opened ChartQA throughput smoke 已完成；
+test 仍封存。
 
 32-state ChartQA throughput Job `206629` 进一步 `COMPLETED`、`ExitCode=0:0`、67 秒：
 160 条 rollout、32 条 feature、四次收费与全部数值/身份/hash checks 均通过。端到端速率
 约 `1719 states/H800-hour`；rollout + feature 最终文件约 `1.96MB`，约 `61KB/state`。
 将 18,720 个 train/validation states 线性外推为约 `10.9 H800-hours` 与约 `1.15GB`
 最终特征/rollout，当前保守预算为 `16.4 H800-hours`。由于 ChartQA 不代表文档与超高
-分辨率输入，正式分片前还要完成 DocVQA/HRBench train 各 8-state smoke。
+分辨率输入，又执行了 DocVQA/HRBench train 各 8-state smoke。
+
+DocVQA Job `206630` 与 HRBench Job `206631` 均已 `COMPLETED`、`ExitCode=0:0`，runtime
+分别为 39 秒与 84 秒。两者都得到 8 条 feature、40 条 sibling rollout，固定工具每 state
+恰执行四个 crops；L0/L1/L2/L3 维度均为 `3/22/6147/6147` 且全部有限。manifest、rollout、
+feature 与 execution hashes 已独立复核。至此真实执行路径跨 ChartQA、DocVQA、HRBench
+全部打通，但这些都是 opened-train 工程 smoke，不构成任何方法效果证据。
+
+当前真正阻塞正式实验的不是模型能否加载，而是 evaluator 合同尚未完整：现有 matrix
+runner 只能在同一 fixed-exhaustive outcome 上比较 call masks，不能公平表示 one-call
+fixed/random crop 与 four-call exhaustive UG；paired source bootstrap 也尚不能比较两种
+不同逐样本 outcome/cost ledger。唯一允许的 post-action oracle probe 和正式 feature shard
+merge 也未实现。上述三项完成并回归通过前，正式矩阵保持 `0/36`，test 继续封存。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均
@@ -64,21 +77,20 @@ synthetic convergence 诊断；正式运行必须记录而不能通过增加迭�
 
 ## 总体判断
 
-项目仍然存活，但原始“训练一个 deployable pre-call value/gate 即得到顶会正结果”
-路线现在应视为高概率失败，尚未形成 ECCV/ICCV/CVPR 可投稿主结果。最新
-literature-attention 实验否定了 ViCrop/LASER；随后 answer-conditioned hidden-state
-候选又因直接文献碰撞在实验前关闭。继续局部调 attention、hidden-state probe、
-classifier 或 threshold 没有科学价值。
+项目仍然存活，但尚未形成 ECCV/ICCV/CVPR 可投稿主结果。原始“训练一个 deployable
+pre-call value/gate 即得到顶会正结果”的直接路线应视为高风险：literature-attention
+实验否定了 ViCrop/LASER，answer-conditioned hidden-state 候选因直接文献碰撞关闭，
+same-prefix action-credit 路线又在零 parser-valid tool support 处触发预注册停止规则。
+继续局部调 attention、classifier、threshold 或 prompt 没有科学价值。
 
 这不是工程失败，也不是证明研究问题不存在。完整 sibling outcomes 显示有大量
 可获益状态，固定 raw action 的 privileged stopping utility 上界也显著为正；
 失败点是 deployable pre-action prediction 无法跨 source 稳定识别稀疏正收益尾部。
-当前最有价值的产出是严格的 stop/where 因子化与负结果证据，而不是一个成功策略。
-下一步已转为机制不同的视觉工具 RL action-local credit feasibility，而不是给旧
-gate 换特征。该方向已从 protocol/纯 synthetic G0 前进到真实四卡 actor、vLLM、
-agent loop、两步 optimizer 与完整 checkpoint；但 Job `206205` 的 64 条 rollout 没有
-parser-valid、可执行工具动作，action-local credit 从未激活，正式触发 `<1%` 停止规则。
-当前 sampled on-policy H5 路线因此关闭，仍不能据此提高项目成功概率。
+当前最有价值的产出是严格的 stop/where 因子化、负结果证据，以及一次能够给出明确终局
+判断的 fixed-tool predictability audit。此前 RL action-local credit 已从 synthetic G0
+走到真实四卡 actor、vLLM、两步 optimizer 与完整 checkpoint，但 Job `206205` 的 64 条
+rollout 没有 parser-valid、可执行工具动作，credit 从未激活并触发 `<1%` 停止规则；该
+sampled on-policy H5 路线已关闭。当前不重开 H5，而是完成第六阶段的 36-cell audit。
 
 2026-09-02 已做范围纠偏：VTool 只保留为 Apache-2.0 的可运行 RL 骨架和
 outcome-only comparator，不再把 pixel、thought 或内部实现与 VTool 的一致性当作研究
@@ -413,6 +425,9 @@ GPU、新 checkpoint 或 protected outcome。
 | N0 action-boundary interventional objective | 零支持数值与一手文献 gate 完成；退化为既有 listwise/AWR/value-router 家族，GPU 前关闭 |
 | N3 公开 checkpoint 与 novelty 联合 gate | VTool 3B/7B 可用，但 artifact provenance 不完整且 H5 core claims 全部碰撞；下载/GPU/checkpoint 均为 0 |
 | N4/N5 selector information-boundary 现实效应 gate | N4 formal 14/14 通过；N5 现实效应 8/8 条件失败，当前候选关闭 |
+| Fixed-tool predictability 数据冻结 | ChartQA/DocVQA/HRBench 的 source 与 decoded-RGB 双隔离 split 已完成，test 未打开 |
+| 三域真实 Qwen rollout + L0--L3 feature path | Jobs 206628--206631 通过；只证明工程可运行 |
+| 36-cell predictability 正式矩阵 | `0/36`；异构强基线、post-action probe 与 shard merge 尚未完成 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -424,14 +439,13 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 16:14 HKT，实时 `squeue -u yihangc` 为空；GPU quota 最近一次快照为
-222,000 分钟总额、42,275 已用、179,725 剩余（约 2,995.42 GPU-hours）。Job `206227`
-已正常结束，Slurm 仍可查询到 `COMPLETED` 终态。该任务配置了
-`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
-范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 V2 的 CPU、
-runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes（约 35.37 GiB）。
-N5 是 CPU-only 审计，没有新的计算任务邮件事件；本次文档/代码由用户明确授权后才
-推送 GitHub。
+截至 2026-09-03 20:07 HKT，实时 `squeue -u yihangc` 为空。Job `206630/206631` 已分别
+以 `COMPLETED`、`ExitCode=0:0` 结束，均配置
+`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`；这证明 Slurm 通知配置存在，不能
+据此确认邮件客户端实际送达。GPU quota 同时刻快照为 222,000 分钟总额、42,239 已用、
+179,761 剩余，即总计/已用/剩余约 `3700.00/703.98/2996.02 GPU-hours`，利用率约
+`19.03%`。持久盘可用 350,277,861,376 bytes（约 326.22 GiB），使用率 73%。这些队列、
+配额和磁盘数字是时点数据；当前没有训练在后台运行。
 
 ## 已关闭的路线
 
@@ -511,9 +525,10 @@ N5 是 CPU-only 审计，没有新的计算任务邮件事件；本次文档/代
 ## 下一步最优行动
 
 不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
-`206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。下一步回到
-零成本 problem selection：只接受能解释并利用“privileged action oracle 很高、所有现有
-outcome-free router 跨 source 失败”这一残差结构的新机制。任何实现/GPU 前，必须完成
-一手文献碰撞、estimand/可识别性审计和现有数据上的最小可证伪预测。不得用 source
-weighting、fixed-crop 偶然正点、更多 feature、阈值搜索或扩大模型容量重开已关闭路线；
-ScreenQA risk-calibration、formal-test 与 reserve 继续封存。
+`206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。当前唯一行动是
+完成 fixed-tool predictability audit 的剩余合同：先实现 one-call fixed/random crop 与
+four-call exhaustive UG 的异构 outcome/cost ledger，扩展 paired source bootstrap，加入
+唯一 post-action diagnostic probe，再实现可恢复的 rollout/feature shard merge。上述代码
+与全仓回归通过后，才运行三个 benchmark 的 train/validation；threshold、variant 和
+calibration 只在 validation 选择，test 只在全部选择冻结后打开一次。不得用更多相似 feature、
+阈值搜索或扩大模型容量重开已关闭路线；正式 36 cells 完成前不生成终局 verdict。

@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 20:00（Asia/Hong_Kong）
+更新时间：2026-09-03 20:07（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -37,31 +37,34 @@ margin、完整 L3 state 与真实 paired outcomes，正式矩阵完成度仍为
 image/source-disjoint 数据冻结现已完成：ChartQA 为 `3600/900/1000` states，DocVQA 为
 `10861/2719/2147` states、对应 `2800/700/500` documents，HRBench 为
 `480/160/160` states。三者 train/validation/test 的 source 与 decoded-RGB overlap 均为
-零；test 在任何新 rollout 前冻结，分配未读取模型 outcome。下一步不是再想新方法，而是
-在 opened ChartQA 单行上完成真实 Qwen rollout + L0--L3 feature smoke，通过后再冻结分片
-与 GPU 预算并生成 train/validation outcomes；test 继续封存。
+零；test 在任何新 rollout 前冻结，分配未读取模型 outcome。真实 Qwen rollout + L0--L3
+feature path 已在三套数据的 opened train role 通过，test 继续封存。
 
-首个 smoke Job `206627` 已证明单行 baseline + 四 crop rollout 可运行，但 L3 extractor
+首个 smoke Job `206627` 证明单行 baseline + 四 crop rollout 可运行，但 L3 extractor
 在第二次模型加载后因 Transformers 要求结构化 system text block 而 fail-closed。plain
-与 structured 表示经真实 processor 验证生成完全相同的模板文本与 tokenization；当前只
-修正输入容器类型并重跑同一个工程 gate，不改变 prompt、模型、数据、指标或科学协议。
+与 structured 表示经真实 processor 验证生成完全相同的模板文本与 tokenization；修复仅
+改变输入容器类型，后续同一个工程 gate 已通过，未改变 prompt、模型、数据、指标或协议。
 
-修复后的 Job `206628` 已完整通过单行 gate。下一步先把同一 smoke 扩为 opened ChartQA
-train 的 32 states，获得不被两次模型加载时间主导的实测 states/hour、GPU memory 与
-artifact growth；这仍不用于选模型或方法。只有据此冻结总 GPU-hours、shard count、
-checkpoint interval 和失败恢复合同后，才运行三 benchmark 的 train/validation。
+修复后的 Job `206628` 已完整通过单行 gate；ChartQA 32-state Job `206629` 又验证了
+吞吐、显存与 artifact growth。随后 DocVQA 8-state Job `206630` 和 HRBench 8-state Job
+`206631` 分别在 39 秒和 84 秒内完成。三者均生成每 state 一条 baseline 和四条 crop
+rollout，固定工具恰收四次成本，L0/L1/L2/L3 维度稳定为 `3/22/6147/6147` 且全部有限。
+这些 smoke 不用于选择模型、阈值或 endpoint。
 
-32-state ChartQA Job `206629` 已在 67 秒完成，折合约 `1719 states/H800-hour`。按三套
-train/validation 共 18,720 states 线性外推为 `10.9 H800-hours`，在尚未测 DocVQA 与
-HRBench 的情况下暂按 1.5 倍保守系数预留 `16.4 H800-hours`。下一 gate 是 DocVQA 与
-HRBench train 各 8 states 的结构/吞吐 smoke；不读取它们的 test，也不以 smoke endpoint
-调整协议。
+32-state ChartQA Job `206629` 在 67 秒完成，折合约 `1719 states/H800-hour`；最终
+rollout + feature 约 `61KB/state`。此前按 18,720 个 train/validation states 线性外推的
+`10.9 H800-hours` 与 1.5 倍保守预算 `16.4 H800-hours` 只来自 ChartQA，不能直接当成
+跨域最终预算。DocVQA/HRBench 的 8-state gross throughput 约为 `738/343 states/hour`，
+但样本过小且包含两次模型加载，主要用于结构验证。正式 shard size 和总预算要在分片
+实现后按各域较大 opened-train shard 再冻结一次。
 
 当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
 threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。
 完整 synthetic 36-cell × 3-seed smoke 已通过；这是 108 个 seed-runs 的工程证据，明确标记
-`formal_claim_eligible=false`。真实 manifest 阻塞已解除，剩余首要阻塞是 Qwen L0--L3
-extractor 的真实单行运行合同以及后续大规模 paired rollout 成本。
+`formal_claim_eligible=false`。真实 manifest 与三域 feature path 阻塞已解除。正式运行前
+还有三个代码 gate：支持不同动作 outcome/成本的强基线比较层、唯一 post-action oracle
+probe，以及可恢复的 rollout/feature shard materialization 与 merge。完成这些合同和全仓
+回归测试前，不提交完整 train/validation，更不打开 test。
 
 ## 当前核心判断
 

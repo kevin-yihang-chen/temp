@@ -36,15 +36,21 @@ method training is not currently authorized.
 ## Current status and development record
 
 The repository is an active research codebase, but it does **not** currently
-contain a top-conference-ready positive result. The latest N5 matched-budget,
-source-balanced audit falsified the current selector-information candidate
-before opening a protected calibration split or spending additional GPU time.
+contain a top-conference-ready positive result. The current route is a frozen,
+36-cell audit of whether pre-action VLM state can predict the value of one fixed
+four-crop visual tool. Source- and decoded-RGB-disjoint ChartQA, DocVQA, and
+HRBench splits are frozen, and the real Qwen rollout plus L0--L3 feature path has
+passed train-role smoke tests on all three benchmarks. These are engineering
+milestones only: the formal matrix is still `0/36`, protected test outcomes have
+not been opened, and the heterogeneous strong-baseline comparator plus the sole
+post-action diagnostic probe still have to be implemented before formal runs.
 Negative results and route closures are retained as first-class evidence.
 
 - [项目当前状态](PROJECT_STATUS.md)
 - [研究计划与路线决策](PLANS.md)
 - [项目发展记录](PROJECT_DEVELOPMENT.md)
 - [完整实验账本](EXPERIMENTS.md)
+- [固定工具 predictability 协议](docs/predictability_audit_protocol_v1.md)
 - [N5 回顾性结果](artifacts/docvqa-train-factorized-v2/ops/n5-information-set-retrospective-result-20260903-v1.md)
 
 ## Quick start

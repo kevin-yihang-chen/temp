@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 17:47（Asia/Hong_Kong）
+更新时间：2026-09-03 20:07（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1445,3 +1445,35 @@
 - 边界与下一步：smoke 不用于查看或选择 endpoint，正式矩阵仍为 `0/36`。下一步以同一
   code path 在 DocVQA 与 HRBench train 各跑 8 states，验证 scorer、重复图片、文档图像和
   高分辨率路径；二者通过后才冻结正式 shard size/checkpoint interval 并提交开发数据。
+
+## E-20260903-22：DocVQA/HRBench 跨域真实 feature smoke
+
+- 范围：同一 clean code revision `b071de227c1953266caf7eba0688d7d7d58b6edd`，分别读取
+  DocVQA 与 HRBench opened train role 前 8 states；不读取任何 test outcome。Job
+  `206630/206631` 均为 1×H800，Slurm 邮件为 `ALL`。
+- Slurm 结果：两者均 `COMPLETED`、`ExitCode=0:0`，runtime 分别为 39 秒和 84 秒，零
+  restart。每个 run 均生成 8 条 feature、40 条 sibling rollout；逐 state 为一条
+  `ANSWER` 和四条 `ZOOM`，固定工具 collapse 恰为 `tool_calls=4/tool_cost=4.0`。
+- Feature contract：DocVQA 与 HRBench 的 L0/L1/L2/L3 维度都稳定为
+  `3/22/6147/6147`；独立重新加载两份 `.pt` 后确认 16/16 rows 的四级向量全部有限。
+- DocVQA hashes：manifest
+  `891f0739970e531a881395c0a5899a87c161525231cb9ddc1c47d40148b8354c`，rollout
+  `6509c8ae866474d2323dd68fb2cefdff1ac85668ba092855aefbd2271a1297df`，feature
+  `ac3c16794a839315538b22efb9a0386f9ae2991f05cdd917853c8a8da896aeb0`，provenance
+  `a162bc042ad30060a86fedfa4a928568e3456416e75a9254ff0644919672979c`，smoke report
+  `481f2f390c4547f26884ebb49c2a8c89faa5c94c4bd653c4c0830e851d0e3332`，execution
+  `9f56b81928fd587711b08b45367ebe763bfb2003f07538cb8f51d9f4e4ac5c65`。
+- HRBench hashes：manifest
+  `311004d3bfc64804d3921d1f49c04fe8561f569f8fcae4a206cadc8a6c0aa64d`，rollout
+  `23897dd6a84189b910c23f724e1323e541aea6f3a91271d1fe4c3fe4dcfd6328`，feature
+  `3a29133fe055ab1de43e3500ae806e78b193726413a36911d2d17b7fbed31c59`，provenance
+  `e9dcc31677d94ccf694da7cabc0fd145a5ce8f799bfa4f2230a5b85f450910ca`，smoke report
+  `a31217cd9fba06cbf2e91a796ac987991c85f82c179ea911c4e5561a5701e3ea`，execution
+  `d2a826f689fc0de89c82ed199b7687bbd7d8fba8b650f471539cd7b7bcf4a74d`。
+- 边界：8-state gross throughput 约为 DocVQA `738 states/hour`、HRBench
+  `343 states/hour`，但两次模型加载占比很大，不能替代正式分片预算。smoke endpoint
+  不用于选择 predictor、阈值或方法；正式矩阵仍为 `0/36`。
+- 下一步：在提交完整 train/validation 前，先实现并测试不同 outcome/cost ledger 的
+  fixed crop、uniform-random crop、entropy gate 和 exhaustive UG 强基线比较；补齐 paired
+  source bootstrap、唯一 post-action diagnostic probe 与 feature shard merge。test 继续
+  封存，本项没有 optimizer 或 checkpoint。
