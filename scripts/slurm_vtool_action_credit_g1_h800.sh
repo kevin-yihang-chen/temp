@@ -124,7 +124,7 @@ if ! "${jq_bin}" -e \
     .prompt_tokens.max <= .prompt_tokens.frozen_limit and
     .protected_split_contents_accessed == false and
     .model_weights_loaded == false and
-    (.checks | all(.[] == true))
+    (.checks | all(.[]; . == true))
   ' "${runtime_audit}" >/dev/null; then
   echo "G1 runtime dataset audit contract failed" >&2
   exit 2
@@ -251,7 +251,7 @@ if ! "${jq_bin}" -e '
   .rows == 64 and
   .pair_mismatch_count == 0 and
   .judge_failure_count == 0 and
-  (.checks | all(.[] == true))
+  (.checks | all(.[]; . == true))
 ' "${analysis_report}" >/dev/null; then
   echo "G1 rollout analysis contract failed" >&2
   exit 2

@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-02 23:26（Asia/Hong_Kong）
+更新时间：2026-09-03 09:40（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -594,3 +594,38 @@
 - 结果：`paired_signed_g1_observability_gate_passed`。
 - 下一步：本地 commit（不 push GitHub），实时复核 quota/queue/disk，再以新 revision
   只提交 paired-signed G1，并监控同一 job 到终态。
+
+## E-20260903-01：Paired-signed G1 worker jq 前置断言失败
+
+- 假设：commit `8c0540dceb2304ef9dfa8cc8993a560b9dbb269f` 上已通过的 dataset、
+  runtime、Hydra 与 rollout 可观测性合同足以让 paired-signed G1 进入真实模型加载、
+  paired rollout 和最多 2 个 optimizer steps。
+- 提交：Job `205902`，4×H800、48 CPU、384 GiB、2 小时上限，
+  `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`；submit time
+  `2026-09-02 23:33:39`。科学配置、数据、模型、seed、prompt、reward、stop rule 与
+  E-20260902-16 完全相同。
+- 结果：`worker_preflight_failed_no_scientific_result`。Job 于 2026-09-03 00:56 HKT
+  获得资源后同秒退出。worker status 的 `decision=failed`、`exit_code=2`、
+  `scientific_decision=not_available`，开始/结束 epoch 均为 `1788368160`。没有创建
+  `g1-runs/.../job-205902`，因此没有模型加载、rollout、optimizer step、checkpoint 或
+  task/utility/harmful-call 指标；不能把本项解释为 H5 失败。
+- 根因：worker 使用 `.checks | all(.[] == true)` 检查 JSON object 的所有值。
+  jq 的单参数 `all(condition)` 已逐元素迭代输入，随后 condition 中的 `.[]` 又尝试迭代
+  布尔值，故对全真 report 也报 `Cannot iterate over boolean (true)`、exit 5。原命令
+  已在相同 frozen 72 行 runtime audit report 上稳定复现。
+- 修复：runtime dataset audit 与最终 rollout analysis 两处断言均改为二参数 generator
+  形式 `.checks | all(.[]; . == true)`。相同 report 返回 true/exit 0；合成 object
+  全真返回 0、含假返回 1。新增 pytest 直接调用冻结 jq 并要求 worker 中恰有两处正确
+  predicate，避免仅做 shell 静态字符串检查。
+- 产物：worker status SHA-256
+  `27559a29b9f5370ad1443f72789d9de9951ed1e2f78e890288c7dc5971c4e01d`；Slurm log
+  SHA-256 `0b21a496e2a30cf4092b9f117e0c523c3bcd6817d988e96a56bf36a2a4519387`。
+  `sacct` 因集群 accounting storage 禁用而不可用；09:40 HKT live quota 为 222,000
+  GPU 分钟总额、42,242 已用、179,758 剩余。
+- 验证：完整仓库 `516 passed, 34 skipped`；skip 均为 base env 缺少可选 Torch/资源项。
+  12-file mypy、Python compileall、Black in-process、全部 shell/JSON syntax、隔离环境
+  `pip check`、实际 72 行 report jq、credential scan 与 `git diff --check` 全部通过。
+  目标 preflight test 为 `7 passed`。最终 clean-revision Hydra gate 尚待完成。
+- 下一步：本地 commit 后重新生成并冻结 Hydra report，绑定新的
+  worker/launcher/config/audit hashes；实时复核队列与预算后只重提 paired-signed G1，
+  不运行 controls、不改变科学配置。

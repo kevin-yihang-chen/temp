@@ -380,3 +380,30 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "show-cpu-gpu-quota" in submit
     assert "a paired-signed G1 job is already queued or running" in submit
     assert "jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq" in submit
+
+
+def test_g1_worker_jq_all_checks_predicate_handles_object_values() -> None:
+    import subprocess
+
+    jq_bin = Path("/userhome/cs3/yihangc/anaconda3/bin/jq")
+    if not jq_bin.is_file():
+        pytest.skip("frozen jq executable is unavailable")
+
+    worker = (ROOT / "scripts" / "slurm_vtool_action_credit_g1_h800.sh").read_text(
+        encoding="utf-8"
+    )
+    predicate = ".checks | all(.[]; . == true)"
+    assert worker.count(f"({predicate})") == 2
+
+    for checks, expected_exit_code in (
+        ({"first": True, "second": True}, 0),
+        ({"first": True, "second": False}, 1),
+    ):
+        completed = subprocess.run(
+            [str(jq_bin), "-e", f"({predicate})"],
+            input=json.dumps({"checks": checks}),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode == expected_exit_code, completed.stderr

@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-02 23:26（Asia/Hong_Kong）
+更新时间：2026-09-03 09:40（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -27,8 +27,10 @@ matched controls 下改善任务分数、cost-adjusted utility 和 harmful-call 
 当前工程 gate 已前进：官方 Apache-2.0 ReFocus train、token-local adapter 的真实
 autograd、隔离 runtime、单行及完整 72 行 Qwen processor、paired fake-server、单卡
 H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-config gate 均已
-通过。尚未完成真实 paired tool rollout 或任何 optimizer step。因此当前不是“新方法
-已成功/失败”，而是“关键性能实验已经具备提交条件但尚未开始”。
+通过。Job `205902` 随后获得 4×H800，但在模型加载前因 worker 的 jq 对象全真断言
+语法错误同秒 fail closed；没有训练输出目录、rollout、optimizer step 或 checkpoint。
+因此当前不是“新方法已成功/失败”，而是“关键性能实验尚未真正开始，工程断言已定位
+并修复，待新 revision 重提”。
 
 ## 已完成的证据链
 
@@ -109,6 +111,13 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
     自动 analyzer 逐行重建 pair、验证 score/credit/trajectory，并输出 task score、
     cost-adjusted utility、harmful/rescue/tool-call rate。Fake-server v2 与 Hydra v11
     均通过；这是核心可观测性修复，不是 VTool 等价性审计。
+20. 修复后提交的 Job `205902` 于 2026-09-03 00:56 HKT 获得资源，但 worker 在
+    runtime dataset audit 断言处同秒退出，status `exit_code=2`、
+    `scientific_decision=not_available`。原 jq 表达式
+    `.checks | all(.[] == true)` 在对象输入上会对布尔值再次执行 `.[]`，以 exit 5
+    报 `Cannot iterate over boolean`。相同 jq 与冻结 72 行 report 已稳定复现；改为
+    `.checks | all(.[]; . == true)` 后，全真输入通过、含假输入拒绝。训练输出目录
+    不存在，未发生模型加载、rollout、optimizer 或 checkpoint；本项不是 H5 结果。
 
 ## 当前最佳结果与解释边界
 
@@ -131,7 +140,7 @@ H800 vLLM 模型加载/真实首轮 generation，以及最终 Hydra resolved-con
 | 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
-| 真实 paired rollout 与最多 2-step optimizer smoke | 可观测性缺口已修复；待新 revision 重提 |
+| 真实 paired rollout 与最多 2-step optimizer smoke | Job 205902 在模型加载前因 jq 断言秒退；已修复，仍待新 revision 重提 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -143,17 +152,17 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-02 23:26 HKT，Job `205870` 已在 GPU 启动前主动取消，权威状态为
-`CANCELLED`、`RunTime=00:00:00`，当前没有正在运行的 G1。取消原因是正式输出缺少
-预注册指标所需 counterfactual audit 字段；不是训练失败，也没有方法结果。修复后的
-worker 仍冻结为 4×H800、48 CPU、384 GiB、2 小时上限、2 optimizer steps，并配置
-`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。修改只保留在本地，未 push
-GitHub；重提前需全量回归、本地 commit 与实时 quota/queue/disk 检查。
+截至 2026-09-03 09:40 HKT，Job `205902` 已终止且不再出现在活动队列；当前没有
+正在运行/排队的 G1。worker status 为 `failed`、exit 2、开始与结束 epoch 均为
+`1788368160`，科学 decision 不可用。日志只包含 jq 的
+`Cannot iterate over boolean (true)` 与 fail-closed 提示，训练输出目录不存在。
+任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，因此开始与失败均在
+Slurm 状态通知范围内。当前修复只保留在本地，未 push GitHub。
 
-同日 21:59 HKT 的 live quota 为 GPU 222,000 分钟总额、42,321 已用、
-179,679 剩余（2,994.65 GPU-hours，19.06% 已用）；association 上限为 4 GPU、
-4 H800、48 CPU。算力足以支持一次有界 3B matched-control RL 研究，但科学 gate、
-依赖与训练稳定性仍是主要风险。
+09:40 HKT 的 live quota 为 GPU 222,000 分钟总额、42,242 已用、179,758 剩余
+（2,995.97 GPU-hours，19.03% 已用）；association 上限为 4 GPU、4 H800、48 CPU。
+accounting storage 已禁用，无法从 `sacct` 获得更细粒度计费，但同秒退出且没有模型
+加载。算力仍足以支持一次有界 3B matched-control RL 研究。
 
 ## 已关闭的路线
 
@@ -189,14 +198,19 @@ GitHub；重提前需全量回归、本地 commit 与实时 quota/queue/disk 检
   与 Hydra 配置解析已通过；但首轮仍是直接回答，没有验证真实 tool/paired branch。
   JSON-safe pair/utility export 已由 fake-server 与 synthetic analyzer 验证；Optimizer、
   Ray 多进程、checkpoint/resume 与真实 action-credit metrics 仍未经过 GPU smoke。
+- Job `205902` 暴露出 shell jq object predicate 未被旧静态字符串测试实际执行；两处
+  同类表达式现已修正并加入真实 jq 正/负回归；全仓测试与静态检查已通过。重新提交前
+  仍需在 clean commit 上执行完整 worker/Hydra 前置合同，避免再次用排队换取可在登录
+  节点发现的语法错误。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。核心 rollout 可观测性缺口已在 GPU 启动前修复；下一步完成
-全量回归与本地 commit，实时复核 quota/queue/disk 后重新提交唯一 4×H800、最多
-2-step paired-signed G1。
+不再做 VTool 等价性审计。Job `205902` 的失败已定位为 jq object-values 断言语法，
+不属于科学负结果。全量回归已通过；下一步本地 commit 后完成真实 jq/worker 前置
+合同与最终 Hydra gate，实时复核 quota/queue/disk 后以新 revision 重新提交唯一
+4×H800、最多 2-step paired-signed G1。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。

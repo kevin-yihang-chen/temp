@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-02 23:26（Asia/Hong_Kong）
+更新时间：2026-09-03 09:40（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -110,6 +110,15 @@ agent fake-server contract、单卡 H800 vLLM model-load/真实首轮 generation
 最终 Hydra resolved-config gate 均已通过。尚未获得真实 paired tool rollout 或
 optimizer step，因此 H5 仍停在“G1 已可重新提交”，不是处于训练中。
 
+2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
+前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
+`.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
+失败。没有创建训练输出目录，也没有 rollout、模型加载、optimizer step 或
+checkpoint；因此这不是 H5 的正/负结果。两处同类断言已改为二参数形式
+`.checks | all(.[]; . == true)`，并加入真实 jq 正/负回归。下一次重提前必须完成
+全量回归、重新生成最终 Hydra gate 并以新 commit 绑定 worker 哈希。全量回归现已
+通过；剩余工程 gate 是 clean commit 上的最终 Hydra/worker 预检。
+
 ### 顶会约束
 
 所有后续候选仍必须满足：
@@ -165,9 +174,12 @@ optimizer step，因此 H5 仍停在“G1 已可重新提交”，不是处于�
    counterfactual utility/harmful-call 证据，因此在启动前取消；`RunTime=00:00:00`，
    没有消耗 GPU。现已加入稳定 audit JSON、pair/score/utility analyzer 与 worker
    自动 gate，科学配置未改变。
-8. 下一步以新 revision 重新提交唯一 4×H800、最多 2 optimizer-step 的
-   paired-signed G1。只有实际
+8. 重提的 Job `205902` 在 2026-09-03 00:56 HKT 获得资源，但因 worker 的 jq
+   object-values 断言语法错误同秒 fail closed；没有创建输出目录或产生科学结果。
+   根因已由相同 jq/相同 72 行 audit report 稳定复现，并已修正两处同类断言。
+9. 全量回归已通过；下一步本地 commit 后完成最终 Hydra/worker 预检，再以新 revision
+   重新提交唯一 4×H800、最多 2 optimizer-step 的 paired-signed G1。只有实际
    tool-call rate、pair validity 与训练稳定性通过冻结 stop rules，才以同一 revision
    顺序运行 zero/shuffled/outcome-only controls；失败则按预注册规则停止，不调整
    prompt、seed、temperature 或阈值追结果。
-9. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+10. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
