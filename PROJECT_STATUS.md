@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 14:47（Asia/Hong_Kong）
+更新时间：2026-09-03 15:05（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -121,6 +121,17 @@ GapSight 已覆盖 stop/action utility bank。N2 决定为
 `n2_additive_causal_regret_candidate_not_identified_and_not_novel`，同样没有授权 GPU 或
 checkpoint。这关闭了当前 causal-regret benchmark/decomposition 主贡献，而不是只说明
 数据量不够。
+
+N3 进一步完成公开 tool-capable checkpoint 与独立新颖性的联合 gate。VTool 3B/7B
+权重是 public、ungated、MIT 且可固定 full revision；若只看尺寸与架构，8.14 GB 的
+`VTOOL/VTool-Qwen2.5-3B` 是首选。但当前公开 artifact 没有把精确 checkpoint 与
+`training-v2` prompt/parser 绑定，也没有 exact-artifact parser-valid execution trace，
+baseline 只通过 4/7。更关键的是，TACO 已直接覆盖 signed before/after tool value 与
+token-level responsibility routing，TAPO 覆盖 action-level counterfactual credit，The
+Illusion 覆盖 fixed-prefix observation contrast，ToolVision 覆盖 with/without-tool benefit
+supervision；novelty 0/6。N3 因
+`n3_public_initializer_exists_but_joint_gate_failed_before_download` 关闭，未下载模型、未提交
+GPU、未产生 checkpoint。公开权重仍可作为未来强 baseline，但不能单独恢复当前 H5。
 
 ## 已完成的证据链
 
@@ -300,6 +311,7 @@ checkpoint。这关闭了当前 causal-regret benchmark/decomposition 主贡献�
 | 真实 paired rollout 与最多 2-step optimizer smoke | Job 206205 完成；tool call 0/64，触发冻结停止规则，当前 H5 不晋级 |
 | Typed-action reliable baseline | V2 CPU/runtime 通过；Job 206227 真实 generation 因 11/11 intents 复制无效 MODE、0/16 参数合法而失败并关闭 |
 | N0 action-boundary interventional objective | 零支持数值与一手文献 gate 完成；退化为既有 listwise/AWR/value-router 家族，GPU 前关闭 |
+| N3 公开 checkpoint 与 novelty 联合 gate | VTool 3B/7B 可用，但 artifact provenance 不完整且 H5 core claims 全部碰撞；下载/GPU/checkpoint 均为 0 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -311,12 +323,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 14:18 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
+截至 2026-09-03 15:05 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
 222,000 分钟总额、42,275 已用、179,725 剩余（约 2,995.42 GPU-hours）。Job `206227`
 已正常结束，Slurm 仍可查询到 `COMPLETED` 终态。该任务配置了
 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
 范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 V2 的 CPU、
-runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes（约 35.38 GiB）。
+runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes（约 35.37 GiB）。
 修改仅在本地，未 push GitHub。
 
 ## 已关闭的路线
@@ -331,6 +343,9 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes�
 - 当前 sampled on-policy same-prefix action-credit H5；Job `206205` 的零 parser-valid
   工具调用使
   方法特有 credit 无支持，不运行无法区分该效应的后续 controls；
+- 以公开 VTool checkpoint 直接重开 H5；N3 已证明 strong initializer 存在，但 exact
+  prompt/parser/support provenance 未闭环，而且 intended credit/routing 主张与
+  TACO/TAPO/The Illusion/ToolVision 碰撞；
 - 用已打开 train outcomes 选择有利 operating point，或用 privileged oracle
   冒充部署结果。
 
@@ -385,10 +400,9 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes�
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205`、Job `206227`、N0、N1
-与 N2 均已按各自 gate 关闭。下一步 N3 先只读审计是否存在公开、许可清晰、可固定 revision
-且与本项目 typed tool schema 可对接的 tool-capable checkpoint；目标只是找到具有真实
-parser-valid 非零 support 的强 baseline，判断 controlled credit study 是否技术可测。
-这不会自动恢复 H5/N0 的方法新颖性；任何训练或 GPU smoke 前仍须证明 signed same-prefix
-action credit 相对 ToolVision、TACO、CodeVision 的不可约区别，并先冻结唯一 checkpoint、
-tool contract、数据与停止规则。若两类 gate 任一失败则继续在 GPU 前关闭，不降低投稿目标。
+不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
+`206205`、Job `206227`、N0、N1、N2 与 N3 均已按各自 gate 关闭。下一步 N4 先做零成本
+problem-selection gate：候选必须引入一个不依赖答案标签或已有 tool rollout、且不能由
+普通 value router、The Illusion 的 observation intervention、TACO/TAPO 的 action credit
+和 ToolVision benefit filter 直接组合得到的机制。先写明确 estimand、最小可证伪预测与
+一手文献差异；这些条件未满足前不下载公开权重、不打开新 outcome、不提交 GPU。

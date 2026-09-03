@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 14:47（Asia/Hong_Kong）
+更新时间：2026-09-03 15:05（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -148,6 +148,16 @@ visual-evidence effect 也严格可加，但它们是可正可负的 causal effe
 The Illusion 已直接覆盖 action-shortcut/observation-mediated 分解，GapSight 已覆盖 stop/action
 utility。N2 因 `n2_additive_causal_regret_candidate_not_identified_and_not_novel` 在 GPU 前关闭。
 
+N3 已完成公开 checkpoint 与独立新颖性联合 gate。VTool 3B/7B 权重公开、ungated、MIT，
+且均有可固定 full revision；若科学上获授权，8,143,089,840-byte 的 3B 是唯一优先候选。
+但是当前 model card/代码没有把精确 checkpoint、prompt/parser contract 与 parser-valid
+execution trace 绑定，baseline gate 只通过 4/7。独立新颖性又因 TACO 已覆盖 signed
+tool value 与 token responsibility routing、TAPO 覆盖 action-level counterfactual credit、
+The Illusion 覆盖 fixed-prefix observation intervention、ToolVision 覆盖 with/without-tool
+benefit supervision 而为 0/6。最终决定
+`n3_public_initializer_exists_but_joint_gate_failed_before_download`；没有下载、GPU 或新
+checkpoint，当前 H5 不能靠换初始化重开。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -201,10 +211,13 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
    多动作族与随机重复四项 gate 失败；
 4. N2 已关闭：两类 effects 虽可加但不是非负 regret，ideal continuation 不可识别，且
    causal 路径与一手文献直接碰撞；不做 augmentation 成本估计或数据生成；
-5. 下一候选 N3 只先审计公开 tool-capable checkpoint 的权重、许可、prompt/parser
-   compatibility 与真实非零执行支持，判断 controlled credit study 是否技术可测。N3 只是
-   强 baseline gate，不会自动恢复 H5 新颖性；训练前仍需单独通过 ToolVision/TACO/CodeVision
-   区分 gate。
+5. N3 已关闭：公开 tool-capable initializer 存在，但 artifact-level prompt/parser/support
+   provenance 不完整，且当前 H5 的核心训练主张已被 TACO/TAPO/The Illusion/ToolVision
+   覆盖；不下载模型、不提交 GPU；
+6. 下一候选 N4 先做零成本 problem-selection gate：只允许提出一个不依赖答案标签或既有
+   tool rollout、并且不能由上述 observation intervention、signed credit、benefit filter
+   与普通 value router 直接组合得到的机制。写出明确 estimand、可证伪预测和一手文献差异
+   前，不实现、不打开 outcome、不运行 GPU。
 
 ## 止损规则
 
@@ -309,8 +322,12 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 21. N2 已完成并关闭：stop/selection 非负分解成立，prefix/evidence signed-effect 分解也
     成立，但 ideal evidence-use regret 不可识别，且与 The Illusion/GapSight 直接碰撞；
     `authorized_new_gpu_jobs/checkpoints=0/0`。
-22. N3 先只读盘点公开 tool-capable checkpoints 与本地 cache/repo，检查许可、revision、
-    prompt/tool schema、parser 与已报告 tool-call support；只有 baseline 和独立 novelty gate
-    都通过，才允许一个无训练 generation smoke。
-23. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
+22. N3 已完成：VTool 3B/7B 权重公开、许可/revision/model family 通过；精确 code mapping、
+    prompt/parser contract 与 exact-artifact execution trace 失败，baseline 4/7。TACO、TAPO、
+    The Illusion、ToolVision 已覆盖五个候选 core claims，novelty 0/6；联合 gate 失败，
+    `downloaded_checkpoint_bytes=0`、新 GPU/checkpoint `0/0`。
+23. N4 只做 method-space problem-selection audit：先定义独立机制与能推翻它的 CPU/已有资产
+    prediction，再判断是否需要新的数据或公开 checkpoint。没有不可约主张时保持 GPU gate
+    关闭。
+24. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
     row/seed 预注册。其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

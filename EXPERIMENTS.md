@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 14:47（Asia/Hong_Kong）
+更新时间：2026-09-03 15:05（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1174,3 +1174,46 @@
 - 下一步：N3 只读审计公开 tool-capable checkpoint 的许可、固定 revision、prompt/parser
   compatibility 与真实 tool support。它只建立强 baseline；任何训练前还需单独证明 signed
   same-prefix credit 与 ToolVision/TACO/CodeVision 不同。
+
+## E-20260903-14：N3 公开 tool checkpoint 与独立新颖性联合 gate
+
+- 假设：存在一个公开、许可清晰、可固定 revision、与当前 runtime/tool schema 精确对接
+  且已有 parser-valid 非零执行证据的 checkpoint；同时，same-prefix signed action credit
+  相对近期训练方法仍有不可约的新颖核心。两项同时通过才允许下载与无训练 GPU smoke。
+- 实现 commit：`aa332977869d5b603f839745ad596df2d3f6d1cc`。新增 normalized registry、
+  dependency-free joint gate、local cache/两个代码仓 revision/license 检查、N2 hash gate
+  和六个单测；不把“候选可下载”误写成“baseline 已验证”。
+- 公开权重：VTool 3B 为 public/ungated/MIT、4,065,787,904 parameters、
+  8,143,089,840 bytes，revision
+  `0ca11e812287b5c024c7277db71859da5bda17ac`；VTool 7B 为 8,292,166,656 parameters、
+  16,595,836,368 bytes，revision
+  `b5c901087a12796ab1a783520e1098a194eaa540`。二者均为 Qwen2.5-VL family，均不在
+  本地 cache；若获授权，机器选择较小的 3B。
+- Baseline gate：7 项通过 4 项。公开、full revision、MIT 与 runtime model family 通过；
+  当前代码没有精确映射新 checkpoint ID，model card 没有 prompt/parser contract，也没有
+  exact artifact 的 raw response→parse→execution trace。旧 eval 脚本使用不同的旧 VTOOL
+  model IDs；新 `training-v2` 默认从 base model 训练并由 Parquet 提供 prompt。
+- 新颖性 gate：TACO 已用 tool-off/tool-on answer outcome difference 定义 signed tool
+  value，并做 responsibility-aware token routing；TAPO 已做 action-level counterfactual
+  witness/credit transfer；The Illusion 已定义 fixed-prefix observation intervention；
+  ToolVision 已用 with/without-tool benefit supervision。五个候选 core claims 全被覆盖，
+  novelty checks 为 0/6。
+- 决定：`n3_public_initializer_exists_but_joint_gate_failed_before_download`。VTool 3B
+  是可复现强 baseline 候选，但当前 H5 只剩现有机制的组合/约束差异，不能用换 initializer
+  恢复顶会新颖性。
+- 产物：registry SHA-256
+  `26e11938323078005d47053f25fe2b3909bc1f0ef2a62ce0b8e3344f4110ab2e`；机器报告 SHA-256
+  `6d145cba4846ff608788b5dc8791d7fabcd0cdd1380ff9f2907bea5be3394f5c`；module/runner/test
+  SHA-256 为 `be8a6334...a842` / `5811bce8...010d` / `30d9f10e...dc86`。完整审计见
+  `n3-tool-checkpoint-and-novelty-joint-gate-20260903-v1.md`。
+- 验证：N3+N2 共 18 tests 通过；三文件 mypy、compileall、Black check、两次报告
+  byte comparison、N2 SHA-256 gate 与 `git diff --check` 通过。第一次 mypy 未提供
+  `MYPYPATH=src` 而出现 import-not-found，按仓库 src-layout 修正验证命令后通过，代码未改。
+- 资源/泄漏：只读取公开元数据、本地代码/cache 与 N2 报告；没有下载模型、Slurm、GPU、
+  optimizer、protected split 或新 outcome。`downloaded_checkpoint_bytes=0`、
+  `authorized_new_gpu_jobs=0`、`authorized_new_checkpoints=0`，没有计算任务邮件事件。
+- 当前最佳结果：项目仍无 deployable 正主结果；N3 明确区分“强 baseline artifact 存在”与
+  “当前方法值得训练”，避免为已碰撞的 H5 消耗 8.14 GB 下载和 GPU 排队。
+- 下一步：N4 先做零成本 problem-selection gate。候选必须给出不依赖答案标签/既有 tool
+  rollout 的独立机制、明确 estimand、能在 CPU/已有资产上推翻它的预测，以及相对
+  The Illusion/TACO/TAPO/ToolVision/普通 value router 的不可约差异；未满足前不实现或开 GPU。
