@@ -78,6 +78,10 @@ def test_g1_launcher_builds_only_frozen_signed_smoke_command(tmp_path: Path) -> 
     overrides = set(command[5:])
     assert "+algorithm.action_credit.enabled=true" in overrides
     assert "+algorithm.action_credit.mode=signed" in overrides
+    assert (
+        "+actor_rollout_ref.model.override_config.attn_implementation=sdpa" in overrides
+    )
+    assert "actor_rollout_ref.model.use_remove_padding=false" in overrides
     assert "actor_rollout_ref.actor.ppo_mini_batch_size=8" in overrides
     assert "actor_rollout_ref.rollout.n=4" in overrides
     assert "actor_rollout_ref.rollout.max_num_seqs=16" in overrides
@@ -262,6 +266,8 @@ def test_g1_resolved_config_audit_rejects_scientific_drift(tmp_path: Path) -> No
         "actor_rollout_ref": {
             "model": {
                 "path": str(model_path),
+                "use_remove_padding": False,
+                "override_config": {"attn_implementation": "sdpa"},
                 "enable_gradient_checkpointing": True,
             },
             "actor": {
@@ -340,6 +346,20 @@ def test_g1_resolved_config_audit_rejects_scientific_drift(tmp_path: Path) -> No
         output_dir=tmp_path,
     )
     assert checks and all(checks.values())
+    resolved["actor_rollout_ref"]["model"]["override_config"][
+        "attn_implementation"
+    ] = "flash_attention_2"
+    with pytest.raises(ValueError, match="attn_implementation"):
+        launcher.audit_resolved_config(
+            yaml.safe_dump(resolved),
+            config,
+            validated,
+            arm_name="paired_signed_credit",
+            output_dir=tmp_path,
+        )
+    resolved["actor_rollout_ref"]["model"]["override_config"][
+        "attn_implementation"
+    ] = "sdpa"
     resolved["trainer"]["total_training_steps"] = 3
     with pytest.raises(ValueError, match="total_training_steps"):
         launcher.audit_resolved_config(
@@ -373,6 +393,8 @@ def test_g1_slurm_contract_is_bounded_notified_and_fail_closed() -> None:
     assert "analyze_vtool_action_credit_g1.py" in worker
     assert "rollout-analysis.json" in worker
     assert "paired_signed_g1_stop_rule_triggered" in worker
+    assert '.training.actor_attention_implementation == "sdpa"' in worker
+    assert ".training.actor_use_remove_padding == false" in worker
     assert "unset HF_TOKEN HUGGINGFACE_HUB_TOKEN" in worker
     assert "git status --porcelain --untracked-files=all" in worker
     assert "jq_bin=/userhome/cs3/yihangc/anaconda3/bin/jq" in worker

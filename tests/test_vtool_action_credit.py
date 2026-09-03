@@ -269,6 +269,8 @@ def test_g1_config_freezes_matched_controls_and_stop_rules() -> None:
     assert config["training"]["actor_ppo_mini_batch_size"] == 8
     assert config["training"]["actor_ppo_micro_batch_size_per_gpu"] == 1
     assert config["training"]["actor_use_dynamic_batching"] is False
+    assert config["training"]["actor_attention_implementation"] == "sdpa"
+    assert config["training"]["actor_use_remove_padding"] is False
     assert config["training"]["actor_learning_rate"] == pytest.approx(1e-6)
     assert config["training"]["actor_ppo_epochs"] == 1
     assert config["training"]["actor_use_kl_loss"] is False

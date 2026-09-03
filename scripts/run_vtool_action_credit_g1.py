@@ -183,6 +183,13 @@ def validate_frozen_inputs(
         )
     if int(training["rollout_limit_images"]) != 2:
         raise ValueError("paired G1 requires exactly two images per model request")
+    if str(training["actor_attention_implementation"]) != "sdpa":
+        raise ValueError("G1 actor attention implementation must be frozen to sdpa")
+    if training["actor_use_remove_padding"] is not False:
+        raise ValueError(
+            "SDPA G1 must disable remove-padding because the pinned Qwen patch "
+            "otherwise dispatches to FlashAttention"
+        )
 
     dataset_family = str(arm["dataset_family"])
     if dataset_family not in {"paired", "outcome_only"}:
@@ -406,7 +413,9 @@ def build_command(
         "data.return_raw_chat=true",
         "data.return_multi_modal_inputs=false",
         f"actor_rollout_ref.model.path={validated['model']}",
-        "actor_rollout_ref.model.use_remove_padding=true",
+        f"actor_rollout_ref.model.use_remove_padding={_bool(training['actor_use_remove_padding'])}",
+        "+actor_rollout_ref.model.override_config.attn_implementation="
+        f"{training['actor_attention_implementation']}",
         f"actor_rollout_ref.model.enable_gradient_checkpointing={_bool(training['actor_gradient_checkpointing'])}",
         f"actor_rollout_ref.actor.strategy={training['actor_fsdp_strategy']}",
         f"actor_rollout_ref.actor.fsdp_config.strategy={training['actor_fsdp_strategy']}",
@@ -578,6 +587,12 @@ def audit_resolved_config(
         "data.truncation": "error",
         "data.trust_remote_code": False,
         "actor_rollout_ref.model.path": str(validated["model"]),
+        "actor_rollout_ref.model.use_remove_padding": bool(
+            training["actor_use_remove_padding"]
+        ),
+        "actor_rollout_ref.model.override_config.attn_implementation": str(
+            training["actor_attention_implementation"]
+        ),
         "actor_rollout_ref.model.enable_gradient_checkpointing": bool(
             training["actor_gradient_checkpointing"]
         ),

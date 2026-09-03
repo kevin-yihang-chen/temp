@@ -150,6 +150,8 @@ if ! "${jq_bin}" -e '
   .training.save_frequency_steps == 2 and
   .training.max_actor_checkpoints_to_keep == 1 and
   .training.actor_ppo_mini_batch_size == 8 and
+  .training.actor_attention_implementation == "sdpa" and
+  .training.actor_use_remove_padding == false and
   .training.rollout_n == 4 and
   .arms.paired_signed_credit.action_credit.enabled == true and
   .arms.paired_signed_credit.action_credit.mode == "signed" and

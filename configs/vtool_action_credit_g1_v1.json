@@ -140,6 +140,7 @@
     "tool_call_rate_below": 0.01
   },
   "training": {
+    "actor_attention_implementation": "sdpa",
     "actor_clip_ratio": 0.2,
     "actor_dtype": "bfloat16",
     "actor_entropy_coeff": 0.0,
@@ -157,6 +158,7 @@
     "actor_ppo_epochs": 1,
     "actor_shuffle": false,
     "actor_use_dynamic_batching": false,
+    "actor_use_remove_padding": false,
     "actor_use_kl_loss": false,
     "actor_weight_decay": 0.01,
     "data_max_prompt_length": 4096,
