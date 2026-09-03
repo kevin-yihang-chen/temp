@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from io import BytesIO
 import json
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Literal, Mapping, Sequence
 
 from beyond_entropy.refocus_chart_audit import (
     STRUCTURAL_METADATA_FIELDS,
@@ -15,11 +15,15 @@ from beyond_entropy.refocus_chart_audit import (
 
 
 CONVERTER_SCHEMA = "refocus_official_g1_converter_v1"
+TYPED_ACTION_CONVERTER_SCHEMA = "refocus_official_typed_action_b0_converter_v2"
 DATA_SOURCE = "ReFocus/ReFocus_Data"
 AGENT_NAME = "counterfactual_credit_vtool_agent"
+TYPED_ACTION_AGENT_NAME = "vtool_agent"
 TOOL_NAME = "refocus"
 GROUP_SPLIT_SEED = "refocus-official-g1-group-split-20260902-v1"
 CURVE_EVAL_FRACTION = 0.20
+ActionPromptVersion = Literal["v1", "v2"]
+TYPED_ACTION_DEVELOPMENT_SPLIT = "b0_smoke"
 
 # This prompt is part of the frozen G1 environment, not a claim of equivalence
 # with any VTool prompt. It exposes the executable action space without using
@@ -185,11 +189,20 @@ def convert_official_train_row(
     index: int,
     development_split: str,
     agent_name: str = AGENT_NAME,
+    prompt_version: ActionPromptVersion = "v1",
 ) -> dict[str, Any]:
     if type(index) is not int or index < 0:
         raise ValueError("index must be a non-negative integer")
-    if development_split not in {"g1_train", "g1_curve_eval", "g1_smoke"}:
-        raise ValueError("unsupported development split")
+    if prompt_version == "v1":
+        if development_split not in {"g1_train", "g1_curve_eval", "g1_smoke"}:
+            raise ValueError("unsupported V1 development split")
+    elif prompt_version == "v2":
+        if development_split != TYPED_ACTION_DEVELOPMENT_SPLIT:
+            raise ValueError("V2 is restricted to the independent B0 smoke split")
+        if agent_name != TYPED_ACTION_AGENT_NAME:
+            raise ValueError("V2 B0 must use the outcome-only vtool_agent")
+    else:
+        raise ValueError("unsupported action prompt version")
     if agent_name not in {AGENT_NAME, "vtool_agent"}:
         raise ValueError("unsupported agent_name")
     if row.get("split") != "train":
@@ -199,7 +212,10 @@ def convert_official_train_row(
     question = _require_text(row, "question")
     answer = _require_text(row, "answer")
     metadata = build_official_tool_metadata(row)
-    prompt = build_action_prompt(
+    prompt_builder = (
+        build_action_prompt if prompt_version == "v1" else build_typed_action_prompt
+    )
+    prompt = prompt_builder(
         question=question,
         x_values=metadata["x_values"],
         y_values=metadata["y_values"],
@@ -211,6 +227,21 @@ def convert_official_train_row(
         separators=(",", ":"),
     )
     group_sha256 = structural_chart_signature(metadata)
+    extra_info = {
+        "answer": answer,
+        "index": index,
+        "need_tools_kwargs": True,
+        "question": question,
+        "row_id": row_id,
+        "source": metadata["source"],
+        "split": development_split,
+        "structural_chart_sha256": group_sha256,
+        "prompt_sha256": canonical_sha256(prompt),
+        "tools_kwargs": {"name": TOOL_NAME, "metadata": metadata_json},
+    }
+    if prompt_version == "v2":
+        extra_info["action_prompt_version"] = "typed_action_v2"
+
     return {
         "id": row_id,
         "source": metadata["source"],
@@ -221,18 +252,7 @@ def convert_official_train_row(
         "prompt": prompt,
         "images": [_validated_original_image(row, row_id=row_id)],
         "reward_model": {"ground_truth": answer, "style": "rule"},
-        "extra_info": {
-            "answer": answer,
-            "index": index,
-            "need_tools_kwargs": True,
-            "question": question,
-            "row_id": row_id,
-            "source": metadata["source"],
-            "split": development_split,
-            "structural_chart_sha256": group_sha256,
-            "prompt_sha256": canonical_sha256(prompt),
-            "tools_kwargs": {"name": TOOL_NAME, "metadata": metadata_json},
-        },
+        "extra_info": extra_info,
     }
 
 

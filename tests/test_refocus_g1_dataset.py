@@ -10,8 +10,11 @@ import pytest
 from beyond_entropy.refocus_chart_audit import structural_chart_signature
 from beyond_entropy.refocus_g1_dataset import (
     ACTION_SYSTEM_PROMPT_V1,
+    ACTION_SYSTEM_PROMPT_V2,
     AGENT_NAME,
     DATA_SOURCE,
+    TYPED_ACTION_AGENT_NAME,
+    TYPED_ACTION_DEVELOPMENT_SPLIT,
     build_official_tool_metadata,
     convert_official_train_row,
     group_development_split,
@@ -98,6 +101,55 @@ def test_converter_exposes_only_original_image_and_structural_tool_metadata() ->
     assert converted["extra_info"]["structural_chart_sha256"] == (
         structural_chart_signature(metadata)
     )
+    assert "action_prompt_version" not in converted["extra_info"]
+
+
+def test_v2_converter_is_an_independent_outcome_only_smoke_contract() -> None:
+    official = _official_row(answer="ANSWER_TARGET_CANARY")
+    converted = convert_official_train_row(
+        official,
+        index=11,
+        development_split=TYPED_ACTION_DEVELOPMENT_SPLIT,
+        agent_name=TYPED_ACTION_AGENT_NAME,
+        prompt_version="v2",
+    )
+
+    assert converted["split"] == "b0_smoke"
+    assert converted["agent_name"] == "vtool_agent"
+    assert converted["prompt"][0] == {
+        "role": "system",
+        "content": ACTION_SYSTEM_PROMPT_V2,
+    }
+    assert converted["extra_info"]["action_prompt_version"] == "typed_action_v2"
+    assert converted["extra_info"]["prompt_sha256"] != (
+        convert_official_train_row(
+            official,
+            index=11,
+            development_split="g1_smoke",
+        )[
+            "extra_info"
+        ]["prompt_sha256"]
+    )
+    prompt_text = json.dumps(converted["prompt"], ensure_ascii=False)
+    assert "ANSWER_TARGET_CANARY" not in prompt_text
+    assert "columns_bbox" in prompt_text
+    assert "rows_bbox" in prompt_text
+
+    with pytest.raises(ValueError, match="independent B0 smoke"):
+        convert_official_train_row(
+            official,
+            index=11,
+            development_split="g1_smoke",
+            agent_name=TYPED_ACTION_AGENT_NAME,
+            prompt_version="v2",
+        )
+    with pytest.raises(ValueError, match="outcome-only"):
+        convert_official_train_row(
+            official,
+            index=11,
+            development_split=TYPED_ACTION_DEVELOPMENT_SPLIT,
+            prompt_version="v2",
+        )
 
 
 def test_frozen_action_prompt_matches_executable_parser_surface() -> None:
@@ -214,3 +266,5 @@ def test_converter_runner_has_train_only_column_contract() -> None:
     assert '"focus_areas_bbox"' not in metadata_assignment
     assert 'IMAGE_COLUMN = "image"' in script
     assert "converter accepts only pinned data/train shards" in script
+    assert 'args.prompt_version == "v2" and not args.smoke_one_row' in script
+    assert "typed-action V2 must use vtool_agent" in script

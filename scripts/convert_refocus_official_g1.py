@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 from typing import Any, Mapping
 
+import beyond_entropy.refocus_g1_dataset as refocus_g1_dataset_module
 from beyond_entropy.refocus_chart_audit import (
     canonical_sha256,
     sha256_file,
@@ -17,9 +18,13 @@ from beyond_entropy.refocus_chart_audit import (
 )
 from beyond_entropy.refocus_g1_dataset import (
     ACTION_SYSTEM_PROMPT_V1,
+    ACTION_SYSTEM_PROMPT_V2,
     AGENT_NAME,
     CONVERTER_SCHEMA,
     GROUP_SPLIT_SEED,
+    TYPED_ACTION_AGENT_NAME,
+    TYPED_ACTION_CONVERTER_SCHEMA,
+    TYPED_ACTION_DEVELOPMENT_SPLIT,
     build_official_tool_metadata,
     convert_official_train_row,
     select_structural_groups,
@@ -65,9 +70,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-train-groups", type=int, default=32)
     parser.add_argument("--max-curve-eval-groups", type=int, default=16)
     parser.add_argument(
+        "--prompt-version",
+        choices=("v1", "v2"),
+        default="v1",
+        help=(
+            "Frozen G1 V1 prompt or independent typed-action B0 V2 prompt. "
+            "V2 is deliberately restricted to --smoke-one-row."
+        ),
+    )
+    parser.add_argument(
         "--agent-name",
         choices=(AGENT_NAME, "vtool_agent"),
-        default=AGENT_NAME,
+        default=None,
         help="Paired proposed/control agent or upstream outcome-only agent.",
     )
     parser.add_argument(
@@ -205,6 +219,16 @@ def _write_parquet(rows: list[dict[str, Any]], path: Path) -> dict[str, Any]:
 
 def main() -> None:
     args = parse_args()
+    if args.prompt_version == "v2" and not args.smoke_one_row:
+        raise ValueError("typed-action V2 is restricted to --smoke-one-row")
+    agent_name = args.agent_name
+    if agent_name is None:
+        agent_name = (
+            AGENT_NAME if args.prompt_version == "v1" else TYPED_ACTION_AGENT_NAME
+        )
+    if args.prompt_version == "v2" and agent_name != TYPED_ACTION_AGENT_NAME:
+        raise ValueError("typed-action V2 must use vtool_agent")
+
     pin = _load_pin(args.official_pin)
     shard_paths: list[Path] = []
     verified_shards: list[dict[str, Any]] = []
@@ -231,9 +255,18 @@ def main() -> None:
                 ),
             )
         ]
-        split_by_group = {selected[0].structural_sha256: "g1_smoke"}
+        smoke_split = (
+            "g1_smoke"
+            if args.prompt_version == "v1"
+            else TYPED_ACTION_DEVELOPMENT_SPLIT
+        )
+        split_by_group = {selected[0].structural_sha256: smoke_split}
         selection_summary: dict[str, Any] = {
-            "mode": "engineering_only_one_row_smoke",
+            "mode": (
+                "engineering_only_one_row_smoke"
+                if args.prompt_version == "v1"
+                else "engineering_only_typed_action_b0_one_row_smoke"
+            ),
             "max_train_groups": 0,
             "max_curve_eval_groups": 0,
         }
@@ -268,7 +301,8 @@ def main() -> None:
                 originals[located_row.global_index],
                 index=located_row.global_index,
                 development_split=split,
-                agent_name=args.agent_name,
+                agent_name=agent_name,
+                prompt_version=args.prompt_version,
             )
         )
     for rows in converted_by_split.values():
@@ -292,16 +326,28 @@ def main() -> None:
         raise AssertionError("structural chart groups cross train/curve-eval")
 
     report = {
-        "schema": CONVERTER_SCHEMA,
-        "decision": "refocus_official_g1_converter_passed",
+        "schema": (
+            CONVERTER_SCHEMA
+            if args.prompt_version == "v1"
+            else TYPED_ACTION_CONVERTER_SCHEMA
+        ),
+        "decision": (
+            "refocus_official_g1_converter_passed"
+            if args.prompt_version == "v1"
+            else "refocus_official_typed_action_b0_converter_passed"
+        ),
         "official_dataset": pin["dataset"],
         "official_revision": pin["revision"],
         "official_license": pin["license"],
         "source_split": "train",
         "protected_split_contents_accessed": False,
         "group_split_seed": GROUP_SPLIT_SEED,
-        "agent_name": args.agent_name,
-        "system_prompt_sha256": canonical_sha256(ACTION_SYSTEM_PROMPT_V1),
+        "agent_name": agent_name,
+        "system_prompt_sha256": canonical_sha256(
+            ACTION_SYSTEM_PROMPT_V1
+            if args.prompt_version == "v1"
+            else ACTION_SYSTEM_PROMPT_V2
+        ),
         "all_official_train_rows": len(located),
         "all_official_structural_groups": len(
             {item.structural_sha256 for item in located}
@@ -321,6 +367,14 @@ def main() -> None:
         "selection": selection_summary,
         "outputs": output_reports,
     }
+    if args.prompt_version == "v2":
+        report["action_prompt_version"] = "typed_action_v2"
+        report["implementation_sha256"] = {
+            "converter_script": sha256_file(Path(__file__).resolve(strict=True)),
+            "dataset_module": sha256_file(
+                Path(str(refocus_g1_dataset_module.__file__)).resolve(strict=True)
+            ),
+        }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(
         json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

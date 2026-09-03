@@ -20,6 +20,10 @@ from beyond_entropy.refocus_typed_action import (
     parse_refocus_typed_action,
     render_refocus_typed_action,
 )
+from scripts.smoke_refocus_typed_action_b0 import (
+    _execute_renderer_owned_action,
+    _select_deterministic_action,
+)
 
 
 def _load_runtime_refocus_tools(path: Path) -> ModuleType:
@@ -174,3 +178,39 @@ def test_rendered_typed_actions_execute_in_pinned_runtime_context() -> None:
         exec(compile(code, "typed_refocus_smoke.py", "exec"), context)
         assert len(displayed) == 1
         assert isinstance(displayed[0], image_module.Image)
+
+
+def test_b0_smoke_selects_and_executes_a_renderer_owned_real_runtime_action() -> None:
+    runtime_path = Path(
+        "/userhome/cs3/yihangc/Documents/runtime/"
+        "vtool-action-credit-g1/recipe/vtool/refocus_tools.py"
+    )
+    if not runtime_path.is_file():
+        pytest.skip("pinned VTool G1 runtime is unavailable")
+    image_module = pytest.importorskip("PIL.Image")
+    runtime = _load_runtime_refocus_tools(runtime_path)
+    metadata = {
+        "source": "chartqa_v_bar",
+        "x_values": ["A", "B"],
+        "y_values": [],
+        "x_values_bbox": {
+            "A": {"x1": 2, "y1": 2, "x2": 10, "y2": 10},
+            "B": {"x1": 12, "y1": 2, "x2": 18, "y2": 10},
+        },
+        "y_values_bbox": {},
+    }
+    action = _select_deterministic_action(metadata)
+    response, output, changed = _execute_renderer_owned_action(
+        runtime=runtime,
+        image=image_module.new("RGB", (24, 16), color="white"),
+        metadata=metadata,
+        action=action,
+    )
+
+    assert action == RefocusTypedAction(axis="x", mode="draw", labels=("A",))
+    assert response == render_refocus_typed_action(action)
+    assert isinstance(output, image_module.Image)
+    assert changed is True
+
+    with pytest.raises(ValueError, match="unsupported source"):
+        _select_deterministic_action({"source": "unknown"})

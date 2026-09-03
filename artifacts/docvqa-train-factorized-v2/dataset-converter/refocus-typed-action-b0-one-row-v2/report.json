@@ -1,0 +1,118 @@
+{
+  "action_prompt_version": "typed_action_v2",
+  "agent_name": "vtool_agent",
+  "all_official_structural_groups": 10806,
+  "all_official_train_rows": 14344,
+  "decision": "refocus_official_typed_action_b0_converter_passed",
+  "group_split_seed": "refocus-official-g1-group-split-20260902-v1",
+  "implementation_sha256": {
+    "converter_script": "93c92e9b4eec12f77d63182120b2bdf4402790af37cd6c96dfb1e5ea256f0d69",
+    "dataset_module": "d3017316dce17027a1074a6ac272c5c70679ce8f8b473a2029e91f009e048b3f"
+  },
+  "metadata_scans": [
+    {
+      "image_column_read_during_metadata_scan": false,
+      "metadata_columns_read": [
+        "id",
+        "question",
+        "answer",
+        "source",
+        "split",
+        "x_values",
+        "y_values",
+        "x_values_bbox",
+        "y_values_bbox",
+        "figure_bbox"
+      ],
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/refocus-official-v1/data/train-00000-of-00003.parquet",
+      "row_groups": 48,
+      "rows": 4782
+    },
+    {
+      "image_column_read_during_metadata_scan": false,
+      "metadata_columns_read": [
+        "id",
+        "question",
+        "answer",
+        "source",
+        "split",
+        "x_values",
+        "y_values",
+        "x_values_bbox",
+        "y_values_bbox",
+        "figure_bbox"
+      ],
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/refocus-official-v1/data/train-00001-of-00003.parquet",
+      "row_groups": 48,
+      "rows": 4781
+    },
+    {
+      "image_column_read_during_metadata_scan": false,
+      "metadata_columns_read": [
+        "id",
+        "question",
+        "answer",
+        "source",
+        "split",
+        "x_values",
+        "y_values",
+        "x_values_bbox",
+        "y_values_bbox",
+        "figure_bbox"
+      ],
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/refocus-official-v1/data/train-00002-of-00003.parquet",
+      "row_groups": 48,
+      "rows": 4781
+    }
+  ],
+  "official_dataset": "ReFocus/ReFocus_Data",
+  "official_license": "apache-2.0",
+  "official_revision": "6af42739216fd58047121bb51dba683277cfdfe3",
+  "outputs": {
+    "b0_smoke": {
+      "path": "artifacts/docvqa-train-factorized-v2/dataset-converter/refocus-typed-action-b0-one-row-v2/b0_smoke.parquet",
+      "row_id_manifest_sha256": "9d078c0d4fc59abfc689de841d59e3f8085eddc1a5a948e791a932cd4049edf6",
+      "rows": 1,
+      "schema_sha256": "000b0f3653e27b7c15eb24a928753d18f7278adbad15a875d77fdc25143da384",
+      "sha256": "2c6a6c9b0a2329199ca750ad6489d3b1fafdf17b91a106ab426c634510e8184c",
+      "size_bytes": 61718,
+      "structural_group_manifest_sha256": "e2cbff4ca2fd9076fe36f666a280a96e71deb0837d659499f63aa46207195fad"
+    }
+  },
+  "policy_inputs_exclude": [
+    "answer",
+    "edited_image",
+    "focus_areas_bbox",
+    "thoughts"
+  ],
+  "protected_split_contents_accessed": false,
+  "reward_target_only": "answer",
+  "schema": "refocus_official_typed_action_b0_converter_v2",
+  "selected_rows": 1,
+  "selected_structural_groups": 1,
+  "selection": {
+    "max_curve_eval_groups": 0,
+    "max_train_groups": 0,
+    "mode": "engineering_only_typed_action_b0_one_row_smoke"
+  },
+  "source_split": "train",
+  "system_prompt_sha256": "8241e9f9930f4b61c997ea31d922c2c2907f05d076d7f155091623806b855b24",
+  "train_curve_eval_structural_overlap": 0,
+  "verified_train_shards": [
+    {
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/refocus-official-v1/data/train-00000-of-00003.parquet",
+      "sha256": "19286c0e115b148dfde298b8c82dc7698ed31b072cb4f1eb3c1de6c50a934d3b",
+      "size_bytes": 469299406
+    },
+    {
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/refocus-official-v1/data/train-00001-of-00003.parquet",
+      "sha256": "3006cd7ebd6f0eca954ceb5614cb97f31b4f60f05cf88ceaa2c8436a7e150334",
+      "size_bytes": 339958514
+    },
+    {
+      "path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/refocus-official-v1/data/train-00002-of-00003.parquet",
+      "sha256": "5f382a8796e8d6da03dd45308b8c305c29a7681fbf1710dd6390568e7e91e821",
+      "size_bytes": 331155329
+    }
+  ]
+}
