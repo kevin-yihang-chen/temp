@@ -1,6 +1,6 @@
 # 项目发展记录
 
-更新时间：2026-09-03 20:35（Asia/Hong_Kong）
+更新时间：2026-09-03 21:04（Asia/Hong_Kong）
 
 ## 项目要解决的问题
 
@@ -149,7 +149,13 @@ baseline + 四 crop 后，因 Transformers 对 system content 的结构化输入
 独立 outcome/cost/call ledger，再做 source-paired bootstrap。完整六基线的 synthetic
 36-cell × 3-seed runner 和全仓 656 tests 均通过。
 
-正式矩阵仍为 `0/36`，test 未打开。下一步只剩唯一 post-action diagnostic probe 与可恢复
-的 rollout/feature shard merge 两个代码 gate。只有这两项通过，才会生成 train/validation
-outcomes；最终 `PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出
-`GO/PIVOT/REPRESENTATION/STOP`。
+随后 commit `19631c8` 完成了最后两个 pre-formal 代码 gate。唯一 post-action probe 被固定
+为 direct-gain 两层 MLP，它只读取固定工具执行后的四分支 confidence trace、选中 crop
+geometry 和原图加该 crop 的冻结 Qwen prompt state；它与 deployable input view 类型隔离，
+只作 privileged diagnostic。feature format v2 支持 deterministic shard、resume、逐 shard
+provenance/label/coverage 校验和原子 merge。含 probe 的完整 synthetic matrix 与 662 tests
+通过，真实 ChartQA 单行 Job `206664` 又确认 `6167` 维 post-action vector 可实际导出。
+
+正式矩阵仍为 `0/36`，test 未打开。下一步用三域较大 opened-train shards 冻结 v2 性能与
+预算，随后生成完整 train/validation outcomes；最终 `PREDICTABILITY_AUDIT.md` 仍只能在
+完整真实矩阵后给出 `GO/PIVOT/REPRESENTATION/STOP`。

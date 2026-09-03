@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 20:35（Asia/Hong_Kong）
+更新时间：2026-09-03 21:04（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -66,9 +66,20 @@ threshold、全套 prediction/policy metrics、call-rate curves 与 paired sourc
 异构强基线 gate 已在 commit `daa43c148dc1f3a1e2fe5e1603ea1ae464ab7ed6` 完成：六个基线
 均只在 validation 冻结，one-crop 与 four-crop 方法保留各自逐样本 `Ytool`、cost 和 call
 mask，learned-vs-baseline 的 paired source bootstrap 不再共用错误 ledger。含完整六基线
-的 synthetic 36-cell × 3-seed 再次通过，656 个全仓测试也通过。正式运行前还剩两个代码
-gate：唯一 post-action oracle probe，以及可恢复的 rollout/feature shard materialization
-与 merge。完成这两项合同和全仓回归前，不提交完整 train/validation，更不打开 test。
+的 synthetic 36-cell × 3-seed 再次通过，656 个当时的全仓测试也通过。
+
+其余两个代码 gate 已在 commit `19631c853504981ba97617dfab44dc228e8baf4b` 完成。唯一
+post-action diagnostic probe 固定为 direct-gain `[128,32]` MLP；输入与 deployable view
+分离，只含四 crop 执行后的 confidence trace、entropy-selected crop geometry，以及原图加
+选中 crop 的冻结 Qwen prompt state。feature format v2 同时支持 deterministic shard、断点
+续跑、逐 shard hash/coverage 验证与 atomic merge。含 probe 的 synthetic 36/36 × 3-seed
+矩阵、662 个全仓测试和 merger smoke 均通过。
+
+真实 Job `206664` 又在 opened ChartQA train 单行上于 25 秒内通过：pre-action 维度仍为
+`3/22/6147/6147`，post-action probe 为 `6167` 维且全部有限，固定工具四次成本与
+entropy-selected action 完全一致。正式矩阵仍为 `0/36`；下一步先用较大的三域
+opened-train shards 冻结 v2 吞吐、shard size 和预算，再提交完整 train/validation，test
+继续封存。
 
 ## 当前核心判断
 

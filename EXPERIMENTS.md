@@ -1502,3 +1502,39 @@
 - 边界与下一步：正式矩阵仍为 `0/36`，未提交 GPU、未生成 checkpoint、未打开 test。
   现在只剩唯一 post-action diagnostic probe 与可恢复 feature shard merge 两个代码 gate；
   二者通过后才允许生成完整 train/validation outcomes。
+
+## E-20260903-24：Post-action probe、feature shard 与真实 v2 gate
+
+- 冻结实现：commit `19631c853504981ba97617dfab44dc228e8baf4b` 将唯一 post-action
+  probe 固定为 hidden sizes `[128,32]` 的 direct-gain MLP，不允许 architecture/target/
+  feature variant 搜索。其输入只含 baseline confidence、四个 crop 按 action ID 排列的
+  post-action confidence trace、entropy-selected action one-hot/bbox，以及“原图+选中 crop”
+  的冻结 Qwen language/visual/fused prompt states；不含答案文本、ground truth、correctness
+  或 target 派生 feature，并与 deployable typed view 分离。
+- Shard 合同：feature format 升为 v2，extractor 接受与 rollout collector 相同的
+  deterministic shard count/index/key/namespace 并可按完整 state checkpoint resume。merger
+  会验证 manifest/full-rollout hashes、code revision、每 shard assignment、rollout 内容、
+  fixed-tool label、feature dimension 和全量 decision coverage，再原子生成 merged `.pt` 与
+  严格 JSON report。
+- CPU/合成验证：全仓 662 tests、11 个 source file 的 mypy、Black、bash syntax、JSON 和
+  diff checks 通过；torch 环境中的 16-state two-shard merge smoke 通过。加入 probe 后的
+  synthetic matrix 再次完成 36/36 cells、108 deployable seed-runs，并额外完成 3 benchmark
+  × 3 seeds 的唯一 post-action probe。严格 JSON report SHA-256 为
+  `c912b3b1d1572c62973c911587ae5c33256a906f5e451351ddd624581500eded`。
+- 真实 prompt 合同：pinned Qwen processor 对原图+选中 crop 的 structured-system 与 backend
+  plain-system 消息生成完全相同的模板文本；SHA-256 为
+  `2d449d286999f375190aa6f34b941d9d041af6c0f5ce13dbea9ff220a5eadc89`，实际 tokenized
+  shapes 为 input IDs `[1,591]`、pixel values `[2176,1176]`、image grid `[2,3]`。
+- GPU gate：Job `206664`，1×H800，opened ChartQA train 一个 state，邮件 `ALL`；
+  `COMPLETED`、`ExitCode=0:0`、25 秒、零 restart。仍生成 5 条 sibling rollout 与一条
+  feature；固定工具恰为四 calls/四 cost，pre-action L0/L1/L2/L3 维度仍为
+  `3/22/6147/6147`，post-action probe 实际为 `6167` 维且全部有限。
+- 独立复核：execution、coverage、format v2、code binding、固定成本、selected action、
+  pre/post namespace 隔离、label exclusion、有限值和 report hashes 共 14/14 checks 全真。
+  rollout/feature SHA-256 分别为 `ede270f74541da33e9652838ef62532d2b4b51771f124a59cdb0fa9f73f278db` /
+  `f447e6b0a2f2aa8ad5b8755f4f1df94b7a0fdefa06678216489048030c10db84`；smoke report/
+  execution SHA-256 分别为 `50ee5df8c5caa0327f550c7397641f6cddb214c7b2d01069432c72a9324680d9` /
+  `5c41e736f1987dcfcd91043df4cc89a5d452a08e9f2f7307c30ff81de1704aa4`。
+- 科学边界：本项只证明 privileged probe 与 recoverable export 可以真实执行，不是效用
+  可预测性结果；正式矩阵仍为 `0/36`，test 未打开。下一步先用三域较大 opened-train
+  shards 冻结吞吐、shard count、checkpoint cadence 和预算，再运行完整 train/validation。

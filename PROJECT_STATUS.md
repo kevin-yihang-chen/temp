@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 20:35（Asia/Hong_Kong）
+更新时间：2026-09-03 21:04（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -67,9 +67,19 @@ matrix runner 的异构强基线缺口已经关闭。commit
 `daa43c148dc1f3a1e2fe5e1603ea1ae464ab7ed6` 实现六个冻结基线、validation-only threshold/
 fixed-action/strongest-baseline selection，以及 one-crop 与 four-crop 各自真实的逐样本
 outcome/cost/call ledger；learned-vs-baseline 使用独立 ledger 做 paired source bootstrap。
-包含全部六基线的 synthetic 36-cell × 3-seed smoke 与 656 个全仓测试已通过。唯一允许的
-post-action oracle probe 和正式 feature shard merge 仍未实现；这两项完成并回归通过前，
-正式矩阵保持 `0/36`，test 继续封存。
+包含全部六基线的 synthetic 36-cell × 3-seed smoke 与当时的 656 个全仓测试已通过。
+
+commit `19631c853504981ba97617dfab44dc228e8baf4b` 又完成唯一 post-action oracle probe、
+feature format v2 与可恢复 shard merge。probe 是固定 direct-gain `[128,32]` MLP，独立
+typed namespace 不会进入 deployable predictors；merge 会验证 manifest、rollout、code
+revision、每 shard 覆盖与逐 decision fixed-tool label，再原子写最终 `.pt`。含 probe 的
+synthetic 36/36 × 3-seed 矩阵、662 tests、mypy 和 torch merger smoke 全部通过。
+
+真实 Job `206664` 在 opened ChartQA train 一个 state 上 `COMPLETED/ExitCode=0:0`，runtime
+25 秒。独立 14/14 checks 确认 format v2、四次工具成本、selected action、pre/post 隔离、
+全部有限值与 hashes；post-action 实际维度为 `6167`。正式矩阵仍为 `0/36`，test 继续
+封存；下一步是较大三域 opened-train shard throughput/recovery gate，之后才提交完整
+train/validation。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均
@@ -429,7 +439,7 @@ GPU、新 checkpoint 或 protected outcome。
 | N4/N5 selector information-boundary 现实效应 gate | N4 formal 14/14 通过；N5 现实效应 8/8 条件失败，当前候选关闭 |
 | Fixed-tool predictability 数据冻结 | ChartQA/DocVQA/HRBench 的 source 与 decoded-RGB 双隔离 split 已完成，test 未打开 |
 | 三域真实 Qwen rollout + L0--L3 feature path | Jobs 206628--206631 通过；只证明工程可运行 |
-| 36-cell predictability 正式矩阵 | `0/36`；异构强基线已完成，post-action probe 与 shard merge 尚未完成 |
+| 36-cell predictability 正式矩阵 | `0/36`；强基线、post-action probe 与 shard merge 已完成，待三域正式 train/validation |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -528,9 +538,10 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
 `206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。当前唯一行动是
-完成 fixed-tool predictability audit 的剩余合同：异构 strong-baseline ledger 与独立 paired
-source bootstrap 已在 commit `daa43c1` 完成。现在先加入唯一 post-action diagnostic probe，
-再实现可恢复的 rollout/feature shard merge。上述代码与全仓回归通过后，才运行三个
-benchmark 的 train/validation；threshold、variant 和
-calibration 只在 validation 选择，test 只在全部选择冻结后打开一次。不得用更多相似 feature、
+fixed-tool predictability audit 的 pre-formal 代码合同已经完成：strong-baseline ledger、
+独立 paired bootstrap、唯一 post-action probe 和 recoverable shard merge 分别绑定在
+`daa43c1/19631c8`，真实单行 v2 gate Job `206664` 也已通过。现在用三域较大 opened-train
+shards 冻结 throughput、shard count/checkpoint cadence 和总预算；随后运行三个 benchmark
+的完整 train/validation。threshold、variant 和 calibration 只在 validation 选择，test 只在
+全部选择冻结后打开一次。不得用更多相似 feature、
 阈值搜索或扩大模型容量重开已关闭路线；正式 36 cells 完成前不生成终局 verdict。
