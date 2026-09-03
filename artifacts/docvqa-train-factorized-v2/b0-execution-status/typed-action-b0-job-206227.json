@@ -1,0 +1,11 @@
+{
+  "schema": "refocus_typed_action_b0_worker_status_v1",
+  "decision": "completed",
+  "scientific_decision": "typed_action_b0_malformed_tool_intent",
+  "job_id": "206227",
+  "code_revision": "96cd1665c72913b971ebb7c5aaa87f2bee15bbc0",
+  "output_dir": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/model-generation-smoke/refocus-typed-action-b0-v1/job-206227",
+  "exit_code": 0,
+  "started_epoch": 1788415693,
+  "ended_epoch": 1788415773
+}

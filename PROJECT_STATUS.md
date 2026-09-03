@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 13:48（Asia/Hong_Kong）
+更新时间：2026-09-03 14:18（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -86,6 +86,13 @@ typed-action V2 作为 baseline correctness 独立修复，同时继续对真正
 execution context，canonical prompt-following code 会 `NameError`；实际 aliases 是
 `columns_bbox/rows_bbox`。B0 CPU core 已在 commit `150803a` 用后两者实现 strict
 renderer/parser，并在 pinned runtime 对 x/y 两类调用真执行通过；这仍不是模型结果。
+
+独立 V2 的唯一 H800 generation smoke（Job `206227`）现已完成。16 次生成中 11 次
+有 tool intent，7 次形成完整且语法合法的 Python fence，但参数合同、strict parser 与
+execution 均为 0。11/11 有意图输出都照抄 prompt 中的无效元变量函数名
+`focus_on_x_values_with_MODE`，没有替换具体 mode。因此当前 V2 prompt 的 reliable
+baseline gate 失败并关闭；不允许在相同 row/seed 上改 prompt 后追结果。这不改变
+Job `206205` 的 G1 stop，也不是新方法失败或成功的证据。
 
 ## 已完成的证据链
 
@@ -228,6 +235,12 @@ renderer/parser，并在 pinned runtime 对 x/y 两类调用真执行通过；�
     action 经 strict parser 和 pinned VTool context 真执行，输出图像 SHA-256 与原图不同。
     没有加载模型权重、执行 optimizer、写 checkpoint 或访问 protected split；本项仍不证明
     模型会按 V2 prompt 生成合法调用。
+29. Job `206227` 在 clean revision `96cd166` 上用 1×H800 完成 16 次 V2 首轮生成，
+    Slurm `COMPLETED`、`ExitCode=0:0`、零 restart、81 秒。Intent/fence/syntax/argument/
+    parser/execution 计数为 11/7/7/0/0/0，决定
+    `typed_action_b0_malformed_tool_intent`。11/11 intents 复制无效 `_with_MODE`；0 optimizer、
+    0 checkpoint、无 protected split、raw model text 未执行。完整审计见
+    `refocus-typed-action-b0-generation-result-job-206227-v1.md`。
 
 ## 当前最佳结果与解释边界
 
@@ -252,7 +265,7 @@ renderer/parser，并在 pinned runtime 对 x/y 两类调用真执行通过；�
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
 | HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
 | 真实 paired rollout 与最多 2-step optimizer smoke | Job 206205 完成；tool call 0/64，触发冻结停止规则，当前 H5 不晋级 |
-| Typed-action reliable baseline | 独立 V2 converter、真实 Qwen processor、strict parser 与 pinned fake executor 已通过；真实模型 generation 尚未验证 |
+| Typed-action reliable baseline | V2 CPU/runtime 通过；Job 206227 真实 generation 因 11/11 intents 复制无效 MODE、0/16 参数合法而失败并关闭 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -264,12 +277,12 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 13:48 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
-222,000 分钟总额、42,276 已用、179,724 剩余（约 2,995.40 GPU-hours）。Job `206205`
-已正常结束且 controller 已清除其短期记录。该任务配置了
+截至 2026-09-03 14:18 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
+222,000 分钟总额、42,275 已用、179,725 剩余（约 2,995.42 GPU-hours）。Job `206227`
+已正常结束，Slurm 仍可查询到 `COMPLETED` 终态。该任务配置了
 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
-范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 CPU/runtime
-gate 已完成，下一 H800 协议尚未提交。持久盘可用 37,984,665,600 bytes（约 35.38 GiB）。
+范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 V2 的 CPU、
+runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes（约 35.38 GiB）。
 修改仅在本地，未 push GitHub。
 
 ## 已关闭的路线
@@ -325,22 +338,22 @@ gate 已完成，下一 H800 协议尚未提交。持久盘可用 37,984,665,600
 - Job `206205` 已确认真实 G1 为 parser-valid tool call `0/64`；不能靠事后改 prompt/temperature/
   seed 制造正结果。现在必须重新审计 exploration/support 假设，且新解法需要独立
   新颖性，不能套用已有 forced-tool curriculum。
-- B0 当前只执行了由 renderer 构造的确定性动作；这证明数据、processor、strict parser
-  与 runtime 接口相容，不证明 Qwen 在 V2 prompt 下会生成合法或有用的调用。下一次 GPU
-  smoke 必须分层报告 intent/syntax/argument/parser/execution，不能只报一个总调用率。
+- B0 V2 的真实 generation 已分层证实 11/16 intent、7/16 fence/syntax，但 0/16 参数/
+  parser/execution。直接机制是所有 intent 都复制无效 `MODE` 元变量；不能在相同
+  row/seed 上事后改 prompt 重跑。Concrete-template V3 若需要，只能作为独立预注册强
+  baseline，不能包装为主方法。
 - 一个完整 distributed checkpoint 实测至少约 40.39 GiB；64 GiB gate 只保证当前
   单臂有界运行。若 signed 通过，四个实验臂的 checkpoint 位于独立目录，必须先制定
   有哈希和可恢复性的迁移/保留方案，不能在当前盘同时无界累计约 164 GiB。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计，也不再重跑当前 G1。Job `206205` 已把工程链路推进到两步
-rollout、optimizer、analyzer 与完整 checkpoint，但以 parser-valid tool call `0/64`
-正式触发停止规则。下一步继续保持两个 gate 隔离：B0 的 independent V2 converter、真实
-Qwen processor 与 pinned fake executor 已通过，允许冻结并提交唯一一次 1×H800、无训练、
-无 checkpoint 的 first-response generation smoke；它必须分层报告 intent、fence、严格
-参数、parser-valid 和实际 execution，且不改写 G1。N0 同时形式化
+不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205` 以 parser-valid tool
+call `0/64` 正式关闭 sampled H5；Job `206227` 又以 argument/parser/execution `0/16`
+关闭 V2 baseline，并把即时原因收敛到元变量模板复制。下一步优先形式化 N0 的
 action-boundary interventional objective，要求它在零 valid support 下仍有梯度，且不
 退化为 ToolVision、GapSight、representation steering、logit bias、LIRE/LiPO 或
 ToolPrefer 已覆盖的目标；N0 新颖性未通过前不提交主方法 GPU。若候选形式化后只是普通
-full-information/listwise loss，则关闭并继续选择实质不同路线，不降低投稿目标。
+full-information/listwise loss，则关闭并继续选择实质不同路线，不降低投稿目标。若论文
+强基线需要修复 V2，则 V3 必须先枚举六个 concrete、parser-valid 模板，并用独立
+official-train structural group 与新种子预注册；它只承担 baseline correctness。

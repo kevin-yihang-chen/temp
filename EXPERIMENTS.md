@@ -1007,3 +1007,46 @@
 - 下一步：冻结唯一的 1×H800、无训练、无 checkpoint first-response generation smoke。
   预先定义并分别报告 tool intent、完整 Python fence、严格参数合法、parser-valid 与实际
   execution 五层指标；无论结果正负均不修改 V2 prompt/seed/temperature 来追结果。
+
+## E-20260903-10：Typed-action V2 真实生成复制元变量，参数合同 gate 失败
+
+- 假设：在 CPU/真实 processor/executor 合同已通过后，Qwen2.5-VL-3B 能从同一独立
+  official-train 单行输入产生至少 2 个 tool intents，且 intent-conditional strict execution
+  rate 不低于 80%。本项只评价 baseline correctness，不训练、不改写 G1、不作为 N0
+  方法证据。
+- 冻结协议：config commit `96cd1665c72913b971ebb7c5aaa87f2bee15bbc0`；唯一 16 个
+  seeds `2026090300..2026090315`，temperature `0.7`、top-p `0.9`、top-k `-1`、
+  max tokens `128`。输入为独立 V2 `b0_smoke` 一行 Parquet（SHA-256
+  `2c6a6c9b...e8184c`），模型 revision `66285546...0cd3`；validation/test/reserve 保持
+  封存。V2 prompt、种子和 gate 在结果读取后不允许调整。
+- 运行：Slurm Job `206227`，1×H800、8 CPU、64 GiB、30 分钟上限，邮件
+  `yihangc@connect.hku.hk`、`--mail-type=ALL`。14:08:12--14:09:33 HKT；终态
+  `COMPLETED`、`ExitCode=0:0`、零 restart、运行 81 秒。模型加载 16.2395 秒，16 次生成
+  20.3844 秒，模型权重约占 7.16 GiB。
+- 分层结果：tool intent `11/16`（68.75%）；完整 Python fence 与 syntax-valid 均为
+  `7/16`（43.75%，intent-conditional 63.64%）；argument-contract、strict parser 和
+  execution 均为 `0/16`。21/21 input/provenance checks 全真，机械决定为
+  `typed_action_b0_malformed_tool_intent`。
+- 失败分解：5 条为 direct final answer；7 条是完整、syntax-valid fence，但都调用
+  不存在的 `focus_on_x_values_with_MODE`；另 4 条有 intent 但没有完整 fence，也都使用
+  同一 `_with_MODE`。因此 11/11 intents 逐字复制 prompt 的元变量，没有替换为
+  `draw/highlight/mask`。7 个 fenced calls 中另有 3 个扩张为全部 labels，其中 1 个还把
+  x-axis 函数与 `rows_bbox` 配对；这些是函数名失败之外的可见附加错误。
+- 解释：V2 的直接失败机制不是“零工具意图”，而是把元变量嵌入所谓唯一合法模板，模型
+  将其视为可复制代码。证据只否定当前 V2 prompt 的 reliable baseline 资格；不证明
+  concrete-template、structured decoding 或更大模型必然成功，也不能事后修复输出计数。
+- 安全/资源：raw model text 从未执行；optimizer step `0`、checkpoint `0`、reward target
+  未使用、protected split 未访问。输出目录只有 20,843-byte `report.json`；当前队列为空。
+  14:18 HKT quota 为 222,000 GPU 分钟总额、42,275 已用、179,725 剩余，磁盘可用
+  37,983,617,024 bytes。
+- 产物：report/status/log SHA-256 分别为
+  `9c6c763e10b0e005b605331bc2e3570fb3d841b6b36fc63f362c5f3dd741e875` /
+  `c4731fc7d95fc8ed9957a9745f20f30985b6476dd6e49d54f60b6208ca2b461e` /
+  `eaea14cbfb0636728d6a0c0c6f8c6736c6fe8ee750d2c2a9c24db46f829286d8`；完整审计为
+  `refocus-typed-action-b0-generation-result-job-206227-v1.md`。
+- 当前最佳结果：项目仍无 deployable 正主结果；B0 新增一个有明确层级和即时机制的强
+  baseline 负例。它不改变 Job `206205` 的 `paired_signed_g1_stop_rule_triggered`。
+- 止损与下一步：V2 不改 prompt/seed 后重跑。优先完成 N0 的 zero-support gradient 与
+  文献区分形式化；若确需 V3 强 baseline，必须先让六个 concrete 模板逐一 strict-parser
+  通过，并预注册未用于 V1/V2 的 official-train structural group、新种子和一次性 gate。
+  V3 只能是 baseline correction，不是论文新颖贡献。

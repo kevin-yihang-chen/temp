@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 13:48（Asia/Hong_Kong）
+更新时间：2026-09-03 14:18（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -115,6 +115,13 @@ chunk 类型合同；Job `206184` 暴露并修复 checkpoint 空间 gate；最�
 `paired_signed_g1_stop_rule_triggered`。这关闭当前 sampled on-policy H5 路线，不进入
 matched controls 或 G2。
 
+独立 typed-action V2 的 CPU/真实 executor gate 随后通过，但唯一 H800 generation
+smoke（Job `206227`）得到 11/16 tool intent、7/16 完整且 syntax-valid Python fence，
+参数合同、strict parser 与 execution 均为 0/16。11/11 有意图输出都逐字复制 prompt
+里的无效元变量函数名 `focus_on_x_values_with_MODE`，机械决定为
+`typed_action_b0_malformed_tool_intent`。因此 V2 baseline 自身关闭，不改 prompt/seed 后
+重跑；这个结果不改变 G1 stop，也不能充当 N0 方法证据。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -158,10 +165,10 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 
 路线优先级：
 
-1. 先把 exact typed action grammar 做成独立 V2 baseline；它只修复 how-to-call 合同，
-   不用于事后挽救 G1，也不作为方法贡献。其 renderer/parser 与 pinned runtime CPU
-   round-trip、独立 V2 单行 official-train converter、真实 Qwen processor 与 pinned
-   fake executor 已全部通过；下一 gate 是一次无 checkpoint 的单 H800 model generation；
+1. Exact typed-action V2 baseline 的 CPU/runtime gate 与唯一 H800 generation smoke 已
+   完成。V2 因 11/11 tool intents 复制无效 `MODE` 元变量、0/16 参数合法而关闭；不在
+   已打开 row/seed 上改 prompt 重跑。若做 V3，只能以全部 concrete、parser-valid 的六个
+   函数模板、独立 structural group 和新种子预注册为一次新的 baseline correction；
 2. 并行审计 action-boundary interventional objective：必须在零 parser-valid support 下
    定义学习信号，且不退化为已有 forced-tool SFT、curriculum、tool bonus、call-rate
    steering、ordinary listwise reward 或 crop loss-gap router；
@@ -262,7 +269,10 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
     processor 得到 975 prompt tokens，26/26 checks 全真；renderer-owned action 经 strict
     parser 后在 pinned runtime 显示一个像素发生变化的 PIL image。没有模型权重、optimizer、
     checkpoint 或 protected split。
-18. 下一步冻结唯一 1×H800、无训练/无 checkpoint 的 V2 first-response generation smoke，
-    分层报告 intent、Python fence、严格参数、parser-valid 与实际执行率；结果无论正负均
-    只评价 baseline correctness，不能改写 Job `206205`，也不能冒充 N0 方法贡献。
-19. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+18. 唯一 V2 H800 smoke（Job `206227`）已完成，0 optimizer、0 checkpoint。16 次生成中
+    intent/fence/syntax/argument/parser/execution 分别为 11/7/7/0/0/0；11/11 intents
+    都复制无效 `_with_MODE`。V2 不再重跑，完整负结果和 raw outputs 原样保留。
+19. 先完成 B0 结果固化；随后优先形式化 N0 的 zero-support gradient 与文献区分。只有
+    在这项工作不被普通 listwise/forced-tool 目标吸收时才进入实现。V3 如有必要只承担
+    concrete-template 强 baseline，不作为新颖贡献，且必须使用独立 row/seed 预注册。
+20. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
