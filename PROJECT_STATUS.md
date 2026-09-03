@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 15:33（Asia/Hong_Kong）
+更新时间：2026-09-03 16:14（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -144,6 +144,18 @@ Self-Certification 直接覆盖，cost ledger 也被 VQABench 部分覆盖，不
 仅剩 selector information ledger、matched-visibility comparison 与 cross-information-set
 rank-reversal test 三项暂未发现直接覆盖；它们仍需 N5 的真实数据、预注册结果才能成立。
 本轮没有打开既有 action outcome、没有训练/GPU，新增 checkpoint 为 0。
+
+N5 随后完成回顾性、同样本配对的现实效应 gate。协议在逐 decision 结果读取前由 commit
+`9e674abb6ca08ab21266f5ddc308579cfa9f0dff` 冻结，并明确披露旧 aggregate 已知，因而不把
+它冒充 confirmatory/formal。实现 commit 为
+`2df1ad20e05740b34a5d32ce761f1175891173ba`，10/10 artifact checks 全真。在 DocVQA
+1,608 decisions/400 sources、共同 5% 预算下，source-balanced context/semantic utility
+分别为 `-0.00274318/-0.00296742`；higher-minus-lower 为 `-0.00022424`，paired 97.5%
+CI `[-0.00528886, 0.00430109]`。8 项科学条件全部失败。Question-weighted 差虽为
+`+0.00113272`，但 source-balanced 后反号，不能作为跨 source 证据。ScreenQA OOF 差仅
+`0.00004824`，且两个 router 都没有 safe non-degenerate threshold。因此 N4/N5 当前候选
+关闭，避免打开 ScreenQA 9,951 decisions、49,755 action rows 的 risk-calibration；没有
+GPU、新 checkpoint 或 protected outcome。
 
 ## 已完成的证据链
 
@@ -297,6 +309,19 @@ rank-reversal test 三项暂未发现直接覆盖；它们仍需 N5 的真实数
     exact-underflow 下两者均为 0。Boltzmann utility target 虽产生 `-0.978` 的非零 CE
     gradient，但它明确是 listwise/off-policy supervision。有限差分误差低于 `1.6e-9`，
     report SHA-256 `c1bfd08a...e4f1`。N0 在 GPU 前因目标族碰撞关闭。
+31. N1 对四个主 sibling banks 的流式盘点覆盖 59,949 decisions、299,745 rows；stop 与
+    registered-bank action-selection regret 可识别，但 evidence-use regret、主证据的
+    同数据集多 backbone、多动作族和多 replicate 不满足，现有资产 benchmark 路线关闭。
+32. N2 证明 stop/selection regret 可严格非负相加，但 fixed-prefix/evidence 项是 signed
+    effects；ideal evidence-use regret 不可识别，best-of-k ceiling 还随 replicate 数机械
+    膨胀。路线因识别失败和 The Illusion/GapSight 碰撞关闭。
+33. N3 确认 VTool 3B/7B 公开 checkpoint 可固定，但 baseline artifact gate 只过 4/7，
+    新颖性 0/6；未下载权重、未提交 GPU，也未用更强 initializer 重开 H5。
+34. N4 information-boundary formal gate 14/14 checks 全真；toy rank reversal 成立，
+    但 aliasing/cost 主张已有碰撞，所以只允许 N5 用现实数据做一次低成本否证。
+35. N5 在共同 5% 预算下得到 source-balanced higher-minus-lower `-0.00022424`，paired
+    97.5% CI `[-0.00528886, 0.00430109]`；8/8 科学条件失败，ScreenQA OOF 增量仅
+    `0.00004824`。当前 N4/N5 候选关闭，risk-calibration、formal-test 与 reserve 未打开。
 
 ## 当前最佳结果与解释边界
 
@@ -307,6 +332,9 @@ rank-reversal test 三项暂未发现直接覆盖；它们仍需 N5 的真实数
 - 最新 OOF stop 候选有轻微 precision 改善，但自身 utility 与 paired lower
   endpoint 均未过门槛。
 - ViCrop/LASER 是有效的 literature strong-baseline negative，而不是新方法成功。
+- N5 matched-budget learned routers 均为负；固定 `ug-grid-01` 的
+  `+0.00125919` 点估计置信区间跨零。Matched privileged oracle 为 `+0.03117658`，证明
+  headroom 仍在，但不能当作部署结果。
 - 目前没有可宣称正结果的 deployable candidate，validation/test/reserve 必须继续
   封存。
 
@@ -324,7 +352,7 @@ rank-reversal test 三项暂未发现直接覆盖；它们仍需 N5 的真实数
 | Typed-action reliable baseline | V2 CPU/runtime 通过；Job 206227 真实 generation 因 11/11 intents 复制无效 MODE、0/16 参数合法而失败并关闭 |
 | N0 action-boundary interventional objective | 零支持数值与一手文献 gate 完成；退化为既有 listwise/AWR/value-router 家族，GPU 前关闭 |
 | N3 公开 checkpoint 与 novelty 联合 gate | VTool 3B/7B 可用，但 artifact provenance 不完整且 H5 core claims 全部碰撞；下载/GPU/checkpoint 均为 0 |
-| N4 selector information-boundary formal gate | 14/14 checks 通过；三项评测协议暂过碰撞初筛，但尚无真实 rank reversal/效应证据 |
+| N4/N5 selector information-boundary 现实效应 gate | N4 formal 14/14 通过；N5 现实效应 8/8 条件失败，当前候选关闭 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -336,13 +364,14 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 15:33 HKT，本轮开始时实时 `squeue -u yihangc` 为空；GPU quota 快照为
+截至 2026-09-03 16:14 HKT，实时 `squeue -u yihangc` 为空；GPU quota 最近一次快照为
 222,000 分钟总额、42,275 已用、179,725 剩余（约 2,995.42 GPU-hours）。Job `206227`
 已正常结束，Slurm 仍可查询到 `COMPLETED` 终态。该任务配置了
 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
 范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 V2 的 CPU、
 runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes（约 35.37 GiB）。
-修改仅在本地，未 push GitHub。N4 是 CPU-only 审计，没有新的计算任务邮件事件。
+N5 是 CPU-only 审计，没有新的计算任务邮件事件；本次文档/代码由用户明确授权后才
+推送 GitHub。
 
 ## 已关闭的路线
 
@@ -359,6 +388,8 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes�
 - 以公开 VTool checkpoint 直接重开 H5；N3 已证明 strong initializer 存在，但 exact
   prompt/parser/support provenance 未闭环，而且 intended credit/routing 主张与
   TACO/TAPO/The Illusion/ToolVision 碰撞；
+- 当前 N4/N5 information-boundary benchmark 候选；真实 matched-budget learned-router
+  比较没有稳健、实质的正效应，且 source-balanced 后表面优势反号；
 - 用已打开 train outcomes 选择有利 operating point，或用 privileged oracle
   冒充部署结果。
 
@@ -414,13 +445,15 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,979,422,720 bytes�
   selector 信息边界会造成稳健且实质的方法排名变化，剩余三项协议贡献不足以支撑顶会。
 - 当前所谓“未发现直接覆盖”只是截至本轮的一手文献初筛；Self-Certification 与 VQABench
   已说明同期碰撞风险很高，N5 前后都需继续 collision audit。
+- N5 显示 question-weighted 与 source-balanced 结论可反号；后续所有多问答 source 数据
+  必须并列报告两种聚合，并以 source-level 推断为主，防止高 QA-count source 支配结论。
 
 ## 下一步最优行动
 
 不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
-`206205`、Job `206227`、N0、N1、N2 与 N3 均已按各自 gate 关闭；N4 只通过 formal/
-collision-screen gate，尚未通过现实效应 gate。下一步 N5 在读取既有 sibling outcome 前，
-冻结 selector 信息集、相同 UG action bank、完整 cost ledger、entropy/random/fixed/
-exhaustive/learned-router baselines、source bootstrap、primary rank-reversal statistic 与最小
-实际效应。只允许用 `ranker_training` 拟合、`risk_calibration` 做一次性 screen，继续封存
-`formal_test/reserve`。若 matched-visibility 排名无稳健实质变化，立即关闭 N4，不提交 GPU。
+`206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。下一步回到
+零成本 problem selection：只接受能解释并利用“privileged action oracle 很高、所有现有
+outcome-free router 跨 source 失败”这一残差结构的新机制。任何实现/GPU 前，必须完成
+一手文献碰撞、estimand/可识别性审计和现有数据上的最小可证伪预测。不得用 source
+weighting、fixed-crop 偶然正点、更多 feature、阈值搜索或扩大模型容量重开已关闭路线；
+ScreenQA risk-calibration、formal-test 与 reserve 继续封存。

@@ -1263,3 +1263,56 @@
   statistic 与最小实际效应。只用 ranker-training 拟合、risk-calibration 一次性 screen，
   继续封存 formal-test/reserve。若无稳健实质反转、效应仅在 privileged full-resolution
   成立或文献直接覆盖剩余三项，则关闭 N4，不提交 GPU 追结果。
+
+## E-20260903-16：N5 同预算信息集效应回顾性否证
+
+- 假设与诚信边界：在同一 DocVQA sibling bank、同一 5% call budget、相同 action bank
+  与成本定义下，较高信息的 semantic-context router 应显著优于较低信息的
+  context-geometry router；同时 ScreenQA OOF 应出现至少 `0.001` 的一致增量。旧的两个
+  question-weighted aggregate 和 ScreenQA OOF aggregate 已知，所以本项只定义为
+  retrospective route-falsification，不冒充盲测、confirmatory 或 formal result。
+- 冻结：协议/config 由 commit `9e674abb6ca08ab21266f5ddc308579cfa9f0dff`
+  在逐 decision 配对结果读取前固定。Config/protocol SHA-256 分别为
+  `c661c7fd4362cb2abf62058a769b1d5f557ae6132abdf85b8e20639ced1f0b00` /
+  `276b936309efbf814d3b2467526e75385bad929849bf2b66864d1bb6acc44d74`；primary 使用
+  20,000 次 source-balanced paired bootstrap、97.5% CI、seed `20260903`。
+- 实现：commit `2df1ad20e05740b34a5d32ce761f1175891173ba` 新增 dependency-free
+  evaluator、runner 和 8 个单测；验证输入哈希、N4 合同、模型/feature coverage、旧 frozen
+  evaluation 复现、outcome-blind matched call set、成本单调性和 ScreenQA role 封存。
+  Module/runner/tests SHA-256 为 `16a4fc85...fd003` / `97eaab35...61b0` /
+  `6085976b...e7a5`。
+- 数据：此前已打开的 DocVQA 1,608 decisions、400 sources；每个 decision 都有
+  `ANSWER_NOW + 4 UG-grid ZOOM`。Matched call set 为 80/1,608（4.9751%）；两个 learned
+  router 的 call overlap 为 60、Jaccard `0.60`，crop action agreement `0.300995`。
+- Primary source-balanced 结果：context utility `-0.0027431835`；semantic utility
+  `-0.0029674190`，97.5% CI `[-0.0075754216, 0.0009648282]`；higher-minus-lower
+  `-0.0002242355`，paired 97.5% CI `[-0.0052888564, 0.0043010909]`。给 semantic
+  feature acquisition cost 取最乐观的 0 时已失败；再扣 `0.001/0.005/0.01` 时 utility
+  单调降为 `-0.003967/-0.007967/-0.012967`。
+- 聚合敏感性：同一 matched call set 的 question-weighted context/semantic utility 为
+  `-0.00509079/-0.00395807`，差 `+0.00113272`；source-balanced 后差反号为
+  `-0.00022424`。因此后续多 QA source 评测必须同时报告两种聚合，并以 source-level
+  推断为主；不能选择有利权重救活候选。
+- 强基线与 headroom：source-balanced deployable 第一名是 entropy gate + fixed
+  `ug-grid-01`，utility `+0.00125919`，但 97.5% CI `[-0.00357436, 0.00715268]` 跨零；
+  answer-now 为 0，两个 learned routers 排第 6/7，四成本 exhaustive UG-style 为
+  `-0.00838393`。Idealized post-action entropy 为 `+0.00047844` 且 CI 跨零；matched
+  privileged oracle 为 `+0.03117658`，97.5% CI `[0.02145013, 0.04238910]`，只证明
+  未利用 headroom，不是 deployable 正结果。
+- 跨域止损：ScreenQA ranker-training OOF 的 context/semantic utility 为
+  `0.00006547/0.00011371`，差 `0.00004824`，约比门槛小 20.7 倍；两者均无 safe
+  non-degenerate threshold。因此没有打开 4,001 张 calibration 图像、9,951 decisions、
+  49,755 action rows；formal-test/reserve 继续封存。
+- 决定：10/10 artifact checks 通过，但 8/8 scientific conditions 失败；机械决定为
+  `n5_current_information_boundary_candidate_not_supported_before_calibration`。关闭当前
+  N4/N5 candidate，不调阈值、不换权重、不加相似特征、不提交 GPU。
+- 产物与复现：机器报告/文字审计 SHA-256 为
+  `ed657489ee63950c73ec685ce24d023ac873f09d4252a752b70faacb752bad0a` /
+  `d5556063b2d712fe0b5509f841e0579ad567dea79b5ff2e4c852a33a619a2341`。运行命令为
+  `PYTHONPATH=.:src /userhome/cs3/yihangc/anaconda3/envs/qwen-vl/bin/python scripts/audit_n5_information_set_retrospective.py --config configs/n5_information_set_retrospective_v1.json --output <new-output.json>`；
+  第二次独立输出与正式 report 字节级一致。CPU elapsed `11.4s`，峰值 RSS 约 540 MiB。
+- 资源：CPU-only；新 Slurm/GPU/checkpoint `0/0/0`，protected outcome `0`，没有计算任务
+  邮件事件。当前唯一 checkpoint 仍是 Job `206205` 的 `global_step_2`，约 42 GiB。
+- 当前最佳结果与下一步：项目仍无 deployable 正主结果。下一候选重新从 problem selection
+  开始，必须解释 privileged oracle 与跨-source router 失败之间的残差，并先通过一手文献、
+  可识别性和零成本数据 gate；不把 source weighting 或 fixed-crop 偶然正点包装为贡献。

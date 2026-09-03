@@ -1,0 +1,395 @@
+{
+  "artifact_checks": {
+    "all_input_hashes_match": true,
+    "both_models_share_training_protocol_seed_folds_alpha_and_lambda": true,
+    "docvqa_bank_is_identical": true,
+    "existing_frozen_evaluations_are_reproduced": true,
+    "higher_information_cost_sensitivity_is_monotone": true,
+    "matched_call_sets_are_outcome_blind": true,
+    "n4_gate_is_bound_and_passed": true,
+    "screenqa_calibration_is_still_unopened": true,
+    "screenqa_formal_and_reserve_remain_sealed": true,
+    "semantic_features_are_label_free_and_exactly_cover_bank": true
+  },
+  "authorized_new_checkpoints": 0,
+  "authorized_new_gpu_jobs": 0,
+  "decision": "n5_current_information_boundary_candidate_not_supported_before_calibration",
+  "docvqa": {
+    "action_ids": [
+      "ug-grid-00",
+      "ug-grid-01",
+      "ug-grid-02",
+      "ug-grid-03"
+    ],
+    "baseline_contract": {
+      "entropy_gate_uses_pre_action_entropy_only": true,
+      "post_action_entropy_single_execution_is_idealized": true,
+      "privileged_oracle_uses_outcomes": true,
+      "random_crop_is_expected_uniform_over_four_actions": true,
+      "random_gate_is_expected_uniform_over_decisions": true,
+      "ug_style_exhaustive_candidate_count": 4,
+      "ug_style_exhaustive_charges_all_candidate_costs": true
+    },
+    "deployable_source_ranking_at_matched_budget": [
+      {
+        "method": "entropy_gate_fixed_crop_ug-grid-01_utility",
+        "source_balanced_utility": 0.001259185952935952
+      },
+      {
+        "method": "answer_now_utility",
+        "source_balanced_utility": 0.0
+      },
+      {
+        "method": "entropy_gate_fixed_crop_ug-grid-02_utility",
+        "source_balanced_utility": -0.0019139862452362455
+      },
+      {
+        "method": "random_gate_random_crop_expected_utility",
+        "source_balanced_utility": -0.0027351572003824873
+      },
+      {
+        "method": "entropy_gate_random_crop_expected_utility",
+        "source_balanced_utility": -0.0027421502494419164
+      },
+      {
+        "method": "lower_matched_utility",
+        "source_balanced_utility": -0.0027431835173683007
+      },
+      {
+        "method": "higher_matched_utility",
+        "source_balanced_utility": -0.002967418981481482
+      },
+      {
+        "method": "entropy_gate_fixed_crop_ug-grid-03_utility",
+        "source_balanced_utility": -0.004615849967933301
+      },
+      {
+        "method": "entropy_gate_fixed_crop_ug-grid-00_utility",
+        "source_balanced_utility": -0.005697950737534071
+      },
+      {
+        "method": "ug_style_exhaustive_entropy_four_cost_utility",
+        "source_balanced_utility": -0.008383928571428572
+      }
+    ],
+    "higher_information_extra_cost": {
+      "registered_values": [
+        0.0,
+        0.001,
+        0.005,
+        0.01
+      ],
+      "scope": "per_decision",
+      "unit": "already_lambda_weighted_utility",
+      "zero_cost_is_optimistic_upper_bound": true
+    },
+    "lambda_cost": 0.05,
+    "matched_budget": {
+      "action_agreement_rate": 0.3009950248756219,
+      "lower_higher_call_jaccard": 0.6,
+      "lower_higher_call_overlap": 60,
+      "realized_question_call_rate": 0.04975124378109453,
+      "registered_call_rate": 0.05,
+      "selection_uses_outcomes": false,
+      "target_calls": 80,
+      "tie_break": "descending_score_then_ascending_state_id_replicate_id"
+    },
+    "n_decisions": 1608,
+    "n_sources": 400,
+    "question_weighted": {
+      "answer_now_utility": 0.0,
+      "entropy_gate_fixed_crop_ug-grid-00_utility": -0.0058981711811313805,
+      "entropy_gate_fixed_crop_ug-grid-01_utility": 0.0004310676885303747,
+      "entropy_gate_fixed_crop_ug-grid-02_utility": -0.0014521852985783336,
+      "entropy_gate_fixed_crop_ug-grid-03_utility": -0.003377211166390271,
+      "entropy_gate_random_crop_expected_utility": -0.0025741249893924028,
+      "higher_frozen_call": 0.05783582089552239,
+      "higher_frozen_utility": -0.005729166666666667,
+      "higher_matched_call": 0.04975124378109453,
+      "higher_matched_utility": -0.003958074212271974,
+      "higher_matched_utility_extra_cost_0": -0.003958074212271974,
+      "higher_matched_utility_extra_cost_0p001": -0.004958074212271973,
+      "higher_matched_utility_extra_cost_0p005": -0.008958074212271974,
+      "higher_matched_utility_extra_cost_0p01": -0.013958074212271973,
+      "higher_minus_lower_frozen_utility": -0.00037252517683244464,
+      "higher_minus_lower_matched_extra_cost_0": 0.0011327157990242026,
+      "higher_minus_lower_matched_extra_cost_0p001": 0.00013271579902420308,
+      "higher_minus_lower_matched_extra_cost_0p005": -0.0038672842009757967,
+      "higher_minus_lower_matched_extra_cost_0p01": -0.008867284200975798,
+      "higher_minus_lower_matched_utility": 0.0011327157990242026,
+      "lower_frozen_call": 0.07587064676616916,
+      "lower_frozen_utility": -0.005356641489834222,
+      "lower_matched_call": 0.04975124378109453,
+      "lower_matched_utility": -0.005090790011296176,
+      "matched_privileged_oracle_utility": 0.03287164762522082,
+      "post_action_entropy_single_execution_idealized_utility": -0.00015244394908574063,
+      "random_gate_random_crop_expected_utility": -0.0028924426530717363,
+      "ug_style_exhaustive_entropy_four_cost_utility": -0.007615130516249919,
+      "unrestricted_privileged_oracle_utility": 0.033935482289422114
+    },
+    "scientific_status": "retrospective same-bank necessary-condition audit; not formal evidence",
+    "source_balanced": {
+      "answer_now_utility": 0.0,
+      "entropy_gate_fixed_crop_ug-grid-00_utility": -0.005697950737534071,
+      "entropy_gate_fixed_crop_ug-grid-01_utility": 0.001259185952935952,
+      "entropy_gate_fixed_crop_ug-grid-02_utility": -0.0019139862452362455,
+      "entropy_gate_fixed_crop_ug-grid-03_utility": -0.004615849967933301,
+      "entropy_gate_random_crop_expected_utility": -0.0027421502494419164,
+      "higher_frozen_call": 0.05693569624819625,
+      "higher_frozen_utility": -0.0045671957671957674,
+      "higher_matched_call": 0.0477005772005772,
+      "higher_matched_utility": -0.002967418981481482,
+      "higher_matched_utility_extra_cost_0": -0.002967418981481482,
+      "higher_matched_utility_extra_cost_0p001": -0.0039674189814814815,
+      "higher_matched_utility_extra_cost_0p005": -0.007967418981481482,
+      "higher_matched_utility_extra_cost_0p01": -0.012967418981481483,
+      "higher_minus_lower_frozen_utility": -0.002909970042035259,
+      "higher_minus_lower_matched_extra_cost_0": -0.00022423546411318152,
+      "higher_minus_lower_matched_extra_cost_0p001": -0.001224235464113181,
+      "higher_minus_lower_matched_extra_cost_0p005": -0.005224235464113181,
+      "higher_minus_lower_matched_extra_cost_0p01": -0.010224235464113182,
+      "higher_minus_lower_matched_utility": -0.00022423546411318152,
+      "lower_frozen_call": 0.07340413059163059,
+      "lower_frozen_utility": -0.0016572257251605087,
+      "lower_matched_call": 0.04778787878787879,
+      "lower_matched_utility": -0.0027431835173683007,
+      "matched_privileged_oracle_utility": 0.031176583727227043,
+      "post_action_entropy_single_execution_idealized_utility": 0.0004784361471861464,
+      "random_gate_random_crop_expected_utility": -0.0027351572003824873,
+      "ug_style_exhaustive_entropy_four_cost_utility": -0.008383928571428572,
+      "unrestricted_privileged_oracle_utility": 0.0320563563493661
+    },
+    "source_bootstrap": {
+      "confidence_level": 0.975,
+      "method": "iid_whole_source_percentile_bootstrap",
+      "metrics": {
+        "answer_now_utility": {
+          "ci_high": 0.0,
+          "ci_low": 0.0,
+          "point_estimate": 0.0
+        },
+        "entropy_gate_fixed_crop_ug-grid-00_utility": {
+          "ci_high": -0.0009964056550124255,
+          "ci_low": -0.01121175811938833,
+          "point_estimate": -0.005697950737534071
+        },
+        "entropy_gate_fixed_crop_ug-grid-01_utility": {
+          "ci_high": 0.007152683419011547,
+          "ci_low": -0.0035743615108849484,
+          "point_estimate": 0.001259185952935952
+        },
+        "entropy_gate_fixed_crop_ug-grid-02_utility": {
+          "ci_high": 0.0010975098873927014,
+          "ci_low": -0.004623300543495855,
+          "point_estimate": -0.0019139862452362455
+        },
+        "entropy_gate_fixed_crop_ug-grid-03_utility": {
+          "ci_high": -0.0013957690746753222,
+          "ci_low": -0.009018165540574394,
+          "point_estimate": -0.004615849967933301
+        },
+        "entropy_gate_random_crop_expected_utility": {
+          "ci_high": -0.00015283291746833336,
+          "ci_low": -0.006064294119749849,
+          "point_estimate": -0.0027421502494419164
+        },
+        "higher_frozen_call": {
+          "ci_high": 0.07699628088924965,
+          "ci_low": 0.03908942888708514,
+          "point_estimate": 0.056935696248196235
+        },
+        "higher_frozen_utility": {
+          "ci_high": -0.000179184178090428,
+          "ci_low": -0.009650296698382637,
+          "point_estimate": -0.004567195767195768
+        },
+        "higher_matched_call": {
+          "ci_high": 0.06633065137987014,
+          "ci_low": 0.031069640602453104,
+          "point_estimate": 0.047700577200577195
+        },
+        "higher_matched_utility": {
+          "ci_high": 0.000964828230218855,
+          "ci_low": -0.007575421561222342,
+          "point_estimate": -0.0029674189814814823
+        },
+        "higher_matched_utility_extra_cost_0": {
+          "ci_high": 0.000964828230218855,
+          "ci_low": -0.007575421561222342,
+          "point_estimate": -0.0029674189814814823
+        },
+        "higher_matched_utility_extra_cost_0p001": {
+          "ci_high": -3.5171769781145815e-05,
+          "ci_low": -0.008575421561222343,
+          "point_estimate": -0.003967418981481482
+        },
+        "higher_matched_utility_extra_cost_0p005": {
+          "ci_high": -0.004035171769781146,
+          "ci_low": -0.012575421561222344,
+          "point_estimate": -0.007967418981481482
+        },
+        "higher_matched_utility_extra_cost_0p01": {
+          "ci_high": -0.009035171769781147,
+          "ci_low": -0.017575421561222344,
+          "point_estimate": -0.012967418981481483
+        },
+        "higher_minus_lower_frozen_utility": {
+          "ci_high": 0.0039505879373117865,
+          "ci_low": -0.01138115781014728,
+          "point_estimate": -0.0029099700420352594
+        },
+        "higher_minus_lower_matched_extra_cost_0": {
+          "ci_high": 0.004301090905904936,
+          "ci_low": -0.005288856417680296,
+          "point_estimate": -0.00022423546411318136
+        },
+        "higher_minus_lower_matched_extra_cost_0p001": {
+          "ci_high": 0.0033010909059049357,
+          "ci_low": -0.006288856417680297,
+          "point_estimate": -0.0012242354641131812
+        },
+        "higher_minus_lower_matched_extra_cost_0p005": {
+          "ci_high": -0.0006989090940950635,
+          "ci_low": -0.010288856417680296,
+          "point_estimate": -0.005224235464113182
+        },
+        "higher_minus_lower_matched_extra_cost_0p01": {
+          "ci_high": -0.005698909094095063,
+          "ci_low": -0.015288856417680298,
+          "point_estimate": -0.010224235464113184
+        },
+        "higher_minus_lower_matched_utility": {
+          "ci_high": 0.004301090905904936,
+          "ci_low": -0.005288856417680296,
+          "point_estimate": -0.00022423546411318136
+        },
+        "lower_frozen_call": {
+          "ci_high": 0.09449577471139974,
+          "ci_low": 0.05416398696789322,
+          "point_estimate": 0.07340413059163059
+        },
+        "lower_frozen_utility": {
+          "ci_high": 0.006830780463309335,
+          "ci_low": -0.008600104612703118,
+          "point_estimate": -0.0016572257251605091
+        },
+        "lower_matched_call": {
+          "ci_high": 0.0658211208062771,
+          "ci_low": 0.031899033865440116,
+          "point_estimate": 0.047787878787878796
+        },
+        "lower_matched_utility": {
+          "ci_high": 0.001868059042155517,
+          "ci_low": -0.00745632970328283,
+          "point_estimate": -0.0027431835173683007
+        },
+        "matched_privileged_oracle_utility": {
+          "ci_high": 0.04238909938938424,
+          "ci_low": 0.02145012865928186,
+          "point_estimate": 0.031176583727227043
+        },
+        "post_action_entropy_single_execution_idealized_utility": {
+          "ci_high": 0.0062973114515692714,
+          "ci_low": -0.005586079038149352,
+          "point_estimate": 0.0004784361471861466
+        },
+        "random_gate_random_crop_expected_utility": {
+          "ci_high": -0.0023780135645841928,
+          "ci_low": -0.0030977055606800225,
+          "point_estimate": -0.002735157200382487
+        },
+        "ug_style_exhaustive_entropy_four_cost_utility": {
+          "ci_high": -0.0023020542478354978,
+          "ci_low": -0.015247150523088022,
+          "point_estimate": -0.008383928571428572
+        },
+        "unrestricted_privileged_oracle_utility": {
+          "ci_high": 0.043241962547481895,
+          "ci_low": 0.02235569858365282,
+          "point_estimate": 0.0320563563493661
+        }
+      },
+      "n_resamples": 20000,
+      "n_sources": 400,
+      "seed": 20260903
+    }
+  },
+  "information_set_identifiability": {
+    "exact_n4_rank_reversal_identified": false,
+    "interpretation": "tests whether current nested-information candidates justify calibration; does not identify the causal value of visual information",
+    "model_capacity_matched": false,
+    "unavailable_requirements": [
+      "question_only_selector",
+      "question_plus_uniform_low_resolution_preview_selector",
+      "same_method_family_refit_under_each_information_set"
+    ]
+  },
+  "opened_new_outcome_records": 0,
+  "passed": false,
+  "run": {
+    "base_code_revision": "2df1ad20e05740b34a5d32ce761f1175891173ba",
+    "config": "configs/n5_information_set_retrospective_v1.json",
+    "config_sha256": "c661c7fd4362cb2abf62058a769b1d5f557ae6132abdf85b8e20639ced1f0b00",
+    "existing_evaluation_reproduction": {
+      "higher_question_weighted_call_rate": true,
+      "higher_question_weighted_utility": true,
+      "lower_question_weighted_call_rate": true,
+      "lower_question_weighted_utility": true
+    },
+    "input_sha256": {
+      "docvqa_existing_higher_evaluation": "a87b99af4f4fe9d20cff2f816bbf6baa8313f0607e0f182e17f58f5e5e7c2c62",
+      "docvqa_existing_lower_evaluation": "9f7428b661ea213ac5fa6bd9e58b5a22ac3dd505848064c47a94fb4a4310efc9",
+      "docvqa_higher_features": "bc58c1694261d8e5da91e8d3006a25c29447c0633f8e378796262439f9448ba7",
+      "docvqa_higher_features_audit": "c605952e150b8de6486ffad2f5f13b08d36ee72578f677a71d402085c806ec2e",
+      "docvqa_higher_model": "1f8b6cf5d026bcd9921434c1c6ef0c753259d36504dedc040b8145c76bd06ff3",
+      "docvqa_lower_model": "33f2e0b1fd29e52c878bbbf2cd9819cd3c7e65e12afbabbdc5fa1f6687c8496b",
+      "docvqa_rollouts": "a7f44c267b11c12f6cbf8f1e714350174c4dfd7e4ab3866fde0dbd84fe0b5aa3",
+      "n4_report": "d34449b6b10b8b49f7264bcabe4866e0b225ec586b1a7454743a2f6d8aa6ef5c",
+      "screenqa_allocation_audit": "a68043289e4a342479bc7f1c699f772269e2f0e36d748b9fefe4be015be2468a",
+      "screenqa_higher_oof_report": "ae15f251de6fd4ef7a3be4d21251f421f5e09471344707fd59b65c009cacdb5b",
+      "screenqa_lower_oof_report": "3f1c0edf36832304808a57bd6cc34a702b5283716bb92d51c7c27d949f08174e"
+    },
+    "module_sha256": "16a4fc85c8f8f82ff0152320bbe3dd7f73dd2d6118e2cb40a6fe7488893fd003",
+    "runner_sha256": "97eaab357255277d543b7262806eaafaa943e1f758c039202a0fbea38e4a61b0"
+  },
+  "schema": "n5_information_set_retrospective_report_v1",
+  "scientific_gate": {
+    "checks": {
+      "exact_registered_information_sets_available": false,
+      "higher_information_matched_utility_ci_low_above_zero": false,
+      "higher_information_matched_utility_positive": false,
+      "higher_minus_lower_matched_at_least_minimum": false,
+      "higher_minus_lower_matched_ci_low_above_zero": false,
+      "same_method_factorial_available": false,
+      "screenqa_higher_has_safe_non_degenerate_threshold": false,
+      "screenqa_oof_higher_minus_lower_at_least_minimum": false
+    },
+    "decision": "n5_current_information_boundary_candidate_not_supported_before_calibration",
+    "minimum_material_utility": 0.001,
+    "observed": {
+      "higher_matched_source_utility": -0.002967418981481482,
+      "higher_matched_source_utility_ci_low": -0.007575421561222342,
+      "higher_minus_lower_matched_source_utility": -0.00022423546411318152,
+      "higher_minus_lower_matched_source_utility_ci_low": -0.005288856417680296,
+      "screenqa_oof_higher_minus_lower_utility": 4.823926676314518e-05
+    },
+    "passed": false,
+    "screenqa_calibration_protocol_may_be_written": false
+  },
+  "scientific_status": "retrospective route-falsification evidence; not confirmatory or formal",
+  "screenqa_cost_avoided": {
+    "action_records_not_generated": 49755,
+    "risk_calibration_decisions": 9951,
+    "risk_calibration_images": 4001
+  },
+  "screenqa_opened_development": {
+    "higher_feature_mode": "hybrid-context-semantic",
+    "higher_minus_lower_question_weighted_utility": 4.823926676314518e-05,
+    "higher_question_weighted_utility": 0.00011370684308455653,
+    "higher_selection_status": "no_non_degenerate_safe_threshold",
+    "lower_feature_mode": "context-geometry",
+    "lower_question_weighted_utility": 6.546757632141135e-05,
+    "lower_selection_status": "no_non_degenerate_safe_threshold",
+    "n_decisions": 14511
+  }
+}

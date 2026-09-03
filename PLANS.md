@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 15:33（Asia/Hong_Kong）
+更新时间：2026-09-03 16:14（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -167,6 +167,15 @@ aliasing-regret decomposition 已被 Self-Certification 直接覆盖，完整成
 cross-information-set rank reversal 三项联合协议进入 N5；这是待证伪的 benchmark/evaluation
 候选，不是方法或主结果。
 
+N5 已在读取逐 decision 配对结果前冻结回顾性否证协议，并在同一 DocVQA bank、同一
+5% 调用预算与 source-balanced 20,000 次配对 bootstrap 下完成。较低信息
+`context-geometry` utility 为 `-0.00274318`，较高信息 `semantic-context` 为
+`-0.00296742`，higher-minus-lower 为 `-0.00022424`，97.5% paired CI
+`[-0.00528886, 0.00430109]`。8 项科学条件全部失败；ScreenQA OOF 增量也只有
+`0.00004824`，约比 `0.001` 门槛小 20.7 倍。N4/N5 当前候选因此关闭，不打开
+ScreenQA risk-calibration，不提交 GPU。Privileged oracle 仍为 `+0.03117658`，说明
+action headroom 存在，但当前 outcome-free router 不能跨 source 稳健利用。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -225,9 +234,13 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
    覆盖；不下载模型、不提交 GPU；
 6. N4 formal gate 已通过：14/14 机器检查验证信息边界、toy rank reversal 与完整成本排序，
    但不把已碰撞的 aliasing 理论作为贡献，也不把 toy 结果当现实证据；
-7. 下一步 N5 先冻结真实数据 rank-reversal protocol，再一次性读取 `risk_calibration`
-   outcome。主比较必须匹配 selector visibility/action bank/cost definition，并覆盖 entropy、
-   random/fixed crop、exhaustive UG 与现有 learned router。没有稳健实质反转则关闭，不开 GPU。
+7. N5 已完成并关闭 N4：同预算 source-balanced 高信息 router 相对低信息 router 的差为
+   `-0.00022424`，paired 97.5% CI 跨零；8/8 科学条件失败。ScreenQA calibration、
+   formal-test 与 reserve 未打开，GPU/checkpoint 均为 0；
+8. 下一轮重新回到零成本 problem selection。新候选必须解释“privileged oracle 很高、
+   deployable router 跨 source 失败”的残差结构，并先通过一手文献碰撞、可识别性和已有
+   数据上的最小可证伪 gate。不得把 source weighting、fixed-crop 偶然正点、更多特征、
+   阈值或模型容量变化包装为新贡献。
 
 ## 止损规则
 
@@ -343,4 +356,7 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
     row/seed 预注册。其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
 25. N5 在 outcome 前预注册 question-only/统一 preview/full-resolution privileged 三种信息
     集、固定四格 action bank、全部成本、强基线、source bootstrap 和最小实际效应；只用
-    ranker-training 拟合、risk-calibration screen，formal-test/reserve 继续封存。
+    已打开的 ranker-training 资产做回顾性否证。结果 10/10 artifact checks 通过但 8/8
+    scientific conditions 失败：DocVQA source-balanced higher-minus-lower 为
+    `-0.00022424`，paired 97.5% CI `[-0.00528886, 0.00430109]`；ScreenQA OOF 差仅
+    `0.00004824`。因此未打开 risk-calibration，formal-test/reserve 继续封存。

@@ -29,8 +29,23 @@ Version 0.3 adds the first frozen-VLM execution path to the v0.2 pipeline:
 
 The included smoke fixture is synthetic and validates execution only. It is not
 a benchmark result. Frozen V*Bench/ChartQA diagnostics and independent ChartQA
-confirmation infrastructure are now implemented; large-scale RL remains a
-future gate.
+confirmation infrastructure are implemented. A bounded real RL integration has
+also run, but it stopped at its preregistered tool-support gate; large-scale
+method training is not currently authorized.
+
+## Current status and development record
+
+The repository is an active research codebase, but it does **not** currently
+contain a top-conference-ready positive result. The latest N5 matched-budget,
+source-balanced audit falsified the current selector-information candidate
+before opening a protected calibration split or spending additional GPU time.
+Negative results and route closures are retained as first-class evidence.
+
+- [项目当前状态](PROJECT_STATUS.md)
+- [研究计划与路线决策](PLANS.md)
+- [项目发展记录](PROJECT_DEVELOPMENT.md)
+- [完整实验账本](EXPERIMENTS.md)
+- [N5 回顾性结果](artifacts/docvqa-train-factorized-v2/ops/n5-information-set-retrospective-result-20260903-v1.md)
 
 ## Quick start
 
