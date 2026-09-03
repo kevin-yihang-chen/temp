@@ -1,0 +1,98 @@
+{
+  "authorized_new_checkpoints": 0,
+  "authorized_new_gpu_jobs": 0,
+  "best_of_k_oracle_expectations": {
+    "1": 0.6,
+    "2": 0.84,
+    "4": 0.9744,
+    "8": 0.99934464
+  },
+  "checks": {
+    "best_of_k_oracle_invariant_to_replication_count": false,
+    "candidate_distinct_from_registered_primary_literature": false,
+    "ideal_continuation_identified_from_observed_triple": false,
+    "prefix_evidence_effects_are_exactly_additive": true,
+    "prefix_or_evidence_effect_can_be_negative": true,
+    "stop_selection_regret_is_exactly_additive": true,
+    "stop_selection_terms_are_nonnegative": true
+  },
+  "decision": "n2_additive_causal_regret_candidate_not_identified_and_not_novel",
+  "evidence_use_regrets_under_equivalent_worlds": [
+    0.0,
+    0.4
+  ],
+  "literature_collision": {
+    "gapsight_stop_and_action_utility": true,
+    "the_illusion_action_induced_shortcut": true,
+    "the_illusion_fixed_prefix_observation_effect": true
+  },
+  "literature_sources": {
+    "gapsight": "https://arxiv.org/abs/2608.21762",
+    "the_illusion_of_visual_tool_use": "https://arxiv.org/abs/2608.06270"
+  },
+  "n1_decision": "n1_existing_assets_insufficient_for_top_tier_regret_benchmark",
+  "n1_report": "artifacts/docvqa-train-factorized-v2/ops/n1-existing-sibling-bank-inventory-v1.json",
+  "n1_report_sha256": "d17bb8eec9bf0f5cce89105d43c0a676b134ce0779b9f799a4c02903ae3d62c7",
+  "observationally_equivalent_ideal_continuations": [
+    0.6,
+    1.0
+  ],
+  "prefix_evidence_example": {
+    "action_prefix_effect": 0.09999999999999998,
+    "additive_residual": 0.0,
+    "direct_utility": 0.8,
+    "fixed_prefix_counterfactual_utility": 0.9,
+    "fixed_prefix_real_utility": 0.6,
+    "total_tool_effect": -0.20000000000000007,
+    "visual_evidence_effect": -0.30000000000000004
+  },
+  "resource_audit_status": "not_run_because_identifiability_and_novelty_gate_failed",
+  "schema": "n2_causal_regret_decomposition_audit_v1",
+  "stop_selection_examples": [
+    {
+      "action_utilities": [
+        0.6,
+        1.0
+      ],
+      "additive_residual": 0.0,
+      "calls_tool": true,
+      "direct_utility": 0.8,
+      "oracle_utility": 1.0,
+      "policy_utility": 0.6,
+      "selected_action_index": 0,
+      "selection_regret": 0.4,
+      "stop_regret": 0.0,
+      "total_regret": 0.4
+    },
+    {
+      "action_utilities": [
+        0.6,
+        0.7
+      ],
+      "additive_residual": 0.0,
+      "calls_tool": true,
+      "direct_utility": 0.9,
+      "oracle_utility": 0.9,
+      "policy_utility": 0.6,
+      "selected_action_index": 0,
+      "selection_regret": 0.09999999999999998,
+      "stop_regret": 0.20000000000000007,
+      "total_regret": 0.30000000000000004
+    },
+    {
+      "action_utilities": [
+        0.6,
+        0.8
+      ],
+      "additive_residual": 0.0,
+      "calls_tool": false,
+      "direct_utility": 0.4,
+      "oracle_utility": 0.8,
+      "policy_utility": 0.4,
+      "selected_action_index": null,
+      "selection_regret": 0.0,
+      "stop_regret": 0.4,
+      "total_regret": 0.4
+    }
+  ]
+}
