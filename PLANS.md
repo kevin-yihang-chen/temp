@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 14:24（Asia/Hong_Kong）
+更新时间：2026-09-03 14:38（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -130,6 +130,16 @@ N0 action-boundary interventional objective 的形式化与 dependency-free 零�
 The Illusion 已定义 fixed-prefix observation intervention。N0 因
 `action_boundary_candidate_reduces_to_existing_objective_families` 在 GPU 前关闭。
 
+N1 现有 sibling-bank 盘点也已完成。四个主开发 bank 跨 InfographicVQA、ScreenQA、
+DocVQA、TextVQA，共 `59,949` decisions、`299,745` rows；完整 sibling、source IDs 与
+不可变 provenance 均通过。因此 stop regret 和已注册四个 UG-grid 候选内的
+action-selection regret 可识别。但 `239,796` 条主 ZOOM 记录中没有一条保存 fixed action
+prefix、匹配 factual/counterfactual observation 与受控 continuation，evidence-use regret
+不可识别。主证据还只有一个 ZOOM/UG-grid 动作族、每状态一个 replicate，且 3B/7B 与
+数据集混杂；唯一同数据集多 backbone 只有 ScreenQA 的 512-state opened-development
+diagnostic。N1 以 `n1_existing_assets_insufficient_for_top_tier_regret_benchmark` 关闭，
+不把规模当成完整因果 benchmark。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -179,11 +189,11 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
    函数模板、独立 structural group 和新种子预注册为一次新的 baseline correction；
 2. N0 action-boundary interventional objective 已因零支持/目标族 gate 关闭：不提交 GPU，
    不把 token-local mask 或 same-prefix effect 包装成新方法；
-3. 下一候选 N1 只做已有 sibling-bank 盘点，检验 stop regret、action-selection regret 与
-   evidence-use regret 是否同时可识别，并审计它相对 The Illusion/GapSight 的不可约区别；
-4. N1 只有在多数据集、多 backbone、完整 action family、source-level 统计与公开可复现
-   规模均可满足时才允许成为 benchmark/causal 主路线；否则关闭，不能作为降低投稿档位的
-   fallback。
+3. N1 现有资产路线已关闭：前两项 regret 可识别，但 evidence-use、同数据集多 backbone、
+   多动作族与随机重复四项 gate 失败；
+4. 下一候选 N2 只做严格可加 regret 分解的新颖性/可识别性证明与最小 factorial
+   augmentation 的 sample/算力/存储审计。它必须同时区别于 The Illusion 的 fixed-prefix
+   evidence gain 与 GapSight 的 crop-loss router；通过前不生成新 intervention data。
 
 ## 止损规则
 
@@ -282,8 +292,11 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
     都复制无效 `_with_MODE`。V2 不再重跑，完整负结果和 raw outputs 原样保留。
 19. N0 形式化/数值 gate 已完成并关闭：直接 expected-utility gradient 在零支持处为零；
     非零替代退化为 listwise/AWR/value-router。没有提交 GPU 或打开新 outcome。
-20. 立即盘点 N1 所需的现有 sibling artifacts：数据集、backbone、source、动作族、完整
-    sibling coverage、answer-now/counterfactual 可用性与强基线。先判断三项 regret 是否
-    可识别、规模是否足以顶会，再决定是否实现；不得先生成新数据再寻找主张。
-21. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
+20. N1 流式机器盘点已完成：四主 bank `59,949` decisions / `299,745` rows，完整性与
+    provenance 通过；stop/selection 可识别，evidence-use 不可识别，且动作族、replicate、
+    同数据集主 backbone 因子不足。现有-assets benchmark 路线关闭。
+21. N2 在 CPU/纸面上先形式化严格可加的 stop/selection/prefix/evidence decomposition，
+    做一手文献碰撞，并计算最小 factorial augmentation 的统计功效和资源上界；未同时通过
+    新颖性、识别与成本 gate 前不提交 GPU。
+22. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
     row/seed 预注册。其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

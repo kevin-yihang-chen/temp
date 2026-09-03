@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 14:24（Asia/Hong_Kong）
+更新时间：2026-09-03 14:38（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -101,6 +101,16 @@ utility，因此在零支持处仍为零；用 utility target 绕过支持则退
 The Illusion、GapSight、LIRE/LiPO/ToolPrefer 等一手论文，决定为
 `action_boundary_candidate_reduces_to_existing_objective_families`。没有提交 GPU、训练或
 读取新 outcome。
+
+N1 随后对现有完整 sibling assets 做了流式机器盘点。四个主开发 bank 覆盖四个数据集、
+`59,949` decisions、`299,745` rows，全部 decision 都有 answer-now 与四个 UG-grid ZOOM，
+source ID、模型 revision、manifest/rollout hash 均完整。它们足以支持 stop regret 和
+注册 action bank 内的 selection regret，却不能支持 evidence-use regret：所有主 bank 的
+`239,796` 条 ZOOM 都没有 fixed action prefix、matched real/no-op observation 与 controlled
+continuation。与此同时，主证据只有一个工具动作族、每状态一个 replicate，3B/7B 与数据集
+混杂；ScreenQA 的同数据集 3B/7B 重叠只有 512 个 opened-development diagnostic states。
+机器决定为 `n1_existing_assets_insufficient_for_top_tier_regret_benchmark`。因此现有资产不能
+直接包装为顶会完整 benchmark，本项没有提交 GPU 或产生 checkpoint。
 
 ## 已完成的证据链
 
@@ -365,13 +375,12 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes�
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205` 以 parser-valid tool
-call `0/64` 正式关闭 sampled H5；Job `206227` 又以 argument/parser/execution `0/16`
-关闭 V2 baseline，并把即时原因收敛到元变量模板复制。N0 也已因直接 gradient 零支持、
-替代目标退化为既有 objective families 而在 GPU 前关闭。下一步先做 N1 benchmark/
-estimand feasibility inventory：只读现有 sibling artifacts，核对数据集、backbone、action
-family、source count、完整 sibling coverage 与 answer-now/counterfactual 可用性，判断
-stop regret、action-selection regret、evidence-use regret 三项是否可识别，且是否能与
-The Illusion/GapSight 形成不可约区别。只有多数据集、多 backbone 和足够规模同时通过才
-允许实现；否则继续关闭，不降低投稿目标。若论文强基线需要修复 V2，则 V3 必须先枚举
-六个 concrete、parser-valid 模板并使用独立 row/seed，它只承担 baseline correctness。
+不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205`、Job `206227`、N0 与
+现有-assets N1 均已按各自 gate 关闭。N1 不是样本太少，而是缺少 evidence-use intervention
+合同、主证据同数据集多 backbone、多动作族与 stochastic replicate。下一步 N2 先在
+CPU/纸面上证明一个严格可加的 stop/selection/prefix/evidence decomposition，逐项审计其
+相对 The Illusion/GapSight 的不可约区别，并给最小 factorial augmentation 计算 sample、
+GPU-hour 与存储上界。只有新颖性、识别性、同数据集多 backbone、多动作族和统计功效可同时
+冻结才生成新数据；否则在 GPU 前关闭，不降低投稿目标。若论文强基线需要修复 V2，则 V3
+必须先枚举六个 concrete、parser-valid 模板并使用独立 row/seed，它只承担 baseline
+correctness。

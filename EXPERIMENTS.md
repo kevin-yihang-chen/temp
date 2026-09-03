@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 13:48（Asia/Hong_Kong）
+更新时间：2026-09-03 14:38（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1094,3 +1094,46 @@
   与 evidence-use regret 的三项可识别分解，以及多数据集/多 backbone/动作族规模是否
   足以形成区别于 The Illusion 和 GapSight 的顶会 benchmark/estimand。盘点失败则关闭，
   不先生成新数据再寻找主张。
+
+## E-20260903-12：N1 现有 sibling-bank 三段 regret 可识别性盘点
+
+- 假设：仓库中已有的大规模完整 sibling banks 同时支持 stop regret、注册 action bank
+  内的 action-selection regret 和 fixed-prefix evidence-use regret，并具备多数据集、
+  同数据集多 backbone、多动作族、source-level 推断与不可变复现元数据，足以形成区别于
+  The Illusion/GapSight 的顶会 benchmark 起点。
+- 实现 commit：`f7c944948942b28e4c4c2030b21138fe2930d436`。新增 dependency-free
+  streaming inventory，不把约 30 万行一次性载入内存；逐 decision 检查 sibling/action/
+  seed/identity，逐 row 检查模型 revision、intervention fields，并从 provenance 读取模型、
+  proposer、manifest/rollout hash 和 code revision。
+- 主数据：InfographicVQA-7B `23,946`、ScreenQA-3B `14,511`、DocVQA-3B `13,580`、
+  TextVQA-3B `7,912` decisions；合计 `59,949` decisions、`299,745` rows、按数据集求和
+  `12,214` sources。全部为 answer-now + 4 个 UG-grid ZOOM，完整性和不可变 provenance
+  通过。
+- 辅助诊断：ScreenQA-7B 为 `512` states，与 3B bank 精确重叠 512，但角色是
+  opened-development diagnostic；ChartQA-3B `4,500` decisions 的 provenance 明确标作
+  diagnostic，不计入主 gate。
+- 结果：10 项 gate 通过 6 项。Stop regret 与 registered-bank action-selection regret
+  可识别；evidence-use regret 不可识别，因为 `239,796` 条主 ZOOM 中完整保存 fixed action
+  prefix、matched factual/counterfactual observation 与 controlled continuation 的记录为
+  `0`。同数据集 multi-backbone main factor、多工具动作族和每状态多个 stochastic
+  replicate 也失败。
+- 细节：UG-grid bbox 随图像长宽比变化，不能误称四个固定坐标框；但 proposer/tool type
+  仍只有一个 ZOOM family。所有主 state 都只有 `replicate-000`；主数据中的 3B/7B 与
+  数据集混杂，不能据此声称 backbone robustness。
+- 决定：`n1_existing_assets_insufficient_for_top_tier_regret_benchmark`。关闭直接用现有
+  assets 做完整 N1 benchmark；不把前两项统计冒充三段因果分解，也不先增加同构 UG-grid
+  行数或随机 seed。
+- 产物：机器报告 SHA-256
+  `d17bb8eec9bf0f5cce89105d43c0a676b134ce0779b9f799a4c02903ae3d62c7`；module/runner/test
+  SHA-256 为 `60b5fa33...bcd60` / `1daab181...9fd5a` / `b72515bf...6f5b`；完整审计见
+  `n1-existing-sibling-regret-benchmark-feasibility-audit-20260903-v1.md`。
+- 验证：5 个 targeted tests、三文件 mypy、compileall、Black in-process check、第二次
+  independent output byte comparison、JSON decision assertions、credential scan 与
+  `git diff --check` 通过。
+- 资源/泄漏：CPU-only 流式只读；无模型加载、Slurm、GPU、optimizer 或 checkpoint；
+  validation/test/reserve 未访问。
+- 当前最佳结果：项目仍无 deployable 正主结果；N1 给出可审计的资产边界，防止把大样本
+  误当成完整可识别 benchmark。
+- 下一步：N2 先形式化严格可加的 stop/selection/prefix/evidence decomposition，做一手
+  新颖性碰撞与最小 factorial augmentation 的 sample/GPU-hour/storage audit。未同时通过
+  novelty、identifiability、同数据集多 backbone、多动作族和 power gate 前不生成新数据。
