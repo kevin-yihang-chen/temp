@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 13:27（Asia/Hong_Kong）
+更新时间：2026-09-03 13:48（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -962,3 +962,48 @@
   processor + fake executor；随后才允许一次无 checkpoint 的 1×H800 first-response
   generation smoke。必须分别报告 intent/syntax/argument/execution rate，不得用总
   tool-call rate 掩盖失败层级。N0 新颖性 gate 与 B0 性能不能混为同一主张。
+
+## E-20260903-09：Typed-action V2 独立单行数据、真实 Qwen processor 与 fake executor
+
+- 假设：在完全保留冻结 V1/Job `206205` 的条件下，可以把 V2 exact grammar 接入一个
+  独立的 official-train 单行数据版本，并同时通过真实 Qwen processor 与 pinned VTool
+  executor；若失败，则不得用 GPU generation 判断模型的格式遵循能力。
+- 实现 commit：`47fde3717ba5f8d9f2d3ec5a7ae725e0da94be5c`。Converter 新增显式
+  `--prompt-version v2`，并 fail closed 限制为 `--smoke-one-row`、`b0_smoke` 和 outcome-only
+  `vtool_agent`；默认 V1 converter 行为不变。新增 runtime smoke 只把 renderer 重新生成、
+  strict parser 已验证的 canonical code 交给 executor，绝不执行 raw model text。
+- 数据：Apache-2.0 `ReFocus/ReFocus_Data` official train revision
+  `6af42739216fd58047121bb51dba683277cfdfe3`；三个 shard SHA-256 重新验证。V2 仍选中与
+  V1 相同的唯一 row/structural group，row manifest SHA-256
+  `9d078c0d...9edf6`，从而只改变 prompt/data schema。V2 Parquet SHA-256
+  `2c6a6c9b0a2329199ca750ad6489d3b1fafdf17b91a106ab426c634510e8184c`；独立 converter
+  report SHA-256 `35c36a25384a09276686adb73f7068721109f1cc52ae61537eeaf3c88b496e8b`。
+- V1 不变性：在临时目录重新运行默认 converter 后，V1 单行 Parquet 仍为
+  `0de5b1421c765724e77432f2d176e33c2af6d6bc27652ca4e9d5393306e66199`、61,297 bytes，
+  与冻结 artifact 字节级一致；V2 不能用于重解释 G1。
+- 真实 processor：隔离环境 `beyond-entropy-vtool-g1`、Qwen2.5-VL-3B revision
+  `66285546d2b821cf421d4f5eb2576359d3770cd3` 的 fast processor；1 张原图、0 video、975
+  prompt tokens，pixel tensor shape `[2320,1176]`。其 pixel SHA-256
+  `4ab27a1d...e2d52` 与 V1 processor smoke 相同，确认图像输入没有漂移。
+- Fake executor：selected row 为 `chartqa_v_bar`，固定选择 x 轴首标签与 `draw` mode；
+  renderer→strict parser→pinned `build_refocus_context`→`display` 得到唯一 PIL image，
+  原图/输出图像 SHA-256 分别为 `423ee10e...1f93` / `82f35d03...2bee`。运行时文件 SHA-256
+  `04fc8f92...4b037`；raw model text 没有执行，reward target 没有参与 action selection。
+- 结果：`refocus_typed_action_b0_real_runtime_smoke_passed`，26/26 checks 全真；runtime
+  report SHA-256 `c25e28a7f3d146d470b35118c33e14af4440d957a664aa619804ebc8f0cd001d`。
+  没有加载模型权重、optimizer step、checkpoint、GPU、Slurm 或邮件事件，也没有访问
+  validation/test/reserve。
+- 可复现性：第二个临时输出目录重新转换/运行后，V2 Parquet SHA-256 完全相同，剔除
+  路径与 converter-report 路径哈希后的 runtime invariant JSON 字节级相同。报告内记录
+  converter/smoke/dataset/typed-action/runtime 的精确源码哈希。
+- 验证：最终代码全仓 `534 passed, 35 skipped`，skip 均为 base env 缺少可选 Torch/资源；
+  6-file mypy、compileall、Black 24.8 in-process、隔离环境 `pip check`、JSON 全真断言、
+  credential scan 与 `git diff --check` 通过。首次并行检查中的 mypy duplicate-module 与
+  Black `NothingChanged` exit 是验证命令调用问题，分别用 `--explicit-package-bases` 与
+  正确异常处理复验通过，不是代码失败。
+- 解释边界：本项证明数据版本、真实 processor、严格 grammar 与 executor 接口闭环，
+  但动作由 deterministic renderer 构造，不证明 Qwen 会在 V2 prompt 下生成 parser-valid
+  或有用的工具调用，也不是主方法/性能证据。
+- 下一步：冻结唯一的 1×H800、无训练、无 checkpoint first-response generation smoke。
+  预先定义并分别报告 tool intent、完整 Python fence、严格参数合法、parser-valid 与实际
+  execution 五层指标；无论结果正负均不修改 V2 prompt/seed/temperature 来追结果。

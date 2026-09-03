@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 13:27（Asia/Hong_Kong）
+更新时间：2026-09-03 13:48（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -160,11 +160,13 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 
 1. 先把 exact typed action grammar 做成独立 V2 baseline；它只修复 how-to-call 合同，
    不用于事后挽救 G1，也不作为方法贡献。其 renderer/parser 与 pinned runtime CPU
-   round-trip 已通过；下一 gate 是独立 V2 单行真实 processor/fake executor；
+   round-trip、独立 V2 单行 official-train converter、真实 Qwen processor 与 pinned
+   fake executor 已全部通过；下一 gate 是一次无 checkpoint 的单 H800 model generation；
 2. 并行审计 action-boundary interventional objective：必须在零 parser-valid support 下
    定义学习信号，且不退化为已有 forced-tool SFT、curriculum、tool bonus、call-rate
    steering、ordinary listwise reward 或 crop loss-gap router；
-3. 只有新颖性与 synthetic/CPU gate 通过，才冻结新的真实 GPU smoke；
+3. B0 只允许一次 baseline correctness 所需的有界 H800 smoke；N0 仍须先通过新颖性与
+   synthetic/CPU gate，才可冻结任何主方法 GPU smoke；
 4. benchmark/causal audit 只能在规模、模型/工具广度与新 estimand 足以独立满足
    顶会标准时成为主路线，不能作为降低投稿档位的默认 fallback。
 
@@ -254,8 +256,13 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
     和 crop loss-gap router 均已有直接文献覆盖，只能作 baseline。唯一暂存主方法候选是
     action-boundary interventional objective；若形式化后退化为上述目标，则在 CPU gate
     关闭。
-17. Typed-action B0 CPU core 已在 commit `150803a` 通过：V1 hash 未变，V2 的 x/columns
-    与 y/rows canonical actions 均在 pinned runtime 真执行成功，非法 grammar/label/
-    bbox/额外语句 fail closed。下一步只做 V2 单行 official-train processor/fake executor，
-    通过后才考虑无 checkpoint 的单 H800 generation smoke。
-18. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+17. Typed-action B0 完整 CPU/真实 runtime gate 已在 commit `47fde37` 通过。独立 V2
+    official-train 单行 Parquet SHA-256 为 `2c6a6c9b...e8184c`，与 V1 使用同一 row/image
+    以隔离 prompt 变化；旧 V1 Parquet 仍字节级复现为 `0de5b142...66199`。真实 Qwen
+    processor 得到 975 prompt tokens，26/26 checks 全真；renderer-owned action 经 strict
+    parser 后在 pinned runtime 显示一个像素发生变化的 PIL image。没有模型权重、optimizer、
+    checkpoint 或 protected split。
+18. 下一步冻结唯一 1×H800、无训练/无 checkpoint 的 V2 first-response generation smoke，
+    分层报告 intent、Python fence、严格参数、parser-valid 与实际执行率；结果无论正负均
+    只评价 baseline correctness，不能改写 Job `206205`，也不能冒充 N0 方法贡献。
+19. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

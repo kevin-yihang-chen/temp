@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 13:27（Asia/Hong_Kong）
+更新时间：2026-09-03 13:48（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -220,6 +220,14 @@ renderer/parser，并在 pinned runtime 对 x/y 两类调用真执行通过；�
     固定 x/columns 与 y/rows grammar，strict parser 覆盖非法 fence、display、axis、bbox、
     kwargs、label 和额外语句；两类 canonical call 在 pinned runtime 均返回 PIL image。
     全仓 532 passed、35 expected skips。本项不含模型 generation 或 GPU。
+28. 独立 typed-action B0 单行真实 runtime gate 在 commit
+    `47fde3717ba5f8d9f2d3ec5a7ae725e0da94be5c` 通过。Converter 强制 V2 只能使用 official
+    train 的 `b0_smoke` 与 outcome-only `vtool_agent`；V2 Parquet SHA-256
+    `2c6a6c9b...e8184c`，旧 V1 则继续字节级复现为 `0de5b142...66199`。同一 row/image
+    经真实 Qwen processor 得到 975 tokens，26/26 checks 全真；固定 renderer-owned x/draw
+    action 经 strict parser 和 pinned VTool context 真执行，输出图像 SHA-256 与原图不同。
+    没有加载模型权重、执行 optimizer、写 checkpoint 或访问 protected split；本项仍不证明
+    模型会按 V2 prompt 生成合法调用。
 
 ## 当前最佳结果与解释边界
 
@@ -244,7 +252,7 @@ renderer/parser，并在 pinned runtime 对 x/y 两类调用真执行通过；�
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
 | HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
 | 真实 paired rollout 与最多 2-step optimizer smoke | Job 206205 完成；tool call 0/64，触发冻结停止规则，当前 H5 不晋级 |
-| Typed-action reliable baseline | B0 CPU grammar/runtime gate 通过；真实模型 generation 尚未验证 |
+| Typed-action reliable baseline | 独立 V2 converter、真实 Qwen processor、strict parser 与 pinned fake executor 已通过；真实模型 generation 尚未验证 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -256,12 +264,13 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 13:11 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
-222,000 分钟总额、42,281 已用、179,719 剩余（约 2,995.32 GPU-hours）。Job `206205`
+截至 2026-09-03 13:48 HKT，实时 `squeue -u yihangc` 为空；GPU quota 快照为
+222,000 分钟总额、42,276 已用、179,724 剩余（约 2,995.40 GPU-hours）。Job `206205`
 已正常结束且 controller 已清除其短期记录。该任务配置了
 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm 状态通知
-范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；结果封存和下一
-候选审计仅在本地进行，未 push GitHub。
+范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行；B0 CPU/runtime
+gate 已完成，下一 H800 协议尚未提交。持久盘可用 37,984,665,600 bytes（约 35.38 GiB）。
+修改仅在本地，未 push GitHub。
 
 ## 已关闭的路线
 
@@ -316,6 +325,9 @@ generalization 四个实质台阶。现在不能承诺日期。
 - Job `206205` 已确认真实 G1 为 parser-valid tool call `0/64`；不能靠事后改 prompt/temperature/
   seed 制造正结果。现在必须重新审计 exploration/support 假设，且新解法需要独立
   新颖性，不能套用已有 forced-tool curriculum。
+- B0 当前只执行了由 renderer 构造的确定性动作；这证明数据、processor、strict parser
+  与 runtime 接口相容，不证明 Qwen 在 V2 prompt 下会生成合法或有用的调用。下一次 GPU
+  smoke 必须分层报告 intent/syntax/argument/parser/execution，不能只报一个总调用率。
 - 一个完整 distributed checkpoint 实测至少约 40.39 GiB；64 GiB gate 只保证当前
   单臂有界运行。若 signed 通过，四个实验臂的 checkpoint 位于独立目录，必须先制定
   有哈希和可恢复性的迁移/保留方案，不能在当前盘同时无界累计约 164 GiB。
@@ -324,11 +336,11 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 不再做 VTool 等价性审计，也不再重跑当前 G1。Job `206205` 已把工程链路推进到两步
 rollout、optimizer、analyzer 与完整 checkpoint，但以 parser-valid tool call `0/64`
-正式触发停止规则。下一步先完成互相隔离的两个 gate：B0 用 exact typed grammar 建立
-可靠 how-to-call baseline，但不把 prompt/SFT/forced-call 当新方法；B0 CPU core 已通过，
-下一步是独立 V2 单行 official-train processor/fake executor。N0 同时形式化
+正式触发停止规则。下一步继续保持两个 gate 隔离：B0 的 independent V2 converter、真实
+Qwen processor 与 pinned fake executor 已通过，允许冻结并提交唯一一次 1×H800、无训练、
+无 checkpoint 的 first-response generation smoke；它必须分层报告 intent、fence、严格
+参数、parser-valid 和实际 execution，且不改写 G1。N0 同时形式化
 action-boundary interventional objective，要求它在零 valid support 下仍有梯度，且不
 退化为 ToolVision、GapSight、representation steering、logit bias、LIRE/LiPO 或
-ToolPrefer 已覆盖的目标。两者先做 renderer/parser round-trip、非法动作拒绝和 synthetic
-finite-action CPU gate；N0 新颖性未通过前不提交 GPU。若候选形式化后只是普通
+ToolPrefer 已覆盖的目标；N0 新颖性未通过前不提交主方法 GPU。若候选形式化后只是普通
 full-information/listwise loss，则关闭并继续选择实质不同路线，不降低投稿目标。
