@@ -1050,3 +1050,47 @@
   文献区分形式化；若确需 V3 强 baseline，必须先让六个 concrete 模板逐一 strict-parser
   通过，并预注册未用于 V1/V2 的 official-train structural group、新种子和一次性 gate。
   V3 只能是 baseline correction，不是论文新颖贡献。
+
+## E-20260903-11：N0 action-boundary objective 零支持与新颖性 gate
+
+- 问题：能否把有限 typed visual macro-actions 的 boundary probability 与完整
+  same-prefix intervention outcomes 结合，在当前 policy 的 parser-valid support 为零时仍
+  得到新颖、可计算的 action-learning gradient，同时不退化为 forced SFT、listwise
+  preference、utility router 或已有 action value？
+- 形式化：对 `ANSWER_NOW` 与全部 typed actions 定义归一化宏动作概率 `p_theta(a|s)` 和
+  干预净效用 `U(s,a)`。直接目标 `sum_a p_theta(a|s)U(s,a)` 的精确 logit gradient 为
+  `p_theta(a|s)[U(s,a)-E_p U]`；即使完整枚举 `U`，近零 support 仍使梯度同阶消失，
+  exact numerical zero 时严格为零。
+- 替代目标：以 `q_tau=softmax(U/tau)` 做 cross-entropy 时梯度为 `p_theta-q_tau`，确实
+  绕过当前 support，但原因是 intervention outcomes 已成为离策略 listwise target；
+  one-hot 极限是 best-action SFT，pairwise 极限是 DPO/ranking，连续版本是 AWR。单独
+  回归 `Q(s,a)`/boundary head 则回到 full-information contextual bandit 和 GapSight 类
+  utility router。
+- 数值 gate：dependency-free 三动作环境固定 utilities `0/+0.95/-1.05`、near-zero logits
+  `0/-20/-20`、underflow logits `0/-1000/-1000`、target temperature `0.25`。10/10 checks
+  全真；beneficial action probability `2.061e-9`，直接 gradient `1.958e-9`；underflow
+  下二者为 0。Utility target 为 beneficial 分配 `0.9778`，CE gradient 为 `-0.9778`。
+  解析/finite-difference 最大误差为 `2.34e-18` / `1.51e-9`。
+- 一手碰撞：ToolVision 已用 student-scale evidence gain 搜索和 frozen-policy paired MUT
+  先建立 useful behavior support；The Illusion 已在 fixed prefix/action 下替换 observation
+  定义 VEG；GapSight 已从 candidate loss gaps 学 pre-crop gate/utility/box；LIRE/LiPO/
+  ToolPrefer 与 AWR 覆盖 multi-response listwise、step-wise preference 和 advantage-weighted
+  off-policy regression；Tool-RL collapse 已系统比较 off-policy/hint/interleaved SFT。
+- 决定：`action_boundary_candidate_reduces_to_existing_objective_families`。当前 N0 没有
+  同时满足“零支持非零梯度”与“不是既有离策略监督/价值学习”的第三种目标；在主方法
+  实现和 GPU 前关闭。Token-local action mask 是可复用工程，不足以构成新颖性。
+- 产物：机器报告 SHA-256
+  `c1bfd08a571cab4dc8d5f017e681434e6fd7caf364808e7e5ffbb85dc474e4f1`；module/runner/test
+  SHA-256 为 `a4bbbf78...3a2d` / `186ebfed...d53` / `9e8f17c8...416a`；完整审计见
+  `action-boundary-interventional-objective-novelty-gate-20260903-v1.md`。
+- 验证：9 个 targeted tests 全部通过；3-file mypy 与 compileall 通过。首次 test 因
+  finite-difference 绝对误差 `1.51e-9` 略高于不合理的 `1e-9` 阈值失败，阈值按该
+  O(20) loss 的 double-precision central-difference 误差改为 `1e-8` 后，解析梯度本身
+  未改变且复验通过。首次 mypy 命令未给 `MYPYPATH=src` 并暴露两个动态 payload 类型，
+  改为直接读取 typed dataclass、收窄测试 kwargs 后复验通过。
+- 资源/泄漏：CPU-only；无模型权重、Slurm、GPU、optimizer、checkpoint 或新 outcome；
+  validation/test/reserve 未访问。
+- 下一步：N1 只读盘点现有 sibling bank 是否能支持 stop regret、action-selection regret
+  与 evidence-use regret 的三项可识别分解，以及多数据集/多 backbone/动作族规模是否
+  足以形成区别于 The Illusion 和 GapSight 的顶会 benchmark/estimand。盘点失败则关闭，
+  不先生成新数据再寻找主张。

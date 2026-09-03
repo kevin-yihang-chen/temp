@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 14:18（Asia/Hong_Kong）
+更新时间：2026-09-03 14:24（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -122,6 +122,14 @@ smoke（Job `206227`）得到 11/16 tool intent、7/16 完整且 syntax-valid Py
 `typed_action_b0_malformed_tool_intent`。因此 V2 baseline 自身关闭，不改 prompt/seed 后
 重跑；这个结果不改变 G1 stop，也不能充当 N0 方法证据。
 
+N0 action-boundary interventional objective 的形式化与 dependency-free 零支持 gate 也
+已完成。完整干预期望效用的精确梯度仍乘当前宏动作概率，在零/近零 support 下消失；
+改用 utility-induced target 可恢复梯度，但就成为 LIRE/LiPO/AWR 类 listwise/off-policy
+投影；单独回归 `Q(s,a)` 则回到 GapSight/既有 action-value router 家族。数值 gate
+10/10 checks 全真，一手文献还确认 ToolVision 已用 evidence gain/paired MUT 建立 support，
+The Illusion 已定义 fixed-prefix observation intervention。N0 因
+`action_boundary_candidate_reduces_to_existing_objective_families` 在 GPU 前关闭。
+
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
 `.checks | all(.[] == true)`，当前 jq 会把单个布尔值再次送入 `.[]` 并以 exit 5
@@ -169,13 +177,13 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
    完成。V2 因 11/11 tool intents 复制无效 `MODE` 元变量、0/16 参数合法而关闭；不在
    已打开 row/seed 上改 prompt 重跑。若做 V3，只能以全部 concrete、parser-valid 的六个
    函数模板、独立 structural group 和新种子预注册为一次新的 baseline correction；
-2. 并行审计 action-boundary interventional objective：必须在零 parser-valid support 下
-   定义学习信号，且不退化为已有 forced-tool SFT、curriculum、tool bonus、call-rate
-   steering、ordinary listwise reward 或 crop loss-gap router；
-3. B0 只允许一次 baseline correctness 所需的有界 H800 smoke；N0 仍须先通过新颖性与
-   synthetic/CPU gate，才可冻结任何主方法 GPU smoke；
-4. benchmark/causal audit 只能在规模、模型/工具广度与新 estimand 足以独立满足
-   顶会标准时成为主路线，不能作为降低投稿档位的默认 fallback。
+2. N0 action-boundary interventional objective 已因零支持/目标族 gate 关闭：不提交 GPU，
+   不把 token-local mask 或 same-prefix effect 包装成新方法；
+3. 下一候选 N1 只做已有 sibling-bank 盘点，检验 stop regret、action-selection regret 与
+   evidence-use regret 是否同时可识别，并审计它相对 The Illusion/GapSight 的不可约区别；
+4. N1 只有在多数据集、多 backbone、完整 action family、source-level 统计与公开可复现
+   规模均可满足时才允许成为 benchmark/causal 主路线；否则关闭，不能作为降低投稿档位的
+   fallback。
 
 ## 止损规则
 
@@ -272,7 +280,10 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 18. 唯一 V2 H800 smoke（Job `206227`）已完成，0 optimizer、0 checkpoint。16 次生成中
     intent/fence/syntax/argument/parser/execution 分别为 11/7/7/0/0/0；11/11 intents
     都复制无效 `_with_MODE`。V2 不再重跑，完整负结果和 raw outputs 原样保留。
-19. 先完成 B0 结果固化；随后优先形式化 N0 的 zero-support gradient 与文献区分。只有
-    在这项工作不被普通 listwise/forced-tool 目标吸收时才进入实现。V3 如有必要只承担
-    concrete-template 强 baseline，不作为新颖贡献，且必须使用独立 row/seed 预注册。
-20. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+19. N0 形式化/数值 gate 已完成并关闭：直接 expected-utility gradient 在零支持处为零；
+    非零替代退化为 listwise/AWR/value-router。没有提交 GPU 或打开新 outcome。
+20. 立即盘点 N1 所需的现有 sibling artifacts：数据集、backbone、source、动作族、完整
+    sibling coverage、answer-now/counterfactual 可用性与强基线。先判断三项 regret 是否
+    可识别、规模是否足以顶会，再决定是否实现；不得先生成新数据再寻找主张。
+21. V3 如有必要只承担 concrete-template 强 baseline，不作为新颖贡献，且必须使用独立
+    row/seed 预注册。其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

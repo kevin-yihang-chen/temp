@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 14:18（Asia/Hong_Kong）
+更新时间：2026-09-03 14:24（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -93,6 +93,14 @@ execution 均为 0。11/11 有意图输出都照抄 prompt 中的无效元变量
 `focus_on_x_values_with_MODE`，没有替换具体 mode。因此当前 V2 prompt 的 reliable
 baseline gate 失败并关闭；不允许在相同 row/seed 上改 prompt 后追结果。这不改变
 Job `206205` 的 G1 stop，也不是新方法失败或成功的证据。
+
+N0 的新颖性/零支持 gate 随后在任何主方法 GPU 实现前完成并关闭。直接最大化完整
+interventional action utility 时，macro-action logit 梯度精确等于当前动作概率乘相对
+utility，因此在零支持处仍为零；用 utility target 绕过支持则退化为 listwise/AWR，
+回归 action value 则退化为既有 router。数值报告 10/10 checks 全真；结合 ToolVision、
+The Illusion、GapSight、LIRE/LiPO/ToolPrefer 等一手论文，决定为
+`action_boundary_candidate_reduces_to_existing_objective_families`。没有提交 GPU、训练或
+读取新 outcome。
 
 ## 已完成的证据链
 
@@ -241,6 +249,11 @@ Job `206205` 的 G1 stop，也不是新方法失败或成功的证据。
     `typed_action_b0_malformed_tool_intent`。11/11 intents 复制无效 `_with_MODE`；0 optimizer、
     0 checkpoint、无 protected split、raw model text 未执行。完整审计见
     `refocus-typed-action-b0-generation-result-job-206227-v1.md`。
+30. N0 action-boundary objective 的 dependency-free 三动作 gate 10/10 checks 全真：
+    beneficial action 概率 `2.06e-9` 时，expected-utility logit gradient 只有 `1.96e-9`；
+    exact-underflow 下两者均为 0。Boltzmann utility target 虽产生 `-0.978` 的非零 CE
+    gradient，但它明确是 listwise/off-policy supervision。有限差分误差低于 `1.6e-9`，
+    report SHA-256 `c1bfd08a...e4f1`。N0 在 GPU 前因目标族碰撞关闭。
 
 ## 当前最佳结果与解释边界
 
@@ -266,6 +279,7 @@ Job `206205` 的 G1 stop，也不是新方法失败或成功的证据。
 | HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
 | 真实 paired rollout 与最多 2-step optimizer smoke | Job 206205 完成；tool call 0/64，触发冻结停止规则，当前 H5 不晋级 |
 | Typed-action reliable baseline | V2 CPU/runtime 通过；Job 206227 真实 generation 因 11/11 intents 复制无效 MODE、0/16 参数合法而失败并关闭 |
+| N0 action-boundary interventional objective | 零支持数值与一手文献 gate 完成；退化为既有 listwise/AWR/value-router 家族，GPU 前关闭 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -342,6 +356,9 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes�
   parser/execution。直接机制是所有 intent 都复制无效 `MODE` 元变量；不能在相同
   row/seed 上事后改 prompt 重跑。Concrete-template V3 若需要，只能作为独立预注册强
   baseline，不能包装为主方法。
+- N0 的 same-prefix observation effect 本身与 Visual Evidence Gain 碰撞；直接 policy
+  gradient 不解决零支持，非零监督版本又属于 listwise/off-policy/value learning。继续
+  改 loss 名称或 token mask 不会产生方法新颖性。
 - 一个完整 distributed checkpoint 实测至少约 40.39 GiB；64 GiB gate 只保证当前
   单臂有界运行。若 signed 通过，四个实验臂的 checkpoint 位于独立目录，必须先制定
   有哈希和可恢复性的迁移/保留方案，不能在当前盘同时无界累计约 164 GiB。
@@ -350,10 +367,11 @@ runtime 与 H800 generation 均已结束。持久盘可用 37,983,617,024 bytes�
 
 不再做 VTool 等价性审计，也不再重跑当前 G1 或 V2。Job `206205` 以 parser-valid tool
 call `0/64` 正式关闭 sampled H5；Job `206227` 又以 argument/parser/execution `0/16`
-关闭 V2 baseline，并把即时原因收敛到元变量模板复制。下一步优先形式化 N0 的
-action-boundary interventional objective，要求它在零 valid support 下仍有梯度，且不
-退化为 ToolVision、GapSight、representation steering、logit bias、LIRE/LiPO 或
-ToolPrefer 已覆盖的目标；N0 新颖性未通过前不提交主方法 GPU。若候选形式化后只是普通
-full-information/listwise loss，则关闭并继续选择实质不同路线，不降低投稿目标。若论文
-强基线需要修复 V2，则 V3 必须先枚举六个 concrete、parser-valid 模板，并用独立
-official-train structural group 与新种子预注册；它只承担 baseline correctness。
+关闭 V2 baseline，并把即时原因收敛到元变量模板复制。N0 也已因直接 gradient 零支持、
+替代目标退化为既有 objective families 而在 GPU 前关闭。下一步先做 N1 benchmark/
+estimand feasibility inventory：只读现有 sibling artifacts，核对数据集、backbone、action
+family、source count、完整 sibling coverage 与 answer-now/counterfactual 可用性，判断
+stop regret、action-selection regret、evidence-use regret 三项是否可识别，且是否能与
+The Illusion/GapSight 形成不可约区别。只有多数据集、多 backbone 和足够规模同时通过才
+允许实现；否则继续关闭，不降低投稿目标。若论文强基线需要修复 V2，则 V3 必须先枚举
+六个 concrete、parser-valid 模板并使用独立 row/seed，它只承担 baseline correctness。

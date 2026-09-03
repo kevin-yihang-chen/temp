@@ -1,0 +1,74 @@
+{
+  "actions": [
+    "answer_now",
+    "beneficial_tool",
+    "harmful_tool"
+  ],
+  "checks": {
+    "beneficial_policy_probability_is_near_zero": true,
+    "expected_gradient_matches_finite_difference": true,
+    "expected_utility_gradient_is_support_suppressed": true,
+    "expected_utility_gradient_is_zero_at_exact_zero_support": true,
+    "listwise_projection_bypasses_support_with_supervised_target": true,
+    "listwise_projection_has_nonzero_beneficial_gradient": true,
+    "probabilities_sum_to_one": true,
+    "projection_gradient_matches_finite_difference": true,
+    "underflow_yields_exact_zero_policy_support": true,
+    "utility_target_prefers_beneficial_action": true
+  },
+  "decision": "action_boundary_candidate_reduces_to_existing_objective_families",
+  "expected_utility_gradient": [
+    2.061153605445145e-10,
+    1.9580959336695924e-09,
+    -2.164211294214107e-09
+  ],
+  "finite_difference_expected_gradient_max_error": 2.3351089489509645e-18,
+  "finite_difference_projection_gradient_max_error": 1.5087338045560728e-09,
+  "listwise_projection_gradient": [
+    0.9781259023189974,
+    -0.9777978897298133,
+    -0.00032801258918411976
+  ],
+  "listwise_projection_target": [
+    0.02187409355869542,
+    0.9777978917909669,
+    0.0003280146503377337
+  ],
+  "near_zero_logits": [
+    0.0,
+    -20.0,
+    -20.0
+  ],
+  "near_zero_probabilities": [
+    0.9999999958776928,
+    2.0611536139418496e-09,
+    2.0611536139418496e-09
+  ],
+  "schema": "action_boundary_objective_zero_support_audit_v1",
+  "target_temperature": 0.25,
+  "underflow_expected_utility_gradient": [
+    0.0,
+    0.0,
+    -0.0
+  ],
+  "underflow_listwise_projection_gradient": [
+    0.9781259064413046,
+    -0.9777978917909669,
+    -0.0003280146503377337
+  ],
+  "underflow_logits": [
+    0.0,
+    -1000.0,
+    -1000.0
+  ],
+  "underflow_probabilities": [
+    1.0,
+    0.0,
+    0.0
+  ],
+  "utilities": [
+    0.0,
+    0.95,
+    -1.05
+  ]
+}
