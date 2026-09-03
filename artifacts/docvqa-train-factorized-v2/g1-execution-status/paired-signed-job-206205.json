@@ -1,0 +1,11 @@
+{
+  "schema": "vtool_action_credit_g1_worker_status_v1",
+  "decision": "completed",
+  "scientific_decision": "paired_signed_g1_stop_rule_triggered",
+  "job_id": "206205",
+  "code_revision": "9c6bdc46f60b31d57b11d7a5c95a4712eef5fd44",
+  "output_dir": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/g1-runs/paired-signed-v1/job-206205",
+  "exit_code": 0,
+  "started_epoch": 1788409589,
+  "ended_epoch": 1788409870
+}

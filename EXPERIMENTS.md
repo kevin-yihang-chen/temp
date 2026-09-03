@@ -829,3 +829,43 @@
 - 下一步：完成目标/full regression、静态检查、clean commit 与最终 Hydra/DataProto
   gate；实时复核至少 64 GiB 空闲后只重提 signed arm。正式两步 stop 失败则关闭路线，
   通过才规划 matched controls 的存储与执行。
+
+## E-20260903-06：四卡 paired-signed G1 正常完成但零工具调用，正式停止
+
+- 假设：存储 gate 修复后的 clean revision
+  `9c6bdc46f60b31d57b11d7a5c95a4712eef5fd44` 能完成两步 paired rollout、optimizer、
+  完整 checkpoint 和冻结分析；若初始 policy 提供至少 1% 工具动作支持，则可进一步
+  检查 signed action credit 的学习信号。
+- 提交：Job `206205`，4×H800、48 CPU、384 GiB、2 小时上限，配置
+  `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。Slurm 在短期记录清除前观测为
+  `COMPLETED`、`ExitCode=0:0`、零 restart，12:26:27--12:31:10 HKT；worker elapsed
+  `261.8567s`。科学配置 SHA-256 为 `3f2b1438...ebb3`，未改 prompt、seed、sampling、
+  reward、credit 或停止阈值。
+- 执行证据：两步训练、两份 rollout、正式 analyzer 与唯一 `global_step_2` checkpoint
+  全部生成。两步 task score 分别为 `0.5625` / `0.53125`，总体 score 与 realized
+  cost-adjusted utility 均为 `0.546875`。两步 actor grad norm 分别为 `66.4326` /
+  `9.9353`，说明普通 outcome GRPO 更新执行；但 action-credit tool trajectory count、
+  applied credit 与 tool-call rate 两步均为 0。
+- 正式结果：64 行全部 direct，tool call `0/64`、rate `0.0`，低于冻结 `0.01`；机械
+  decision 为 `paired_signed_g1_stop_rule_triggered`，唯一 stop reason 为
+  `tool_call_rate_below_frozen_threshold`。10/10 rollout checks 全真，pair mismatch 与
+  judge failure 均为 0，protected split 未访问。由于没有 tool pairs，harmful/rescue/
+  no-effect/tool-success 和 mean signed credit 不可定义。
+- Checkpoint：4 model、4 optimizer、4 extra-state shards、`data.pt` 与 metadata 完整，
+  file payload 45,077,408,354 bytes，磁盘约 42 GiB；`latest_checkpointed_iteration=2`。
+  全部文件已重新读取并由
+  `vtool-g1-signed-checkpoint-job-206205-v1.sha256` 绑定。只完成结构与哈希验证，未另启
+  resume job，不声称 resume 已实际执行。
+- 产物：launch/execution/analysis/status/log SHA-256 分别为 `8a667ef0...cf5`、
+  `5f1b2809...11f3`、`d8c49508...6c21`、`22eb7f41...dd5be`、`f5def800...facec`；
+  step-1/2 rollout 为 `04ba5634...e6f` / `4b07ae08...55b`。完整审计见
+  `vtool-g1-signed-result-job-206205-v1.md`。
+- 结论：当前 sampled on-policy H5 路线因零 action support 无法激活其特有 credit，G1
+  正式失败并停止。按预注册规则不运行 zero/shuffled/outcome-only controls，不调整
+  seed/prompt/temperature/threshold 追结果；这些 controls 在没有 action token 时不能
+  区分 credit 因果效应。
+- 资源：12:41 HKT 队列为空；222,000 GPU 分钟总额、42,284 已用、179,716 剩余；
+  checkpoint 后持久盘可用 37,988,859,904 bytes（约 35.38 GiB）。
+- 下一步：在不提交 GPU 的前提下审计能在零 on-policy action support 下产生训练信号的
+  新 estimand/算法。简单 forced-call、tool bonus、SFT/curriculum 或 off-policy hints 已有
+  强文献碰撞，不能作为投稿方法；只有新候选通过一手文献与实现 gate 才进入实验。

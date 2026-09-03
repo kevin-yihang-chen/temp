@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 12:16（Asia/Hong_Kong）
+更新时间：2026-09-03 12:52（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -99,7 +99,9 @@ G0 当前已通过：protocol v1 冻结 arm-specific net-utility contrast、`lam
 dependency-free core 已实现 action/answer/observation/padding masks、pair provenance、
 token-local advantage、序列化与 deterministic derangement。G0 实现 commit 为
 `56b990c767973a8a23060d63293db8657254b35d`；upstream-shaped adapter/overlay 的
-pre-GPU contract 已通过，但尚未获得真实 rollout、optimizer step 或训练结果。
+pre-GPU contract 已通过。此后 Job `206205` 已完成真实 rollout、两步普通 outcome
+GRPO update 与完整 checkpoint，但 64 条 trajectory 中没有工具动作，因此 H5 特有的
+action-local credit 通路从未激活，不能据此获得方法性能证据。
 
 G0 后已做范围纠偏：VTool 只作为 Apache-2.0 的可运行 RL 骨架和 outcome-only
 comparator，不再审计 thought、pixel 或内部实现是否与 VTool 等价；该问题与 H5 的
@@ -107,9 +109,11 @@ comparator，不再审计 thought、pixel 或内部实现是否与 VTool 等价�
 token-local autograd、隔离 runtime import、official-train converter/processor、paired
 agent fake-server contract、单卡 H800 vLLM model-load/真实首轮 generation、72 行完整
 运行时数据审计、JSON-safe counterfactual rollout export、自动 stop-rule analyzer 与
-最终 Hydra resolved-config gate 均已通过。四卡 Job `206179` 进一步完成 actor/vLLM/
-agent-loop 初始化并到达第一次 actor-update dispatch，但在 DP batch chunk 的非张量字段
-类型合同处停止；仍无 optimizer step 或 H5 性能结果。
+最终 Hydra resolved-config gate 均已通过。四卡 Job `206179` 暴露并修复 DP batch
+chunk 类型合同；Job `206184` 暴露并修复 checkpoint 空间 gate；最终 Job `206205`
+完成两步运行。其正式结果为 tool call `0/64`、rate `0.0`，冻结分析器给出
+`paired_signed_g1_stop_rule_triggered`。这关闭当前 sampled on-policy H5 路线，不进入
+matched controls 或 G2。
 
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
@@ -120,8 +124,15 @@ checkpoint；因此这不是 H5 的正/负结果。两处同类断言已改为�
 全量回归、重新生成最终 Hydra gate 并以新 commit 绑定 worker 哈希。全量回归现已
 通过；修复 commit `8c0f6c010a4dfeb1bf01d955054da2287691896e` 上的 Hydra v13
 也以 59/59 checks 全真通过，launch manifest/resolved config SHA-256 分别为
-`29e24dab...8fe8` / `cda71307...ac43`。文档 commit 后将在最终 HEAD 再跑一次同一
-gate，然后实时复核资源并只重提 signed arm。
+`29e24dab...8fe8` / `cda71307...ac43`。当时计划是在最终 HEAD 再跑一次同一 gate，
+然后实时复核资源并只重提 signed arm；该步骤后来已由 Job `206205` 完成。
+
+2026-09-03 12:31 HKT，paired-signed Job `206205` 在 clean revision `9c6bdc4` 上
+正常完成。两步 task score 为 `0.5625` / `0.53125`，总体为 `0.546875`；64 条 rollout
+全部 direct，tool call `0/64`。两步 action-credit tool trajectory count 与 applied
+credit 均为 0；结构审计 10/10 全真，pair mismatch/judge failure 为 0，唯一
+`global_step_2` checkpoint 完整且全部文件已做 SHA-256 绑定。由于 `<1%` 是结果前冻结
+的停止规则，当前路线必须停止，不能通过改 prompt、seed、temperature 或阈值追结果。
 
 ### 顶会约束
 
@@ -139,8 +150,9 @@ gate，然后实时复核资源并只重提 signed arm。
 
 路线优先级：
 
-1. same-prefix counterfactual visual-action credit 的 novelty/implementation gate；
-2. 只有 gate 通过才进行 matched-control 3B RL smoke 与短程曲线；
+1. 审计能在零 on-policy action support 下定义学习信号、且不与现有 forced-tool SFT、
+   curriculum、tool bonus 或 off-policy supervision 碰撞的新 estimand/算法；
+2. 只有新颖性与 synthetic/CPU gate 通过，才冻结新的真实 GPU smoke；
 3. benchmark/causal audit 只能在规模、模型/工具广度与新 estimand 足以独立满足
    顶会标准时成为主路线，不能作为降低投稿档位的默认 fallback。
 
@@ -153,8 +165,10 @@ gate，然后实时复核资源并只重提 signed arm。
   不提交 GPU job。
 - 不再对 answer hidden-state/grounding probe、generic group-DRO/IRM 或 conformal
   threshold 进行局部变体搜索。
-- 若 action-credit novelty audit 或短程 matched-control gate 失败，关闭该路线，
-  重新选择实质方法/benchmark contribution；不以降低投稿目标作为完成条件。
+- 当前 sampled on-policy action-credit 路线已因 Job `206205` 的零工具调用正式关闭；
+  不运行无法区分 credit 效果的 zero/shuffled/outcome-only controls。
+- 新候选若在文献审计或最小 gate 失败，继续选择实质方法/benchmark contribution；
+  不以降低投稿目标作为完成条件。
 
 ## 紧接着的行动
 
@@ -211,5 +225,12 @@ gate，然后实时复核资源并只重提 signed arm。
     checks 全真、task score `0.53125`，但工具调用为 0；这只提高正式 stop 风险，不能
     替代两步判定。不可恢复 checkpoint 与可重建 Arrow cache 已按用户授权清理，当前
     空间约 77.1 GiB；资源合同提高为 submitter/worker 双重 64 GiB fail-closed gate。
-    验证并 clean commit 后只重提 signed arm。
-13. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+    当时计划是验证并 clean commit 后只重提 signed arm；该重提已完成。
+13. Job `206205` 已完成两步、64 行 rollout、正式 analyzer 与约 42 GiB 的唯一
+    `global_step_2` checkpoint。两步 score 为 `0.5625` / `0.53125`，但工具调用为
+    `0/64`，正式 decision 为 `paired_signed_g1_stop_rule_triggered`。checkpoint 和核心
+    小产物均已做内容哈希审计。
+14. 按冻结 G1 规则关闭当前 on-policy H5：不运行三组 controls，不改 seed/prompt/
+    temperature/threshold。下一步先完成零支持条件下新算法的一手文献碰撞与可行性审计，
+    审计前不提交 GPU。
+15. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。

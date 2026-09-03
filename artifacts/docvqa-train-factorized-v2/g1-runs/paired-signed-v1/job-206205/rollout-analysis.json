@@ -1,0 +1,66 @@
+{
+  "arm": "paired_signed_credit",
+  "checks": {
+    "all_step_files_present": true,
+    "audit_payloads_present": true,
+    "audit_schemas_match": true,
+    "direct_contracts_valid": true,
+    "pair_contracts_valid": true,
+    "rows_per_step_match": true,
+    "scores_valid": true,
+    "step_labels_match": true,
+    "tool_contracts_valid": true,
+    "trajectory_ids_unique": true
+  },
+  "config": "/userhome/cs3/yihangc/Documents/beyond-entropy/configs/vtool_action_credit_g1_v1.json",
+  "config_sha256": "3f2b143850023ecb8e9e7bb79ffcbf3684e736d0f194f0f863d96fa1d055ebb3",
+  "decision": "paired_signed_g1_stop_rule_triggered",
+  "expected_rows_per_step": 32,
+  "expected_steps": 2,
+  "failures": [],
+  "harmful_call_rate": null,
+  "judge_failure_count": 0,
+  "mean_signed_action_credit": null,
+  "no_effect_call_rate": null,
+  "pair_mismatch_count": 0,
+  "per_step": {
+    "1": {
+      "harmful_call_rate": null,
+      "mean_signed_action_credit": null,
+      "realized_cost_adjusted_utility_mean": 0.5625,
+      "rescue_rate": null,
+      "rows": 32,
+      "task_score_mean": 0.5625,
+      "tool_call_count": 0,
+      "tool_call_rate": 0.0
+    },
+    "2": {
+      "harmful_call_rate": null,
+      "mean_signed_action_credit": null,
+      "realized_cost_adjusted_utility_mean": 0.53125,
+      "rescue_rate": null,
+      "rows": 32,
+      "task_score_mean": 0.53125,
+      "tool_call_count": 0,
+      "tool_call_rate": 0.0
+    }
+  },
+  "protected_split_contents_accessed": false,
+  "realized_cost_adjusted_utility_mean": 0.546875,
+  "rescue_rate": null,
+  "rollout_dir": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/docvqa-train-factorized-v2/g1-runs/paired-signed-v1/job-206205/rollouts",
+  "rollout_sha256": {
+    "1.jsonl": "04ba5634e7298186724404ae0b88b1482f9c53358941d605e20775b50a65ae6f",
+    "2.jsonl": "4b07ae08172f170565f745e13612d17ae8638aa6264bd973acaeab4b0c1ea55b"
+  },
+  "rows": 64,
+  "schema": "vtool_action_credit_g1_rollout_analysis_v1",
+  "stop_reasons": [
+    "tool_call_rate_below_frozen_threshold"
+  ],
+  "task_score_mean": 0.546875,
+  "tool_call_count": 0,
+  "tool_call_rate": 0.0,
+  "tool_call_rate_frozen_minimum": 0.01,
+  "tool_success_rate": null
+}

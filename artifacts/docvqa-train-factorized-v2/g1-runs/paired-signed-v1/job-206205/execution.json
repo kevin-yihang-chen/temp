@@ -1,0 +1,7 @@
+{
+  "arm": "paired_signed_credit",
+  "elapsed_seconds": 261.85665702819824,
+  "exit_code": 0,
+  "schema": "vtool_action_credit_g1_execution_v1",
+  "slurm_job_id": "206205"
+}
