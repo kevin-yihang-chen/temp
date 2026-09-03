@@ -5,6 +5,7 @@ import pytest
 import beyond_entropy.semantic as semantic
 from beyond_entropy.dataset import group_by_decision, write_jsonl
 from beyond_entropy.qwen_semantic import (
+    build_multimodal_prompt_messages,
     extract_qwen_semantic_dataset,
     pool_multimodal_prompt_states,
     reshape_merged_visual_tokens,
@@ -219,6 +220,22 @@ def test_multimodal_prompt_pooling_separates_image_language_and_fused_state():
     assert result["fused_multimodal_state"].tolist() == [0.0, 4.0]
     assert result["multimodal_prompt_tokens"] == 4
     assert result["multimodal_image_tokens"] == 2
+
+
+def test_multimodal_prompt_messages_use_structured_system_content():
+    image = object()
+    messages = build_multimodal_prompt_messages(
+        image=image,
+        model_prompt="What is shown?",
+        system_prompt="You are helpful.",
+        min_pixels=4,
+        max_pixels=8,
+    )
+    assert messages[0] == {
+        "role": "system",
+        "content": [{"type": "text", "text": "You are helpful."}],
+    }
+    assert messages[1]["content"][0]["image"] is image
 
 
 def test_label_free_semantic_decision_is_enforced_for_frozen_inference():

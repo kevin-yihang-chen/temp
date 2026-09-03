@@ -40,7 +40,7 @@ backend_module="${repo_dir}/src/beyond_entropy/qwen_backend.py"
 semantic_module="${repo_dir}/src/beyond_entropy/qwen_semantic.py"
 features_module="${repo_dir}/src/beyond_entropy/predictability_features.py"
 audit_module="${repo_dir}/src/beyond_entropy/predictability_audit.py"
-run_root="${repo_dir}/artifacts/predictability-audit-v1/real-feature-smoke-v1"
+run_root="${repo_dir}/artifacts/predictability-audit-v1/real-feature-smoke-v2"
 model=Qwen/Qwen2.5-VL-3B-Instruct
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
 

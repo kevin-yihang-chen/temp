@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 19:42（Asia/Hong_Kong）
+更新时间：2026-09-03 19:51（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -40,6 +40,11 @@ image/source-disjoint 数据冻结现已完成：ChartQA 为 `3600/900/1000` sta
 零；test 在任何新 rollout 前冻结，分配未读取模型 outcome。下一步不是再想新方法，而是
 在 opened ChartQA 单行上完成真实 Qwen rollout + L0--L3 feature smoke，通过后再冻结分片
 与 GPU 预算并生成 train/validation outcomes；test 继续封存。
+
+首个 smoke Job `206627` 已证明单行 baseline + 四 crop rollout 可运行，但 L3 extractor
+在第二次模型加载后因 Transformers 要求结构化 system text block 而 fail-closed。plain
+与 structured 表示经真实 processor 验证生成完全相同的模板文本与 tokenization；当前只
+修正输入容器类型并重跑同一个工程 gate，不改变 prompt、模型、数据、指标或科学协议。
 
 当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
 threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。

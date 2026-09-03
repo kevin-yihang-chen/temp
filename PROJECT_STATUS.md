@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 19:42（Asia/Hong_Kong）
+更新时间：2026-09-03 19:51（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -28,11 +28,19 @@ source 与 decoded-RGB overlap 都为零；22,027 条 manifest 的 9,651 个实�
 test 均未做新 rollout。allocation report SHA-256 为
 `4c072355b75dcd7b228267f30c4790efa3d9facbdae1a731ac903ec351efb468`。
 
-下一步是 opened ChartQA 单行真实 GPU smoke：同一状态生成 baseline + 四个固定 UG crop
-outcomes，并导出 L0--L3 pre-action features；它只验证运行合同，不构成 benchmark 结果。
-smoke 脚本已实现并要求单 GPU、clean revision、输入/代码哈希、离线模型、原子产物、
-四次工具收费和邮件 `ALL` 状态通知。当前尚未提交新 Slurm job、没有新 GPU 运行或
-checkpoint；代码保持本地，除非用户再次明确要求，否则不 push。
+opened ChartQA 单行真实 GPU smoke Job `206627` 已运行 25 秒：baseline + 四个固定 UG crop
+全部完成并写出 5 条 rollout；随后 L3 extractor 的真实模型第二次加载成功，但当前
+Transformers `apply_chat_template(tokenize=True)` 不接受字符串形式的 system content，
+以 `TypeError: string indices must be integers` 退出。Slurm 状态为 `FAILED`、
+`ExitCode=1:0`；没有 feature、checkpoint、test 或科学 endpoint。这是运行合同 bug，
+不是方法负结果。
+
+真实 processor 预检确认，将 system content 改成结构化 text block 后，生成的模板文本与
+原字符串版本字节完全一致（共同 SHA-256
+`84690aefd39673f4a571ec0701059d140c50aa32bc1d44759f3aaf8ab3fd2d84`），且 tokenize 输出
+具有 `[1,317]` input IDs 与 `[1088,1176]` pixel values。修复已加入单测；下一步重跑同一
+单行 smoke。作业使用单 GPU、clean revision、输入/代码哈希、离线模型、原子产物、
+四次工具收费和邮件 `ALL` 状态通知。代码保持本地，除非用户再次明确要求，否则不 push。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均

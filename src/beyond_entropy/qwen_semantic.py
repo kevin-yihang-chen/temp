@@ -113,6 +113,40 @@ def pool_multimodal_prompt_states(
     }
 
 
+def build_multimodal_prompt_messages(
+    *,
+    image: Any,
+    model_prompt: str,
+    system_prompt: str,
+    min_pixels: int,
+    max_pixels: int,
+) -> list[dict[str, Any]]:
+    """Build processor-compatible messages for the pre-generation prompt."""
+
+    if not model_prompt or not system_prompt:
+        raise ValueError("model_prompt and system_prompt must be non-empty")
+    if min_pixels <= 0 or max_pixels < min_pixels:
+        raise ValueError("pixel limits must be positive and ordered")
+    return [
+        {
+            "role": "system",
+            "content": [{"type": "text", "text": system_prompt}],
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "image": image,
+                    "min_pixels": min_pixels,
+                    "max_pixels": max_pixels,
+                },
+                {"type": "text", "text": model_prompt},
+            ],
+        },
+    ]
+
+
 class Qwen25VLSemanticExtractor:
     """Extract pre-action Qwen question/image/ROI features with one image pass."""
 
@@ -273,21 +307,13 @@ class Qwen25VLSemanticExtractor:
             raise ValueError("model_prompt and system_prompt must be non-empty")
         with Image.open(image_path) as loaded:
             image = loaded.convert("RGB")
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "image": image,
-                            "min_pixels": self.min_pixels,
-                            "max_pixels": self.max_pixels,
-                        },
-                        {"type": "text", "text": model_prompt},
-                    ],
-                },
-            ]
+            messages = build_multimodal_prompt_messages(
+                image=image,
+                model_prompt=model_prompt,
+                system_prompt=system_prompt,
+                min_pixels=self.min_pixels,
+                max_pixels=self.max_pixels,
+            )
             inputs = self.processor.apply_chat_template(
                 messages,
                 tokenize=True,

@@ -1384,3 +1384,24 @@
 - 资源与下一步：本项 CPU-only，无 Slurm/GPU/checkpoint、无 test outcome。下一步只在
   opened ChartQA train 的一个状态上执行真实 Qwen baseline + 四 crop rollout 与 L0--L3
   extractor smoke；通过后再估算并冻结正式 train/validation 分片，test 仍不打开。
+
+## E-20260903-19：真实 L0--L3 单行 smoke 首次 fail-closed
+
+- 范围：Job `206627`，1×H800，opened ChartQA train 首行，code revision
+  `2bfb11b078e2cdaf6ac15b9a5cc1400c3bf86e35`；不读取新 test。Slurm 邮件为 `ALL`。
+- 已通过：Qwen2.5-VL-3B pinned revision 完成 baseline + 四个固定 UG crop，持久化 5 条
+  sibling rollout；manifest/rollout SHA-256 为 `136d9d89...f11` / `ede270f7...78db`。
+  第二次模型加载也完成，故不是 GPU、权重、离线 cache、rollout 或显存故障。
+- 失败：L3 `encode_multimodal_states` 调用当前 Transformers
+  `apply_chat_template(tokenize=True)` 时，system message 的字符串 `content` 被当成
+  content block 序列，报 `TypeError: string indices must be integers`。Job 在 25 秒后
+  `FAILED`、`ExitCode=1:0`；execution report SHA-256 `38628d96...45b1`。未产生 feature、
+  checkpoint、test outcome 或科学指标，因此不是方法负结果。
+- 修复合法性：同一真实 processor 上比较原字符串 system content 与结构化
+  `[{type:text,text:...}]`，两者模板文本字节完全一致，SHA-256 均为
+  `84690aefd39673f4a571ec0701059d140c50aa32bc1d44759f3aaf8ab3fd2d84`；结构化形式成功
+  得到 `[1,317]` input IDs 和 `[1088,1176]` pixel values。修复只改变 API 容器形状，
+  不改变 prompt token、模型、数据、特征定义或 protocol。
+- 验证与下一步：新增 structured-system helper 单测；相关 semantic/predictability tests、
+  mypy、Black、bash syntax 与 diff check 通过。下一步在新 artifact root 重跑同一单行
+  smoke；通过前不提交正式 train/validation，也不打开 test。
