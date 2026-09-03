@@ -20,6 +20,8 @@ required=(
   BE_PRED_BACKEND_SHA256
   BE_PRED_SEMANTIC_SHA256
   BE_PRED_FEATURES_SHA256
+  BE_PRED_POST_ACTION_SHA256
+  BE_PRED_IMAGE_OPS_SHA256
   BE_PRED_AUDIT_SHA256
   BE_PRED_SOURCE_MANIFEST_SHA256
   BE_PRED_PROTOCOL_SHA256
@@ -39,6 +41,8 @@ collector_cli="${repo_dir}/src/beyond_entropy/cli.py"
 backend_module="${repo_dir}/src/beyond_entropy/qwen_backend.py"
 semantic_module="${repo_dir}/src/beyond_entropy/qwen_semantic.py"
 features_module="${repo_dir}/src/beyond_entropy/predictability_features.py"
+post_action_module="${repo_dir}/src/beyond_entropy/predictability_post_action.py"
+image_ops_module="${repo_dir}/src/beyond_entropy/image_ops.py"
 audit_module="${repo_dir}/src/beyond_entropy/predictability_audit.py"
 model=Qwen/Qwen2.5-VL-3B-Instruct
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
@@ -95,6 +99,8 @@ check_hash "${collector_cli}" "${BE_PRED_CLI_SHA256}" "collector CLI"
 check_hash "${backend_module}" "${BE_PRED_BACKEND_SHA256}" backend
 check_hash "${semantic_module}" "${BE_PRED_SEMANTIC_SHA256}" semantic
 check_hash "${features_module}" "${BE_PRED_FEATURES_SHA256}" features
+check_hash "${post_action_module}" "${BE_PRED_POST_ACTION_SHA256}" "post-action probe"
+check_hash "${image_ops_module}" "${BE_PRED_IMAGE_OPS_SHA256}" "image operations"
 check_hash "${audit_module}" "${BE_PRED_AUDIT_SHA256}" audit
 
 if [[ -e "${run_dir}" ]]; then
@@ -256,7 +262,10 @@ from pathlib import Path
 
 from beyond_entropy.dataset import read_jsonl
 from beyond_entropy.predictability_audit import collapse_fixed_entropy_tool
-from beyond_entropy.predictability_features import load_predictability_feature_dataset
+from beyond_entropy.predictability_features import (
+    load_predictability_feature_dataset,
+    post_action_probe_examples_from_feature_dataset,
+)
 
 manifest, rollouts, features, output = map(
     lambda value: Path(value).resolve(), sys.argv[1:5]
@@ -264,6 +273,7 @@ manifest, rollouts, features, output = map(
 expected_states = int(sys.argv[5])
 records = read_jsonl(rollouts)
 payload, examples = load_predictability_feature_dataset(features)
+post_action_examples = post_action_probe_examples_from_feature_dataset(payload)
 if len(records) != 5 * expected_states or len(examples) != expected_states:
     raise SystemExit("smoke coverage differs from states with four sibling crops")
 outcomes = collapse_fixed_entropy_tool(records)
@@ -283,11 +293,24 @@ if not all(
     for value in example.inputs.feature_vector("l0_uncertainty")
 ):
     raise SystemExit("L0 confidence statistics are non-finite")
+post_action_dimensions = sorted(
+    {len(example.inputs.feature_vector()) for example in post_action_examples}
+)
+if post_action_dimensions != [6167]:
+    raise SystemExit(
+        f"post-action probe dimension contract failed: {post_action_dimensions}"
+    )
+if not all(
+    math.isfinite(value)
+    for example in post_action_examples
+    for value in example.inputs.feature_vector()
+):
+    raise SystemExit("post-action probe features are non-finite")
 metadata = payload["metadata"]
 if metadata.get("dataset_role") != "retrospective_smoke":
     raise SystemExit("feature smoke role changed")
 report = {
-    "schema": "predictability_feature_real_smoke_v1",
+    "schema": "predictability_feature_real_smoke_v2",
     "passed": True,
     "scientific_status": (
         f"engineering smoke on {os.environ.get('BE_PRED_BENCHMARK')} train role; "
@@ -304,6 +327,8 @@ report = {
         level: values[0] if len(values) == 1 else values
         for level, values in dimensions.items()
     },
+    "post_action_probe_dimension": post_action_dimensions[0],
+    "post_action_probe_deployable": False,
     "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
     "rollouts_sha256": hashlib.sha256(rollouts.read_bytes()).hexdigest(),
     "features_sha256": hashlib.sha256(features.read_bytes()).hexdigest(),

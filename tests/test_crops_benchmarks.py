@@ -16,6 +16,7 @@ from beyond_entropy.crops import (
     spatially_balanced_subset,
     ug_grid_boxes,
 )
+from beyond_entropy.image_ops import normalized_crop_resized_to_source
 from beyond_entropy.qwen_backend import Qwen25VLBackend
 from beyond_entropy.rollout import AgentState, GroundTruth
 from beyond_entropy.rollout import VisualObservation
@@ -37,6 +38,19 @@ def test_ug_grid_matches_reference_geometry():
     ]
 
 
+def test_backend_and_shared_normalized_crop_pixels_are_identical():
+    image = Image.new("RGB", (7, 5))
+    for y in range(5):
+        for x in range(7):
+            image.putpixel((x, y), (x * 20, y * 30, x + y))
+    bbox = BBox(0.1, 0.2, 0.8, 0.9)
+    observation = VisualObservation("ZOOM", "unused.png", "crop", bbox)
+    shared = normalized_crop_resized_to_source(image, bbox)
+    backend = Qwen25VLBackend._crop_pixels(image, observation)
+    assert shared.size == image.size
+    assert shared.tobytes() == backend.tobytes()
+
+
 def test_proposer_reads_dimensions_without_ground_truth(tmp_path):
     image_path = tmp_path / "wide.png"
     Image.new("RGB", (600, 400), "white").save(image_path)
@@ -44,7 +58,9 @@ def test_proposer_reads_dimensions_without_ground_truth(tmp_path):
     proposals = UGGridProposer(candidate_count=4)(state)
     assert len(proposals) == 4
     assert all(proposal.bbox.area == pytest.approx(1 / 6) for proposal in proposals)
-    assert all(proposal.pre_action_features["ug_grid_size"] == 15.0 for proposal in proposals)
+    assert all(
+        proposal.pre_action_features["ug_grid_size"] == 15.0 for proposal in proposals
+    )
 
 
 def test_chart_layout_proposer_covers_axes_center_and_right_without_labels(tmp_path):
@@ -65,7 +81,9 @@ def test_chart_layout_proposer_covers_axes_center_and_right_without_labels(tmp_p
         "chart-layout-02",
         "chart-layout-03",
     ]
-    assert all(proposal.pre_action_features["chart_layout"] == 1.0 for proposal in proposals)
+    assert all(
+        proposal.pre_action_features["chart_layout"] == 1.0 for proposal in proposals
+    )
 
 
 def test_manifest_and_reference_scorers(tmp_path):

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .dataset import group_by_decision, read_jsonl
+from .image_ops import normalized_crop_resized_to_source
 from .schema import ActionRecord, BBox
 from .semantic import require_torch, roi_pool_spatial_tokens
 
@@ -123,8 +124,29 @@ def build_multimodal_prompt_messages(
 ) -> list[dict[str, Any]]:
     """Build processor-compatible messages for the pre-generation prompt."""
 
+    return build_multimodal_observation_prompt_messages(
+        images=(image,),
+        model_prompt=model_prompt,
+        system_prompt=system_prompt,
+        min_pixels=min_pixels,
+        max_pixels=max_pixels,
+    )
+
+
+def build_multimodal_observation_prompt_messages(
+    *,
+    images: Sequence[Any],
+    model_prompt: str,
+    system_prompt: str,
+    min_pixels: int,
+    max_pixels: int,
+) -> list[dict[str, Any]]:
+    """Build a prompt for an ordered original-image plus crop observation list."""
+
     if not model_prompt or not system_prompt:
         raise ValueError("model_prompt and system_prompt must be non-empty")
+    if not images:
+        raise ValueError("multimodal prompt requires at least one image")
     if min_pixels <= 0 or max_pixels < min_pixels:
         raise ValueError("pixel limits must be positive and ordered")
     return [
@@ -135,12 +157,15 @@ def build_multimodal_prompt_messages(
         {
             "role": "user",
             "content": [
-                {
-                    "type": "image",
-                    "image": image,
-                    "min_pixels": min_pixels,
-                    "max_pixels": max_pixels,
-                },
+                *(
+                    {
+                        "type": "image",
+                        "image": image,
+                        "min_pixels": min_pixels,
+                        "max_pixels": max_pixels,
+                    }
+                    for image in images
+                ),
                 {"type": "text", "text": model_prompt},
             ],
         },
@@ -297,8 +322,14 @@ class Qwen25VLSemanticExtractor:
         image_path: str | Path,
         model_prompt: str,
         system_prompt: str,
+        crop_bbox: BBox | None = None,
     ) -> dict[str, Any]:
-        """Extract L3 states from one original-image prompt before generation."""
+        """Extract frozen prompt states before generation.
+
+        With ``crop_bbox=None`` this is the deployable original-image L3 state.
+        With a crop it reconstructs the backend's ordered original-plus-crop
+        prompt for the explicitly non-deployable post-action diagnostic.
+        """
 
         import torch  # type: ignore[import-not-found]
         from PIL import Image
@@ -307,8 +338,11 @@ class Qwen25VLSemanticExtractor:
             raise ValueError("model_prompt and system_prompt must be non-empty")
         with Image.open(image_path) as loaded:
             image = loaded.convert("RGB")
-            messages = build_multimodal_prompt_messages(
-                image=image,
+            images = [image]
+            if crop_bbox is not None:
+                images.append(normalized_crop_resized_to_source(image, crop_bbox))
+            messages = build_multimodal_observation_prompt_messages(
+                images=images,
                 model_prompt=model_prompt,
                 system_prompt=system_prompt,
                 min_pixels=self.min_pixels,

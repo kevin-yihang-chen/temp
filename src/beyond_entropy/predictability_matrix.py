@@ -32,6 +32,11 @@ from .predictability_modeling import (
     evaluate_frozen_audit_cell,
     fit_frozen_audit_cell,
 )
+from .predictability_post_action import (
+    PostActionProbeExample,
+    evaluate_frozen_post_action_probe,
+    fit_frozen_post_action_probe,
+)
 from .schema import ActionRecord
 
 
@@ -43,6 +48,9 @@ class BenchmarkAuditData:
     train: Sequence[AuditExample]
     validation: Sequence[AuditExample]
     test: Sequence[AuditExample]
+    post_action_train: Sequence[PostActionProbeExample]
+    post_action_validation: Sequence[PostActionProbeExample]
+    post_action_test: Sequence[PostActionProbeExample]
     validation_siblings: Sequence[ActionRecord]
     test_siblings: Sequence[ActionRecord]
 
@@ -54,6 +62,29 @@ class BenchmarkAuditData:
         }
         if any(not values for values in roles.values()):
             raise ValueError("all benchmark roles must be non-empty")
+        post_roles = {
+            "train": self.post_action_train,
+            "validation": self.post_action_validation,
+            "test": self.post_action_test,
+        }
+        if any(not values for values in post_roles.values()):
+            raise ValueError("all post-action probe roles must be non-empty")
+        for role in roles:
+            pre = {item.outcome.decision_id: item for item in roles[role]}
+            post = {item.outcome.decision_id: item for item in post_roles[role]}
+            if len(pre) != len(roles[role]) or len(post) != len(post_roles[role]):
+                raise ValueError("predictability role decision IDs must be unique")
+            if set(pre) != set(post):
+                raise ValueError("pre- and post-action role coverage differs")
+            for decision_id, item in pre.items():
+                counterpart = post[decision_id]
+                if (
+                    item.outcome != counterpart.outcome
+                    or item.image_rgb_sha256 != counterpart.image_rgb_sha256
+                ):
+                    raise ValueError(
+                        "pre- and post-action role labels or images differ"
+                    )
         if not self.validation_siblings or not self.test_siblings:
             raise ValueError("strong baseline sibling records must be non-empty")
         validate_fixed_tool_outcomes(
@@ -134,6 +165,79 @@ def run_predictability_matrix(
         name: strong_baseline_report(baseline_freezes[name], baseline_test_traces[name])
         for name in datasets
     }
+    post_action_reports: dict[str, Any] = {}
+    for benchmark in AUDIT_BENCHMARKS:
+        data = datasets[benchmark]
+        test_outcomes = [item.outcome for item in data.post_action_test]
+        test_traces = baseline_test_traces[benchmark]
+        answer_now = trace_by_name(test_traces, "answer_now")
+        strongest = trace_by_name(
+            test_traces, baseline_freezes[benchmark].strongest_name
+        )
+        post_seed_reports: list[dict[str, Any]] = []
+        for seed_index, seed in enumerate(seeds):
+            probe = fit_frozen_post_action_probe(
+                data.post_action_train,
+                data.post_action_validation,
+                seed=seed,
+                lambda_cost=lambda_cost,
+            )
+            predictions, metrics = evaluate_frozen_post_action_probe(
+                probe, data.post_action_test, lambda_cost=lambda_cost
+            )
+            candidate_calls = calls_at_threshold(predictions, probe.threshold)
+            post_seed_reports.append(
+                {
+                    "seed": seed,
+                    "model": "fixed_two_layer_mlp",
+                    "target": "direct_gain",
+                    "deployable": False,
+                    "input_dimension": probe.input_dimension,
+                    "validation": probe.validation_metrics,
+                    "test_policy": metrics,
+                    "test_prediction": prediction_metrics(
+                        test_outcomes,
+                        predictions,
+                        lambda_cost=lambda_cost,
+                    ),
+                    "test_curve": policy_curve(
+                        test_outcomes,
+                        predictions,
+                        lambda_cost=lambda_cost,
+                        call_rates=call_rates,
+                    ),
+                    "paired_vs_answer_now": paired_source_bootstrap_policy_difference(
+                        test_outcomes,
+                        candidate_calls,
+                        answer_now.outcomes,
+                        answer_now.calls,
+                        lambda_cost=lambda_cost,
+                        resamples=bootstrap_resamples,
+                        confidence_level=bootstrap_confidence,
+                        seed=bootstrap_seed + seed_index,
+                    ),
+                    "paired_vs_strongest_baseline": paired_source_bootstrap_policy_difference(
+                        test_outcomes,
+                        candidate_calls,
+                        strongest.outcomes,
+                        strongest.calls,
+                        lambda_cost=lambda_cost,
+                        resamples=bootstrap_resamples,
+                        confidence_level=bootstrap_confidence,
+                        seed=bootstrap_seed + seed_index,
+                    ),
+                }
+            )
+        post_action_reports[benchmark] = {
+            "schema": "predictability_post_action_probe_report_v1",
+            "role": "diagnostic_only_never_deployable",
+            "selection_role": "validation_only",
+            "seeds": post_seed_reports,
+            "mean_test_incremental_utility": mean(
+                float(item["test_policy"]["incremental_utility"])
+                for item in post_seed_reports
+            ),
+        }
     cell_reports: list[dict[str, Any]] = []
     completed_cells: list[tuple[str, str, str]] = []
     for benchmark in AUDIT_BENCHMARKS:
@@ -207,6 +311,7 @@ def run_predictability_matrix(
         "seeds": list(seeds),
         "split_audits": split_audits,
         "strong_baselines": baseline_reports,
+        "post_action_probe": post_action_reports,
         "matrix": matrix_completion_report(completed_cells),
         "cells": cell_reports,
     }

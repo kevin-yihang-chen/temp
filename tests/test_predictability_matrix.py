@@ -35,6 +35,13 @@ def test_partial_matrix_runner_preserves_incomplete_status() -> None:
         == report["strong_baselines"][cell["benchmark"]]["strongest_baseline"]
         for cell in report["cells"]
     )
+    assert set(report["post_action_probe"]) == {"chartqa", "docvqa", "hrbench"}
+    assert all(
+        value["role"] == "diagnostic_only_never_deployable"
+        and len(value["seeds"]) == 1
+        and value["seeds"][0]["target"] == "direct_gain"
+        for value in report["post_action_probe"].values()
+    )
 
 
 def test_formal_matrix_rejects_partial_grid() -> None:

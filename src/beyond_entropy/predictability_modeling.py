@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any, Protocol, Sequence
 
 from .predictability_audit import (
     PREDICTOR_LEVELS,
@@ -18,6 +18,11 @@ from .predictability_evaluation import (
     policy_metrics,
     select_validation_threshold,
 )
+
+
+class LabeledOutcomeExample(Protocol):
+    @property
+    def outcome(self) -> BinaryToolOutcome: ...
 
 
 @dataclass(frozen=True)
@@ -79,7 +84,7 @@ def _vector(inputs: PreActionInputs, *, level: str, variant: str) -> tuple[float
     return (values[index],)
 
 
-def _source_weights(examples: Sequence[AuditExample]) -> Any:
+def source_balanced_weights(examples: Sequence[LabeledOutcomeExample]) -> Any:
     import numpy as np  # type: ignore[import-not-found]
 
     counts = Counter(item.outcome.source_id for item in examples)
@@ -226,7 +231,7 @@ def fit_raw_target_model(
     )
     if rows.ndim != 2 or not np.isfinite(rows).all():
         raise ValueError("training features must form a finite two-dimensional matrix")
-    weights = _source_weights(examples)
+    weights = source_balanced_weights(examples)
     family = "linear" if level == "l0_uncertainty" or variant == "linear" else "mlp"
     if target == "direct_gain":
         estimators = {
@@ -308,7 +313,7 @@ class ScoreCalibrators:
 
     def predictions(
         self,
-        examples: Sequence[AuditExample],
+        examples: Sequence[LabeledOutcomeExample],
         scores: Sequence[float],
     ) -> list[Prediction]:
         import numpy as np  # type: ignore[import-not-found]
@@ -333,7 +338,7 @@ class ScoreCalibrators:
 
 
 def fit_score_calibrators(
-    examples: Sequence[AuditExample],
+    examples: Sequence[LabeledOutcomeExample],
     scores: Sequence[float],
     *,
     lambda_cost: float,
@@ -344,7 +349,7 @@ def fit_score_calibrators(
     if len(examples) != len(scores) or not examples:
         raise ValueError("calibration requires aligned non-empty examples and scores")
     rows = np.asarray(scores, dtype=np.float64).reshape(-1, 1)
-    weights = _source_weights(examples)
+    weights = source_balanced_weights(examples)
     labels = {
         "positive_net": [
             item.outcome.incremental_utility(lambda_cost) > 0.0 for item in examples

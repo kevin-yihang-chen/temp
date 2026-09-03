@@ -90,7 +90,29 @@
     "count": 1,
     "target": "direct_gain",
     "model": "fixed_two_layer_mlp",
-    "role": "diagnostic_only_never_deployable"
+    "hidden_layers": [
+      128,
+      32
+    ],
+    "role": "diagnostic_only_never_deployable",
+    "operationalized_at": "2026-09-03T21:05:00+08:00",
+    "feature_format_version": 2,
+    "inputs": {
+      "baseline_confidence": "entropy_max_probability_top1_top2_margin",
+      "fixed_tool_trace": "entropy_max_probability_top1_top2_margin_for_all_four_crops_in_ascending_action_id_order",
+      "selected_action": "entropy_selected_action_one_hot_and_normalized_bbox",
+      "selected_crop_state": "frozen_qwen_final_layer_language_visual_fused_prompt_states_from_ordered_original_plus_selected_crop_before_generation"
+    },
+    "excludes": [
+      "ground_truth",
+      "correct_before",
+      "correct_after",
+      "answer_after_text",
+      "target_derived_features"
+    ],
+    "selection": "threshold_and_score_calibration_on_validation_only",
+    "test_use": "single_frozen_diagnostic_evaluation",
+    "policy_interpretation": "retrospective_privileged_upper_bound_not_a_physically_deployable_gate"
   },
   "training": {
     "seeds": [

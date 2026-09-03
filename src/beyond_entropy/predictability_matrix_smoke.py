@@ -9,13 +9,18 @@ from typing import Sequence
 from .predictability_audit import AUDIT_BENCHMARKS, BinaryToolOutcome, PreActionInputs
 from .predictability_matrix import BenchmarkAuditData, run_predictability_matrix
 from .predictability_modeling import AuditExample
+from .predictability_post_action import (
+    PostActionProbeExample,
+    PostActionProbeInputs,
+)
 from .schema import ActionRecord, BBox
 
 
 def _synthetic_role(
     *, benchmark_index: int, role_index: int, count: int
-) -> tuple[list[AuditExample], list[ActionRecord]]:
+) -> tuple[list[AuditExample], list[PostActionProbeExample], list[ActionRecord]]:
     examples: list[AuditExample] = []
+    post_action_examples: list[PostActionProbeExample] = []
     records: list[ActionRecord] = []
     for index in range(count):
         value = ((index * 7 + role_index) % 10) / 9.0
@@ -52,6 +57,37 @@ def _synthetic_role(
         )
         rgb_hash = f"{benchmark_index * 100000 + role_index * 1000 + index + 1:064x}"
         examples.append(AuditExample(inputs, outcome, rgb_hash))
+        post_action_examples.append(
+            PostActionProbeExample(
+                PostActionProbeInputs(
+                    state_id=inputs.state_id,
+                    image_id=inputs.image_id,
+                    source_id=inputs.source_id,
+                    selected_action_id="ug-grid-00",
+                    baseline_confidence=(
+                        inputs.entropy_before,
+                        inputs.max_probability,
+                        inputs.top1_top2_margin,
+                    ),
+                    candidate_post_action_confidence=tuple(
+                        feature_value
+                        for action_index in range(4)
+                        for feature_value in (
+                            0.1 + 0.1 * action_index,
+                            max(0.0, min(1.0, value)),
+                            max(0.0, min(1.0, value / 2.0)),
+                        )
+                    ),
+                    selected_bbox=(0.0, 0.0, 0.5, 0.5),
+                    selected_action_one_hot=(1.0, 0.0, 0.0, 0.0),
+                    pooled_language_state=(value, 1.0),
+                    pooled_visual_state=(1.0, value),
+                    fused_multimodal_state=(value, value),
+                ),
+                outcome,
+                rgb_hash,
+            )
+        )
         records.append(
             ActionRecord(
                 state_id=inputs.state_id,
@@ -108,25 +144,28 @@ def _synthetic_role(
                     metadata={},
                 )
             )
-    return examples, records
+    return examples, post_action_examples, records
 
 
 def build_synthetic_datasets() -> dict[str, BenchmarkAuditData]:
     result = {}
     for benchmark_index, benchmark in enumerate(AUDIT_BENCHMARKS):
-        train, _ = _synthetic_role(
+        train, post_action_train, _ = _synthetic_role(
             benchmark_index=benchmark_index, role_index=0, count=40
         )
-        validation, validation_siblings = _synthetic_role(
+        validation, post_action_validation, validation_siblings = _synthetic_role(
             benchmark_index=benchmark_index, role_index=1, count=20
         )
-        test, test_siblings = _synthetic_role(
+        test, post_action_test, test_siblings = _synthetic_role(
             benchmark_index=benchmark_index, role_index=2, count=20
         )
         result[benchmark] = BenchmarkAuditData(
             train=train,
             validation=validation,
             test=test,
+            post_action_train=post_action_train,
+            post_action_validation=post_action_validation,
+            post_action_test=post_action_test,
             validation_siblings=validation_siblings,
             test_siblings=test_siblings,
         )

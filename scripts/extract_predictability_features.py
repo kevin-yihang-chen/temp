@@ -9,7 +9,7 @@ from beyond_entropy.predictability_features import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Extract frozen pre-action L0--L3 features"
+        description="Extract frozen pre-action L0--L3 and diagnostic post-action features"
     )
     parser.add_argument("--rollouts", required=True)
     parser.add_argument("--manifest", required=True)
@@ -27,6 +27,12 @@ def main() -> None:
     parser.add_argument("--min-pixels", type=int, default=256 * 28 * 28)
     parser.add_argument("--max-pixels", type=int, default=768 * 28 * 28)
     parser.add_argument("--checkpoint-interval", type=int, default=32)
+    parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument(
+        "--shard-key", choices=("state_id", "source_id"), default="state_id"
+    )
+    parser.add_argument("--shard-namespace", default="")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--allow-missing-prompt-hash", action="store_true")
     parser.add_argument("--allow-online", action="store_true")
@@ -47,6 +53,10 @@ def main() -> None:
         checkpoint_interval=args.checkpoint_interval,
         resume=args.resume,
         require_prompt_hash=not args.allow_missing_prompt_hash,
+        shard_count=args.shard_count,
+        shard_index=args.shard_index,
+        shard_key=args.shard_key,
+        shard_namespace=args.shard_namespace,
     )
 
 

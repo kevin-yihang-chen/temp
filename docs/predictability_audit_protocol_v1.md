@@ -35,6 +35,23 @@ question 数倒数加权并归一到均值 1。每个 raw score 只在 validatio
 另只允许一个 post-action oracle probe：固定两层 MLP 预测 direct gain。它仅用于诊断
 “信息是否只在工具执行后才出现”，永远不能作为 deployable 方法或主结果。
 
+### Post-action probe 操作化修订（2026-09-03 21:05 HKT）
+
+该 probe 在正式 validation/test outcome 生成前固定为唯一一个 hidden sizes 为
+`[128,32]` 的两层 MLP，不做 linear/architecture/feature 变体搜索。输入严格来自固定工具
+已经执行后的可观察信息：baseline entropy/max probability/margin；按 action ID 排列的四个
+crop 各自 entropy/max probability/margin；entropy 选中 action 的 one-hot 与 normalized
+bbox；以及在相同 Qwen 上用“原图、选中 crop、原 model prompt”顺序重建的 generation 前
+final-layer pooled language/visual/fused prompt states。它不读取 ground truth、
+`correct_before/correct_after`、生成答案文本或 target 派生量。
+
+训练 target 仅为 direct gain；source weighting、validation score calibration、threshold、
+三个固定 seeds 和 test 一次性评估规则与 deployable probes 相同。其 call mask 是拥有
+post-action 信息后的 retrospective privileged policy，因此不具有物理可部署性，也不能与
+pre-action 方法混称为新 router；只用于判断 PIVOT 条件中“额外视觉证据出现后是否才有可用
+utility signal”。feature bundle 因此升级为 format v2，pre-action typed view 仍完全忽略并
+拒绝吸收这个独立 namespace。
+
 ## 数据与泄漏边界
 
 每个 benchmark 必须具有 train/validation/test 三个角色，按 `source_id` 与解码后 RGB

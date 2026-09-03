@@ -9,14 +9,24 @@ from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any, Mapping, Sequence
 
-from .predictability_audit import BinaryToolOutcome, PreActionInputs
 from .dataset import group_by_decision, read_jsonl
-from .predictability_audit import collapse_fixed_entropy_tool
+from .predictability_audit import (
+    BinaryToolOutcome,
+    PreActionInputs,
+    collapse_fixed_entropy_tool,
+)
+from .predictability_baselines import FROZEN_UG_ACTION_IDS
 from .predictability_modeling import AuditExample
+from .predictability_post_action import (
+    PostActionProbeExample,
+    PostActionProbeInputs,
+)
 from .qwen_semantic import Qwen25VLSemanticExtractor
+from .schema import ActionRecord
+from .sharding import SHARD_ALGORITHM, stable_shard_index
 
 
-PREDICTABILITY_FEATURE_FORMAT_VERSION = 1
+PREDICTABILITY_FEATURE_FORMAT_VERSION = 2
 SHALLOW_FEATURE_NAMES = (
     "log1p_question_characters",
     "log1p_question_tokens",
@@ -121,6 +131,7 @@ def build_predictability_feature_row(
     baseline_backend: Mapping[str, Any],
     semantic: Mapping[str, Any],
     multimodal: Mapping[str, Any],
+    post_action_probe: Mapping[str, Any],
 ) -> dict[str, Any]:
     if int(baseline_backend.get("num_observations", -1)) != 1:
         raise ValueError(
@@ -153,6 +164,13 @@ def build_predictability_feature_row(
             multimodal["fused_multimodal_state"], name="fused_multimodal_state"
         ),
     }
+    post_payload: dict[str, Any] = dict(post_action_probe)
+    for diagnostic_name in (
+        "multimodal_prompt_tokens",
+        "multimodal_image_tokens",
+        "multimodal_language_tokens",
+    ):
+        post_payload.pop(diagnostic_name, None)
     raw = {
         "state_id": outcome.state_id,
         "image_id": outcome.image_id,
@@ -160,16 +178,97 @@ def build_predictability_feature_row(
         "replicate_id": outcome.replicate_id,
         "image_rgb_sha256": image_rgb_sha256,
         "pre_action": pre_action,
+        "post_action_probe": post_payload,
         "outcome": asdict(outcome),
         "feature_diagnostics": {
             "multimodal_prompt_tokens": int(multimodal["multimodal_prompt_tokens"]),
             "multimodal_image_tokens": int(multimodal["multimodal_image_tokens"]),
             "multimodal_language_tokens": int(multimodal["multimodal_language_tokens"]),
+            "post_action_multimodal_prompt_tokens": int(
+                post_action_probe["multimodal_prompt_tokens"]
+            ),
+            "post_action_multimodal_image_tokens": int(
+                post_action_probe["multimodal_image_tokens"]
+            ),
+            "post_action_multimodal_language_tokens": int(
+                post_action_probe["multimodal_language_tokens"]
+            ),
         },
     }
     # Round-trip through the strict view before allowing serialization.
     PreActionInputs.from_untrusted_mapping(raw)
+    post_inputs = PostActionProbeInputs.from_untrusted_mapping(raw)
+    if post_inputs.selected_action_id != outcome.selected_action_id:
+        raise ValueError(
+            "post-action probe and fixed-tool outcome select different actions"
+        )
     return raw
+
+
+def build_post_action_probe_features(
+    siblings: Sequence[ActionRecord],
+    *,
+    multimodal: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build label-free features observable only after the fixed tool runs."""
+
+    answers = [item for item in siblings if item.action_type == "ANSWER"]
+    zooms = sorted(
+        (item for item in siblings if item.action_type == "ZOOM"),
+        key=lambda item: item.action_id,
+    )
+    if len(answers) != 1 or tuple(item.action_id for item in zooms) != (
+        FROZEN_UG_ACTION_IDS
+    ):
+        raise ValueError("post-action probe requires one answer and four frozen crops")
+    baseline_backend = answers[0].metadata.get("baseline_backend")
+    if not isinstance(baseline_backend, Mapping):
+        raise ValueError("post-action probe baseline backend metadata is missing")
+    selected = min(zooms, key=lambda item: (item.entropy_after, item.action_id))
+    if selected.candidate_bbox is None:
+        raise ValueError("post-action selected crop is missing a bbox")
+    candidate_confidence: list[float] = []
+    for item in zooms:
+        backend = item.metadata.get("action_backend")
+        if (
+            not isinstance(backend, Mapping)
+            or int(backend.get("num_observations", -1)) != 2
+        ):
+            raise ValueError("post-action crop backend metadata is missing or invalid")
+        candidate_confidence.extend(
+            (
+                float(item.entropy_after),
+                float(backend["mean_maximum_token_probability"]),
+                float(backend["mean_top1_top2_token_probability_margin"]),
+            )
+        )
+    selected_index = FROZEN_UG_ACTION_IDS.index(selected.action_id)
+    return {
+        "selected_action_id": selected.action_id,
+        "candidate_action_ids": list(FROZEN_UG_ACTION_IDS),
+        "baseline_confidence": (
+            float(answers[0].entropy_before),
+            float(baseline_backend["mean_maximum_token_probability"]),
+            float(baseline_backend["mean_top1_top2_token_probability_margin"]),
+        ),
+        "candidate_post_action_confidence": tuple(candidate_confidence),
+        "selected_bbox": tuple(selected.candidate_bbox.to_list()),
+        "selected_action_one_hot": tuple(
+            float(index == selected_index) for index in range(4)
+        ),
+        "pooled_language_state": _vector(
+            multimodal["pooled_language_state"], name="pooled_language_state"
+        ),
+        "pooled_visual_state": _vector(
+            multimodal["pooled_visual_state"], name="pooled_visual_state"
+        ),
+        "fused_multimodal_state": _vector(
+            multimodal["fused_multimodal_state"], name="fused_multimodal_state"
+        ),
+        "multimodal_prompt_tokens": int(multimodal["multimodal_prompt_tokens"]),
+        "multimodal_image_tokens": int(multimodal["multimodal_image_tokens"]),
+        "multimodal_language_tokens": int(multimodal["multimodal_language_tokens"]),
+    }
 
 
 def audit_example_from_feature_row(value: Mapping[str, Any]) -> AuditExample:
@@ -195,6 +294,18 @@ def audit_example_from_feature_row(value: Mapping[str, Any]) -> AuditExample:
     )
 
 
+def post_action_probe_example_from_feature_row(
+    value: Mapping[str, Any],
+) -> PostActionProbeExample:
+    inputs = PostActionProbeInputs.from_untrusted_mapping(value)
+    audit_example = audit_example_from_feature_row(value)
+    return PostActionProbeExample(
+        inputs=inputs,
+        outcome=audit_example.outcome,
+        image_rgb_sha256=audit_example.image_rgb_sha256,
+    )
+
+
 def validate_predictability_feature_dataset(
     value: Mapping[str, Any]
 ) -> list[AuditExample]:
@@ -206,6 +317,9 @@ def validate_predictability_feature_dataset(
     if not isinstance(raw_rows, list) or not raw_rows:
         raise ValueError("feature dataset rows must be a non-empty list")
     examples = [audit_example_from_feature_row(row) for row in raw_rows]
+    post_action_examples = [
+        post_action_probe_example_from_feature_row(row) for row in raw_rows
+    ]
     identities = [
         (item.outcome.state_id, item.outcome.replicate_id) for item in examples
     ]
@@ -217,7 +331,23 @@ def validate_predictability_feature_dataset(
     }
     if any(len(values) != 1 for values in dimensions.values()):
         raise ValueError(f"feature dimensions changed across rows: {dimensions}")
+    post_dimensions = {
+        len(item.inputs.feature_vector()) for item in post_action_examples
+    }
+    if len(post_dimensions) != 1:
+        raise ValueError(
+            f"post-action probe dimensions changed across rows: {post_dimensions}"
+        )
     return examples
+
+
+def post_action_probe_examples_from_feature_dataset(
+    value: Mapping[str, Any],
+) -> list[PostActionProbeExample]:
+    validate_predictability_feature_dataset(value)
+    raw_rows = value["rows"]
+    assert isinstance(raw_rows, list)
+    return [post_action_probe_example_from_feature_row(row) for row in raw_rows]
 
 
 def load_predictability_feature_dataset(
@@ -269,7 +399,15 @@ def _compact_feature_row_for_torch(value: dict[str, Any]) -> dict[str, Any]:
     for name, item in pre_action.items():
         if isinstance(item, tuple):
             pre_action[name] = torch.tensor(item, dtype=torch.float32)
-    return {**value, "pre_action": pre_action}
+    post_action = dict(value["post_action_probe"])
+    for name, item in post_action.items():
+        if isinstance(item, tuple):
+            post_action[name] = torch.tensor(item, dtype=torch.float32)
+    return {
+        **value,
+        "pre_action": pre_action,
+        "post_action_probe": post_action,
+    }
 
 
 def extract_predictability_feature_dataset(
@@ -289,6 +427,10 @@ def extract_predictability_feature_dataset(
     checkpoint_interval: int = 32,
     resume: bool = False,
     require_prompt_hash: bool = True,
+    shard_count: int = 1,
+    shard_index: int = 0,
+    shard_key: str = "state_id",
+    shard_namespace: str = "",
 ) -> dict[str, Any]:
     """Extract the frozen L0--L3 contract from original-image state only."""
 
@@ -296,6 +438,10 @@ def extract_predictability_feature_dataset(
         raise ValueError("unsupported dataset role")
     if checkpoint_interval <= 0:
         raise ValueError("checkpoint_interval must be positive")
+    if shard_count <= 0 or not 0 <= shard_index < shard_count:
+        raise ValueError("invalid predictability feature shard index/count")
+    if shard_key not in {"state_id", "source_id"}:
+        raise ValueError("feature shard key must be state_id or source_id")
     rollout_file = Path(rollouts_path).resolve()
     manifest_file = Path(manifest_path).resolve()
     destination = Path(output_path).resolve()
@@ -307,10 +453,22 @@ def extract_predictability_feature_dataset(
     }
     manifest = _read_manifest(manifest_file)
     state_ids = {state_id for state_id, _ in grouped}
-    if set(manifest) != state_ids:
-        raise ValueError("manifest and rollout state coverage differ")
+    expected_state_ids = {
+        state_id
+        for state_id, row in manifest.items()
+        if stable_shard_index(
+            str(row[shard_key]),
+            shard_count,
+            namespace=shard_namespace,
+        )
+        == shard_index
+    }
+    if not expected_state_ids:
+        raise ValueError("predictability feature shard contains no manifest states")
+    if expected_state_ids != state_ids:
+        raise ValueError("manifest shard and rollout state coverage differ")
     metadata = {
-        "schema": "predictability_feature_metadata_v1",
+        "schema": "predictability_feature_metadata_v2",
         "dataset_role": dataset_role,
         "rollouts": str(rollout_file),
         "rollouts_sha256": hashlib.sha256(rollout_file.read_bytes()).hexdigest(),
@@ -326,12 +484,28 @@ def extract_predictability_feature_dataset(
         "local_files_only": local_files_only,
         "checkpoint_interval": checkpoint_interval,
         "require_prompt_hash": require_prompt_hash,
+        "shard_algorithm": SHARD_ALGORITHM,
+        "shard_count": shard_count,
+        "shard_index": shard_index,
+        "shard_key": shard_key,
+        "shard_namespace": shard_namespace,
+        "manifest_examples_before_sharding": len(manifest),
+        "shard_states": len(expected_state_ids),
         "code_revision": os.environ.get("BE_CODE_REVISION"),
         "shallow_feature_names": list(SHALLOW_FEATURE_NAMES),
         "l3_pooling": {
             "language": "mean final-layer non-image attended prompt tokens",
             "visual": "mean final-layer image tokens",
             "fused": "final attended prompt token before generation",
+        },
+        "post_action_probe": {
+            "deployable": False,
+            "target": "direct_gain",
+            "model": "fixed_two_layer_mlp_128_32",
+            "observation": "ordered_original_plus_entropy_selected_crop",
+            "confidence_trace": "all_four_frozen_crops_in_action_id_order",
+            "generated_answer_text_included": False,
+            "ground_truth_or_correctness_included": False,
         },
         "outcomes_included_as_separate_non_input_namespace": True,
     }
@@ -353,6 +527,13 @@ def extract_predictability_feature_dataset(
             "max_pixels",
             "checkpoint_interval",
             "require_prompt_hash",
+            "shard_algorithm",
+            "shard_count",
+            "shard_index",
+            "shard_key",
+            "shard_namespace",
+            "manifest_examples_before_sharding",
+            "shard_states",
         ):
             if loaded_metadata.get(field) != metadata[field]:
                 raise ValueError(f"resume metadata mismatch for {field}")
@@ -384,6 +565,7 @@ def extract_predictability_feature_dataset(
     )
     cached_state_id: str | None = None
     cached_state: tuple[dict[str, Any], dict[str, Any], str] | None = None
+    cached_post_multimodal: dict[str, dict[str, Any]] = {}
     for position, (key, siblings) in enumerate(pending, start=1):
         baseline = next(item for item in siblings if item.action_type == "ANSWER")
         manifest_row = manifest[baseline.state_id]
@@ -420,6 +602,7 @@ def extract_predictability_feature_dataset(
                 system_prompt=str(backend["system_prompt"]),
             )
             cached_state_id = baseline.state_id
+            cached_post_multimodal = {}
             cached_state = (
                 semantic,
                 multimodal,
@@ -428,6 +611,30 @@ def extract_predictability_feature_dataset(
         if cached_state is None:
             raise AssertionError("state feature cache was not initialized")
         semantic, multimodal, rgb_hash = cached_state
+        selected = min(
+            (item for item in siblings if item.action_type == "ZOOM"),
+            key=lambda item: (item.entropy_after, item.action_id),
+        )
+        if selected.candidate_bbox is None:
+            raise ValueError("fixed tool selected a crop without a bbox")
+        if selected.action_id not in cached_post_multimodal:
+            action_backend = selected.metadata.get("action_backend")
+            if not isinstance(action_backend, Mapping):
+                raise ValueError("selected crop action_backend metadata is missing")
+            if action_backend.get("system_prompt") != backend.get("system_prompt"):
+                raise ValueError("baseline and selected crop system prompts differ")
+            cached_post_multimodal[selected.action_id] = (
+                extractor.encode_multimodal_states(
+                    image_path=baseline.original_image,
+                    model_prompt=model_prompt,
+                    system_prompt=str(action_backend["system_prompt"]),
+                    crop_bbox=selected.candidate_bbox,
+                )
+            )
+        post_action_probe = build_post_action_probe_features(
+            siblings,
+            multimodal=cached_post_multimodal[selected.action_id],
+        )
         rows.append(
             _compact_feature_row_for_torch(
                 build_predictability_feature_row(
@@ -439,6 +646,7 @@ def extract_predictability_feature_dataset(
                     baseline_backend=backend,
                     semantic=semantic,
                     multimodal=multimodal,
+                    post_action_probe=post_action_probe,
                 )
             )
         )

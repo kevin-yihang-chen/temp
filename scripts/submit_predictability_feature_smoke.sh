@@ -52,8 +52,10 @@ collector_cli="${repo_dir}/src/beyond_entropy/cli.py"
 backend_module="${repo_dir}/src/beyond_entropy/qwen_backend.py"
 semantic_module="${repo_dir}/src/beyond_entropy/qwen_semantic.py"
 features_module="${repo_dir}/src/beyond_entropy/predictability_features.py"
+post_action_module="${repo_dir}/src/beyond_entropy/predictability_post_action.py"
+image_ops_module="${repo_dir}/src/beyond_entropy/image_ops.py"
 audit_module="${repo_dir}/src/beyond_entropy/predictability_audit.py"
-run_root="${repo_dir}/artifacts/predictability-audit-v1/real-feature-smoke-${benchmark}-${smoke_count}-v1"
+run_root="${repo_dir}/artifacts/predictability-audit-v1/real-feature-smoke-${benchmark}-${smoke_count}-v2"
 model=Qwen/Qwen2.5-VL-3B-Instruct
 model_revision=66285546d2b821cf421d4f5eb2576359d3770cd3
 
@@ -108,7 +110,7 @@ PY
 digest() {
   sha256sum "$1" | cut -d ' ' -f 1
 }
-export_args="ALL,BE_PRED_EXPECTED_CODE_REVISION=${code_revision},BE_PRED_EXPECTED_GPU_TOKEN=${gpu_token},BE_PRED_BENCHMARK=${benchmark},BE_PRED_RUN_ROOT=${run_root},BE_PRED_SMOKE_COUNT=${smoke_count},BE_PRED_WORKER_SHA256=$(digest "${worker}"),BE_PRED_CLI_SHA256=$(digest "${collector_cli}"),BE_PRED_BACKEND_SHA256=$(digest "${backend_module}"),BE_PRED_SEMANTIC_SHA256=$(digest "${semantic_module}"),BE_PRED_FEATURES_SHA256=$(digest "${features_module}"),BE_PRED_AUDIT_SHA256=$(digest "${audit_module}"),BE_PRED_SOURCE_MANIFEST_SHA256=$(digest "${source_manifest}"),BE_PRED_PROTOCOL_SHA256=$(digest "${protocol}")"
+export_args="ALL,BE_PRED_EXPECTED_CODE_REVISION=${code_revision},BE_PRED_EXPECTED_GPU_TOKEN=${gpu_token},BE_PRED_BENCHMARK=${benchmark},BE_PRED_RUN_ROOT=${run_root},BE_PRED_SMOKE_COUNT=${smoke_count},BE_PRED_WORKER_SHA256=$(digest "${worker}"),BE_PRED_CLI_SHA256=$(digest "${collector_cli}"),BE_PRED_BACKEND_SHA256=$(digest "${backend_module}"),BE_PRED_SEMANTIC_SHA256=$(digest "${semantic_module}"),BE_PRED_FEATURES_SHA256=$(digest "${features_module}"),BE_PRED_POST_ACTION_SHA256=$(digest "${post_action_module}"),BE_PRED_IMAGE_OPS_SHA256=$(digest "${image_ops_module}"),BE_PRED_AUDIT_SHA256=$(digest "${audit_module}"),BE_PRED_SOURCE_MANIFEST_SHA256=$(digest "${source_manifest}"),BE_PRED_PROTOCOL_SHA256=$(digest "${protocol}")"
 
 submission=$(
   /usr/local/slurm/bin/sbatch \

@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .image_ops import normalized_crop_resized_to_source
 from .rollout import AgentState, ModelOutput, VisualObservation
 
 
@@ -225,21 +226,7 @@ class Qwen25VLBackend:
     def _crop_pixels(image: Any, observation: VisualObservation) -> Any:
         if observation.bbox is None:
             return image.copy()
-        width, height = image.size
-        bbox = observation.bbox
-        pixel_box = (
-            round(bbox.x1 * width),
-            round(bbox.y1 * height),
-            round(bbox.x2 * width),
-            round(bbox.y2 * height),
-        )
-        crop = image.crop(pixel_box)
-        resampling = getattr(getattr(type(image), "Resampling", None), "LANCZOS", None)
-        if resampling is None:
-            from PIL import Image
-
-            resampling = Image.Resampling.LANCZOS
-        return crop.resize((width, height), resampling)
+        return normalized_crop_resized_to_source(image, observation.bbox)
 
     def _messages(
         self,
