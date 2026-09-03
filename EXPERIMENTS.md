@@ -734,3 +734,50 @@
 - 下一步：在报告绑定后的最终 clean commit 复跑 Hydra gate，再实时复核资源并只提交
   4×H800、最多 2-step paired-signed G1。只有其真实 rollout、pair validity、tool-call
   rate、optimizer 与 checkpoint 通过冻结 gate，才启动 matched controls。
+
+## E-20260903-04：四卡 G1 DataProto 分片失败与 exact runtime 修复
+
+- 假设：actor SDPA 真实图片 smoke 通过后，clean revision
+  `89978bddbb950d9aeebc416d969de2b602ce9a67` 能完成至少一个 paired rollout、
+  token-local action-credit optimizer step，并保存可恢复 checkpoint。
+- 提交：Job `206179`，4×H800、48 CPU、384 GiB、2 小时上限，
+  `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。提交时间 10:47:54 HKT，
+  10:53:38--10:57:06 在 `gpucluster-g1` 运行；Slurm 终态 `FAILED`、
+  `ExitCode=1:0`、`RunTime=00:03:28`、`Restarts=0`，约占用 13.9 GPU-minutes。
+- 新证据：四个 FSDP actor 均以 SDPA/no-remove-padding 加载 3.75B 模型，四个 vLLM
+  engine 和 agent-loop worker 启动，trainer 显示 `Training Progress: 0/2` 并进入第一
+  次 `_update_actor`。因此 Job `206170` 的 FlashAttention 阻塞已真实解除；Ray dashboard
+  MetricsHead EOF 之后 core 正常启动，不是本次终止原因。
+- 结果边界：没有 `rollouts/1.jsonl`、optimizer step、checkpoint 或 rollout-analysis；
+  worker status 为 `failed`、`scientific_decision=not_available`。不能解释为 H5 正/负
+  结果，也不能推断真实 tool-call rate、pair validity 或 credit 趋势。
+- 根因：`inject_token_local_action_credit()` 新增
+  `vtool_action_credit_donor_trajectory_id` 时使用 Python `list`。pinned verl
+  `DataProto.chunk()` 在按 4 个 data-parallel rank dispatch 前要求每个
+  `non_tensor_batch` value 都是 `numpy.ndarray`，因此在 actor optimizer 实际执行前
+  触发 `AssertionError`。相同 runtime 的 2-row `DataProto.chunk(2)` 已稳定复现：其余
+  6 个字段均为 ndarray，唯一 donor 字段为 list。
+- 修复：commit `ea489f7c520880ab087af761a620b03f357b18e0` 把 donor IDs 改为
+  object ndarray。新增 `smoke_vtool_action_credit_dataproto.py`，在冻结训练环境构造
+  rescue/direct/harm/direct 四行 batch，执行真实 credit injection 和
+  `DataProto.chunk(4)`，验证全部非张量字段、四个等分 shard、donor identity、action/
+  answer masks、tool count 与无 CUDA 初始化共 7 项。submitter 在 `sbatch` 前执行；
+  worker 在 Ray/模型启动前复查并把 JSON 写入日志，任一 false 均 fail closed。
+- 复现与验证：修复前 exact runtime 命令稳定报同一 `AssertionError`；修复后生成四个
+  size-1 shard，decision 为 `vtool_action_credit_dataproto_chunk_passed`、7/7 checks
+  全真。全仓 `519 passed, 35 skipped`、目标回归、4-file mypy、compileall、Black
+  formatter API、两份 shell syntax、credential scan 与 `git diff --check` 全部通过。
+  protected split 未访问、模型权重未加载，科学数据、prompt、reward、seed、sampling、
+  credit、threshold 与 controls 均未改变。
+- 产物：worker status/log/launch manifest/execution SHA-256 分别为
+  `9e9c21b0115c28239c71bcb390c078ae8631566a615c963f48cd983c5d42a07d`、
+  `1afe38677d13a8330942876376d3c0e0f0c27c01c5d6795f37aba580937c7906`、
+  `ddb406766190a5d51c339af12165e3cf4fb2dbcb525e19a99633bd93196594ff`、
+  `e660444d63c112e24a0257d81c1783b31e08965aa7b8294d480ecbfc3855f1b2`。
+- 当前最佳结果：H5 仍无性能指标；工程 gate 从单卡 actor forward 前进到真实四卡
+  actor-update dispatch，失败点已由 exact CPU runtime contract 覆盖。
+- 下一步：提交本条中文记录后，在最终 clean revision 重跑 Hydra resolved-config 与
+  DataProto chunk gate，实时检查 quota/queue/disk，再以同一科学配置仅重提 signed G1。
+  只有真实 rollout、pair/tool-call、optimizer/checkpoint gate 通过，才补齐并运行
+  zero/shuffled/outcome-only controls；否则按预注册规则停止或仅修复新证据明确指向的
+  工程错误。

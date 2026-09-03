@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 10:44（Asia/Hong_Kong）
+更新时间：2026-09-03 11:09（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -15,7 +15,8 @@ classifier 或 threshold 没有科学价值。
 失败点是 deployable pre-action prediction 无法跨 source 稳定识别稀疏正收益尾部。
 当前最有价值的产出是严格的 stop/where 因子化与负结果证据，而不是一个成功策略。
 下一步已转为机制不同的视觉工具 RL action-local credit feasibility，而不是给旧
-gate 换特征。该方向现在只完成 protocol 与纯 synthetic G0，尚无训练趋势或正式
+gate 换特征。该方向已从 protocol/纯 synthetic G0 前进到真实四卡 actor、vLLM、
+agent loop 和第一次 actor-update dispatch，但尚无 optimizer step、训练趋势或正式
 方法结果，不能据此提高项目成功概率。
 
 2026-09-02 已做范围纠偏：VTool 只保留为 Apache-2.0 的可运行 RL 骨架和
@@ -45,6 +46,15 @@ smoke；这发生在任何科学结果前，不改变数据、方法、reward、
 `0122689050a4bfc91df0a55dd154dc52d7fce83d` 绑定进 G1 launcher。该证据消除了当前
 attention backend/首次前向阻塞，但仍未覆盖 Ray FSDP2、optimizer、paired rollout 或
 checkpoint，因而只授权有界四卡 G1，不是方法效果证据。
+
+四卡 Job `206179` 随后使用 clean revision `89978bd` 真正启动：四个 FSDP actor、
+四个 vLLM engine 和 agent-loop worker 均完成初始化，权重加载与 SDPA 路径通过，
+trainer 进入 `0/2` 并调用第一次 `_update_actor`。它在把 batch 分给 4 个 DP rank 时
+失败，因为本项目注入的 donor trajectory IDs 是 Python `list`，而 pinned verl
+`DataProto.chunk()` 要求全部 `non_tensor_batch` 值为 `numpy.ndarray`。本地已用同一
+runtime 稳定复现；commit `ea489f7c520880ab087af761a620b03f357b18e0` 改为 object
+ndarray，并新增真实 4-way chunk preflight，提交前及 worker 启动前均 fail closed。
+该作业没有持久化 rollout、optimizer step、checkpoint 或 H5 指标，仍不是方法负结果。
 
 ## 已完成的证据链
 
@@ -153,6 +163,13 @@ checkpoint，因而只授权有界四卡 G1，不是方法效果证据。
     分别为 `48e2f12f...8742` / `1bf6acdf...634b` / `8905da36...b93`；未执行
     optimizer，未访问 protected split。该报告已由 commit `0122689` 以内容哈希和
     语义合同绑定进 G1 launcher。
+23. 四卡 paired-signed Job `206179` 于 2026-09-03 10:53:38--10:57:06 HKT
+    在 `gpucluster-g1` 运行，Slurm 终态 `FAILED`、`ExitCode=1:0`、运行 3 分 28 秒、
+    零 restart。它首次证明四个 actor/vLLM/agent-loop 可进入 actor update dispatch；
+    随后的 `DataProto.chunk()` 因唯一新增 donor 字段为 list 而断言失败。status/log/
+    launch/execution SHA-256 分别为 `9e9c21b0...a07d`、`1afe3867...7906`、
+    `ddb40676...94ff`、`e660444d...f1b2`。修复后的同 runtime 4-way synthetic chunk
+    7/7 checks 全真，且 submission/worker 均新增该 CPU preflight；没有 H5 性能结果。
 
 ## 当前最佳结果与解释边界
 
@@ -176,7 +193,7 @@ checkpoint，因而只授权有界四卡 G1，不是方法效果证据。
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
 | HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
-| 真实 paired rollout 与最多 2-step optimizer smoke | 尚未产生；只有 actor smoke 通过后才重提 |
+| 真实 paired rollout 与最多 2-step optimizer smoke | Job 206179 到达首个 actor-update dispatch；DataProto 类型错误前零 optimizer step，已修复并新增 exact preflight |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -188,17 +205,10 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 10:44 HKT，Job `206174` 已终止；最近一次查询未显示其他用户任务。
-该任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm
-状态通知范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行，所有修改
-只在本地 commit，未 push GitHub。
-
-Job `206174` 前的 clean-revision Hydra v15 decision 为
-`vtool_action_credit_g1_hydra_dry_run_passed`；launch manifest/resolved config
-SHA-256 为 `18862e0c...64ea` / `c98129d8...0b90`，61 项检查全部为真，manifest 绑定
-revision `86a345a`、空工作树和精确 SDPA/no-remove-padding 命令。actor report 加入配置
-后又完成 dirty-worktree 诊断 gate；最终四卡提交前必须在报告绑定后的 clean revision
-复跑，确保 manifest 同时包含 actor report SHA-256。
+截至 2026-09-03 11:09 HKT，Job `206179` 已终止，实时 `squeue -u yihangc` 为空。
+该任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/FAIL 在 Slurm
+状态通知范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行，修复已在
+本地 commit `ea489f7`，未 push GitHub。
 
 ## 已关闭的路线
 
@@ -242,16 +252,20 @@ revision `86a345a`、空工作树和精确 SDPA/no-remove-padding 命令。actor
   attention dispatch。单设 SDPA 又会被 remove-padding monkey patch 绕回
   FlashAttention，因此新 smoke 必须覆盖完整权重加载、verl patch 和真实图片前向；
   仅 meta gate 不能授权四卡训练。
+- Job `206179` 暴露出 synthetic gradient smoke 没有覆盖 verl 在 DP dispatch 前对
+  `non_tensor_batch` 的 ndarray 类型合同。根因已用同 runtime `DataProto.chunk(2)`
+  稳定复现并修复；新的 4-way preflight 在 `sbatch` 前和 worker 启动前都执行，避免
+  再用模型初始化验证纯 CPU 可检出的类型错误。
 - 既有观测的 1%--3% tool-call rate 可能让 action pairs 过稀；若真实 G1 smoke 低于
   1%，不能靠事后改 prompt/temperature 制造正结果，必须重新审计 exploration 假设。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。Job `206174` 已消除 FSDP actor 默认 FlashAttention2 的
-已知加载/首次前向阻塞，且通过报告内容哈希绑定。下一步在最终 clean commit 上复跑
-完整 Hydra gate、实时复核 quota/queue/disk，然后以同一 backend 设置重新提交唯一
-4×H800、最多 2-step paired-signed G1；该作业本身仍是 Ray FSDP2、paired rollout、
-optimizer 与 checkpoint 的最小真实 gate。
+不再做 VTool 等价性审计。Job `206179` 已证明真实四卡栈可到达 actor-update dispatch，
+并暴露、复现、修复唯一的 donor ndarray 类型错误。下一步在最终 clean docs commit 上
+复跑完整 Hydra gate 与 exact 4-way DataProto preflight，实时复核 quota/queue/disk，
+然后以完全相同的科学配置重新提交唯一 4×H800、最多 2-step paired-signed G1；该作业
+仍是 paired rollout、optimizer 与 checkpoint 的最小真实 gate。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。

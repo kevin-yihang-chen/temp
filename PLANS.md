@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 10:44（Asia/Hong_Kong）
+更新时间：2026-09-03 11:09（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -107,8 +107,9 @@ comparator，不再审计 thought、pixel 或内部实现是否与 VTool 等价�
 token-local autograd、隔离 runtime import、official-train converter/processor、paired
 agent fake-server contract、单卡 H800 vLLM model-load/真实首轮 generation、72 行完整
 运行时数据审计、JSON-safe counterfactual rollout export、自动 stop-rule analyzer 与
-最终 Hydra resolved-config gate 均已通过。尚未获得真实 paired tool rollout 或
-optimizer step，因此 H5 仍停在“G1 已可重新提交”，不是处于训练中。
+最终 Hydra resolved-config gate 均已通过。四卡 Job `206179` 进一步完成 actor/vLLM/
+agent-loop 初始化并到达第一次 actor-update dispatch，但在 DP batch chunk 的非张量字段
+类型合同处停止；仍无 optimizer step 或 H5 性能结果。
 
 2026-09-03 00:56 HKT，重提的 paired-signed Job `205902` 获得资源后在 worker
 前置检查中同秒退出。原因是 shell 中的 jq 对象全真断言误写为
@@ -198,4 +199,10 @@ gate，然后实时复核资源并只重提 signed arm。
    tool-call rate、pair validity 与训练稳定性通过冻结 stop rules，才以同一 revision
    顺序运行 zero/shuffled/outcome-only controls；失败则按预注册规则停止，不调整
    prompt、seed、temperature 或阈值追结果。
-11. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
+11. 四卡 Job `206179` 已越过此前 backend 阻塞，到达首个 `_update_actor`，随后因
+   action-credit adapter 把 donor trajectory IDs 作为 Python list 注入而在 verl
+   `DataProto.chunk()` 失败。该 runtime 要求全部 `non_tensor_batch` 值为 ndarray；
+   同一 runtime 的最小复现已从断言失败变为 4-way chunk 7/7 checks 全真。commit
+   `ea489f7c520880ab087af761a620b03f357b18e0` 修复类型并把 exact CPU smoke 加入
+   submitter/worker。科学配置和 stop rules 未变；最终 clean Hydra gate 后允许一次重提。
+12. 其他 validation/test/reserve 继续封存；本地修改不 push GitHub。
