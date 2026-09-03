@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 10:34（Asia/Hong_Kong）
+更新时间：2026-09-03 10:44（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -188,10 +188,13 @@ gate，然后实时复核资源并只重提 signed arm。
    `attn_implementation=sdpa` 且 `use_remove_padding=false`；这属于首次科学结果前的
    对称运行时修复，不改变方法或比较定义。
 10. commit `22b89a5ca872356c621203f7bb724042c846a091` 已加入 fail-closed 配置审计和
-   单 H800 真实图片 actor-load/forward smoke。无权重 meta gate 已确认 Qwen actor、
-   model/text/vision 三层 SDPA dispatch 与原生 attention forward；Hydra 61 项配置
-   检查全真。下一步只提交该单卡 smoke；通过后才重新提交唯一 4×H800、最多 2
-   optimizer-step 的 paired-signed G1。只有实际
+   单 H800 真实图片 actor-load/forward smoke。Job `206174` 随后以 `COMPLETED`、
+   `ExitCode=0:0`、50 秒、零 restart 通过：完整 Qwen 权重与 verl 多模态 patch 在
+   SDPA/no-remove-padding 下对 966-token 真实图片输入完成前向，6/6 checks 全真，
+   峰值已分配显存约 7.42 GiB。报告已由 commit
+   `0122689050a4bfc91df0a55dd154dc52d7fce83d` 绑定进 G1 launcher。下一步在最终
+   clean revision 复跑 gate，再重新提交唯一 4×H800、最多 2 optimizer-step 的
+   paired-signed G1。只有实际
    tool-call rate、pair validity 与训练稳定性通过冻结 stop rules，才以同一 revision
    顺序运行 zero/shuffled/outcome-only controls；失败则按预注册规则停止，不调整
    prompt、seed、temperature 或阈值追结果。

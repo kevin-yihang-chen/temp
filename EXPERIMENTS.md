@@ -691,3 +691,46 @@
 - 下一步：先在最终 clean commit 复跑 Hydra gate 并提交唯一 1×H800 actor-load/真实
   图片前向 smoke。只有权重加载、patch、forward、显存与 artifact checks 全部通过，
   才重提 4×H800 paired-signed G1；若失败，按新错误定位，不重复四卡作业。
+
+## E-20260903-03：单 H800 HF actor SDPA 真实图片前向 gate
+
+- 假设：冻结的 `attn_implementation=sdpa`、`use_remove_padding=false` 不仅能构造
+  meta actor，还能在 H800 上加载完整 Qwen2.5-VL-3B 权重，应用与 FSDP actor 相同的
+  AutoModel dispatch 和 verl multimodal monkey patch，并对真实图片输入完成有限值
+  forward；若失败则不得再次提交四卡 G1。
+- 提交：Job `206174`，clean revision
+  `86a345a73c5df74eb7748fd402b1c46fc0a46bc9`，1×H800、8 CPU、64 GiB、30 分钟
+  上限，`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。Slurm submit/start
+  均为 2026-09-03 10:39:34 HKT，10:40:24 结束；终态 `COMPLETED`、
+  `ExitCode=0:0`、`RunTime=00:00:50`、`Restarts=0`。Job `206173` 只是
+  `sbatch --test-only` 的预测编号，不是运行任务。
+- 输入/绑定：模型 revision `66285546d2b821cf421d4f5eb2576359d3770cd3`，两块
+  权重与 runtime commit/patch hashes 均在 worker 重新验证；单行 official-train
+  dataset SHA-256 `0de5b142...66199`，1 张原图、966 prompt tokens，无 video，未访问
+  protected split。code/config/smoke/dataset hashes、runtime status 与唯一输出路径均
+  fail closed。
+- 结果：`vtool_hf_actor_gpu_forward_smoke_passed`，6/6 checks 全真。actor class 为
+  `Qwen2_5_VLForConditionalGeneration`，model/text/vision 的 resolved attention
+  backend 均为 SDPA；Qwen 原生 attention forward 未被替换，verl multimodal model
+  forward 已应用。权重加载 3.1566 秒，真实图片 forward 0.8175 秒，logits shape
+  `[1,966,151936]`，最后 token logits 全部有限。GPU 总显存 85,017,493,504 bytes，
+  peak allocated 7,972,130,816 bytes（约 7.42 GiB）。未执行 optimizer step。
+- 产物：report SHA-256
+  `48e2f12f0fcb910d87761b950af26ba83836033b1b2a0e9149b7a4720a318742`；worker status
+  `1bf6acdf2228b08a023d303c67d3689926a86d5c6472ab73eb73ee9c129c634b`；Slurm log
+  `8905da36ff9b1ec0411359c05d4071fac55c2096d67d37dd903908bbdc67cb93`。
+- 证据绑定：commit `0122689050a4bfc91df0a55dd154dc52d7fce83d` 把 report 路径/
+  SHA-256 加入冻结 G1 配置；launcher 还要求 model/runtime/data/backend/remove-padding、
+  smoke script hash、真实权重、H800、prompt/logits shape、forward time、显存与全部 checks
+  一致，并把该 report hash 写入 launch manifest。篡改或缺失会在模型启动前失败。
+- 验证：报告绑定后的目标测试通过；完整仓库 `518 passed, 34 skipped`；15-file mypy、
+  compileall、Black in-memory formatter、相关 shell/JSON、隔离环境 `pip check`、
+  credential scan 与 `git diff --check` 全部通过。
+- 解释边界：本项证明 SDPA/no-remove-padding 可执行且显存宽裕，消除了 Job `206170`
+  的已知 backend 阻塞；没有覆盖 FSDP2 sharding、Ray 多进程、torch compile、paired
+  generation、action-credit optimizer 或 checkpoint，因此不是 H5 性能结果。
+- 当前最佳结果：仍无 H5 task/utility/harmful-call 指标；工程证据从 meta dispatch
+  前进到完整权重真实图片 forward。
+- 下一步：在报告绑定后的最终 clean commit 复跑 Hydra gate，再实时复核资源并只提交
+  4×H800、最多 2-step paired-signed G1。只有其真实 rollout、pair validity、tool-call
+  rate、optimizer 与 checkpoint 通过冻结 gate，才启动 matched controls。

@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 10:34（Asia/Hong_Kong）
+更新时间：2026-09-03 10:44（Asia/Hong_Kong）
 
 ## 总体判断
 
@@ -39,6 +39,12 @@ FlashAttention 路径。commit `22b89a5ca872356c621203f7bb724042c846a091` 因此
 实验臂共同冻结 SDPA 并关闭 remove-padding，加入真实图片 HF actor-load/forward 单卡
 smoke；这发生在任何科学结果前，不改变数据、方法、reward、seed、prompt 或对照。
 无权重 meta gate 已通过，Hydra 对新增两项在内的 61 项 resolved-config checks 全真。
+单 H800 Job `206174` 已进一步加载完整 Qwen 权重、应用 verl 多模态 patch，并用
+966-token official-train 真实图片输入完成一次 actor forward；6/6 checks 全真，
+`COMPLETED`、`ExitCode=0:0`、50 秒、零 restart。actor report 已由 commit
+`0122689050a4bfc91df0a55dd154dc52d7fce83d` 绑定进 G1 launcher。该证据消除了当前
+attention backend/首次前向阻塞，但仍未覆盖 Ray FSDP2、optimizer、paired rollout 或
+checkpoint，因而只授权有界四卡 G1，不是方法效果证据。
 
 ## 已完成的证据链
 
@@ -137,6 +143,16 @@ smoke；这发生在任何科学结果前，不改变数据、方法、reward、
     `Qwen2_5_VLForConditionalGeneration`，model/text/vision 三层均为 SDPA，原生
     attention forward 保留，verl 多模态 model forward 仍应用；report SHA-256
     `6e6afe77...bda5`。该报告不加载权重，仍需单 H800 真实图片前向 gate。
+22. 单 H800 HF actor smoke Job `206174` 使用 clean revision `86a345a`，于
+    2026-09-03 10:39:34--10:40:24 HKT 在 `gpucluster-g1` 运行，Slurm 终态
+    `COMPLETED`、`ExitCode=0:0`、`RunTime=00:00:50`、`Restarts=0`。完整权重加载
+    3.16 秒，966-token 真实图片 actor forward 0.82 秒；logits shape 为
+    `[1,966,151936]` 且最后 token logits 全部有限，GPU peak allocated
+    7,972,130,816 bytes。model/text/vision 三层 backend 均为 SDPA，原生 attention
+    forward 保留，verl multimodal model forward 已应用。报告/status/log SHA-256
+    分别为 `48e2f12f...8742` / `1bf6acdf...634b` / `8905da36...b93`；未执行
+    optimizer，未访问 protected split。该报告已由 commit `0122689` 以内容哈希和
+    语义合同绑定进 G1 launcher。
 
 ## 当前最佳结果与解释边界
 
@@ -159,7 +175,7 @@ smoke；这发生在任何科学结果前，不改变数据、方法、reward、
 | 官方 train license/identity 与可执行 runtime | 已通过；不要求 VTool pixel 等价 |
 | 真实 converter 与 paired fake-server | 已通过 |
 | 单卡 H800 vLLM model-load/generation preflight | Job 205784 通过；仅授权有界 G1 |
-| HF actor backend/真实图片前向 | Job 206170 暴露 FA2 缺依赖；SDPA+关闭 remove-padding 的 meta gate 已通过，单 H800 smoke 待提交 |
+| HF actor backend/真实图片前向 | Job 206174 已完整通过；报告已绑定，授权有界四卡 G1 |
 | 真实 paired rollout 与最多 2-step optimizer smoke | 尚未产生；只有 actor smoke 通过后才重提 |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
@@ -172,18 +188,17 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 10:34 HKT，活动队列为空。Job `206170` 已终止，worker status 为
-`failed`、exit 1、开始/结束 epoch 为 `1788400515` / `1788400638`，科学 decision
-不可用。任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，因此开始与
-失败均在 Slurm 状态通知范围内；不能据此确认邮件客户端实际送达。Slurm controller
-随后已清除该历史 job ID，终态由当时的实时查询、不可变 worker status 与日志共同
-保留。当前没有训练在后台运行，修复只在本地 commit，未 push GitHub。
+截至 2026-09-03 10:44 HKT，Job `206174` 已终止；最近一次查询未显示其他用户任务。
+该任务配置了 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`，BEGIN/END 在 Slurm
+状态通知范围内；不能据此确认邮件客户端实际送达。当前没有训练在后台运行，所有修改
+只在本地 commit，未 push GitHub。
 
-SDPA pre-commit Hydra gate decision 为
+Job `206174` 前的 clean-revision Hydra v15 decision 为
 `vtool_action_credit_g1_hydra_dry_run_passed`；launch manifest/resolved config
-SHA-256 为 `75a55090...73f` / `afceaece...8bb`，61 项检查全部为真。由于这是 dirty
-worktree 上的诊断 gate，它只证明 override 可解析；提交单卡 smoke 前还会在最终 clean
-revision 复跑，不能把它当作正式 G1 授权。
+SHA-256 为 `18862e0c...64ea` / `c98129d8...0b90`，61 项检查全部为真，manifest 绑定
+revision `86a345a`、空工作树和精确 SDPA/no-remove-padding 命令。actor report 加入配置
+后又完成 dirty-worktree 诊断 gate；最终四卡提交前必须在报告绑定后的 clean revision
+复跑，确保 manifest 同时包含 actor report SHA-256。
 
 ## 已关闭的路线
 
@@ -232,12 +247,11 @@ revision 复跑，不能把它当作正式 G1 授权。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计。Job `206170` 的失败已定位为 FSDP actor 默认
-FlashAttention2 与环境缺依赖，并确认 remove-padding 会形成第二条隐式 FA2 路径；
-不属于科学负结果。下一步在最终 clean commit 上复跑配置 gate、实时复核
-quota/queue/disk，然后只提交 1×H800、30 分钟上限的 HF actor-load/真实图片前向
-smoke。只有该 smoke 完整通过，才以同一 backend 设置重新提交唯一 4×H800、最多
-2-step paired-signed G1。
+不再做 VTool 等价性审计。Job `206174` 已消除 FSDP actor 默认 FlashAttention2 的
+已知加载/首次前向阻塞，且通过报告内容哈希绑定。下一步在最终 clean commit 上复跑
+完整 Hydra gate、实时复核 quota/queue/disk，然后以同一 backend 设置重新提交唯一
+4×H800、最多 2-step paired-signed G1；该作业本身仍是 Ray FSDP2、paired rollout、
+optimizer 与 checkpoint 的最小真实 gate。
 若真实 G1 的 tool-call rate、pair validity 或训练稳定性触发冻结 stop rule，就关闭或
 只修复可明确定位的工程问题；只有它们通过，才以同一 revision 运行
 zero/shuffled/outcome-only controls，不事后改 prompt、seed、temperature 或指标。
