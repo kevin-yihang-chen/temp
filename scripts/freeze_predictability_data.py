@@ -330,20 +330,36 @@ def hrbench_image_digest(encoded: str) -> str:
         return image_digest(loaded.convert("RGB"))
 
 
+def iter_hrbench_rows(parquet_path: Path) -> Iterable[dict[str, Any]]:
+    import pyarrow.parquet as parquet  # type: ignore[import-untyped]
+
+    parquet_file = parquet.ParquetFile(parquet_path, memory_map=True)
+    for batch in parquet_file.iter_batches(batch_size=1, use_threads=False):
+        values = batch.to_pylist()
+        if len(values) != 1 or not isinstance(values[0], dict):
+            raise ValueError("HRBench parquet streaming produced an invalid row")
+        yield values[0]
+
+
 def freeze_hrbench(
     *, root: Path, stage: Path, config: Mapping[str, Any], seed: int
 ) -> dict[str, Any]:
-    import pyarrow.parquet as parquet  # type: ignore[import-untyped]
-
     parquet_path = checked_path(root, config["parquet"])
-    rows = parquet.read_table(parquet_path, memory_map=True).to_pylist()
+    rows: list[dict[str, Any]] = []
+    image_ids_by_item: dict[str, str] = {}
+    for row in iter_hrbench_rows(parquet_path):
+        item_id = str(row["index"])
+        if item_id in image_ids_by_item:
+            raise ValueError(f"duplicate HRBench index: {item_id}")
+        image_ids_by_item[item_id] = hrbench_image_digest(str(row["image"]))
+        rows.append({key: value for key, value in row.items() if key != "image"})
     if len(rows) != 800:
         raise ValueError(f"expected 800 HRBench rows, found {len(rows)}")
     identities = [
         SplitIdentity(
             item_id=str(row["index"]),
             source_id=f"hrbench:{row['index']}",
-            image_rgb_sha256=hrbench_image_digest(str(row["image"])),
+            image_rgb_sha256=image_ids_by_item[str(row["index"])],
         )
         for row in rows
     ]
@@ -363,7 +379,15 @@ def freeze_hrbench(
             for index, row in enumerate(rows)
             if assignments[str(row["index"])] == role
         ]
-        selected_rows = [rows[index] for index in source_indices]
+        selected_items = {str(rows[index]["index"]) for index in source_indices}
+        selected_rows = (
+            row
+            for row in iter_hrbench_rows(parquet_path)
+            if str(row["index"]) in selected_items
+        )
+        selected_image_ids = [
+            image_ids_by_item[str(rows[index]["index"])] for index in source_indices
+        ]
         exported = export_benchmark_manifest(
             selected_rows,
             source_indices=source_indices,
@@ -376,6 +400,7 @@ def freeze_hrbench(
             dataset_split=str(config["split"]),
             selection="source/RGB connected-component deterministic allocation",
             preserve_hrbench_image_encoding=True,
+            decoded_image_ids=selected_image_ids,
         )
         reports[role] = {
             "manifest": str(Path(exported["manifest"]).relative_to(stage)),

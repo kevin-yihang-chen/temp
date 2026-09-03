@@ -475,7 +475,7 @@ def test_export_hrbench_can_preserve_source_image_encoding(tmp_path):
         "image": base64.b64encode(encoded).decode(),
     }
     result = export_benchmark_manifest(
-        [row],
+        iter([row]),
         source_indices=[7],
         task="hrbench8k",
         dataset_id="DreamMr/HR-Bench",
@@ -483,12 +483,27 @@ def test_export_hrbench_can_preserve_source_image_encoding(tmp_path):
         output_dir=tmp_path,
         seed=29,
         preserve_hrbench_image_encoding=True,
+        decoded_image_ids=["a" * 64],
     )
     payload = json.loads((tmp_path / "manifest.jsonl").read_text())
     exported_path = tmp_path / payload["image_path"]
     assert exported_path.suffix == ".jpg"
     assert exported_path.read_bytes() == encoded
     assert result["image_storage"] == "source_encoding"
+
+
+def test_export_rejects_precomputed_image_ids_outside_preserved_hrbench(tmp_path):
+    with pytest.raises(ValueError, match="require preserved HRBench"):
+        export_benchmark_manifest(
+            [],
+            source_indices=[],
+            task="chartqa",
+            dataset_id="dataset",
+            dataset_revision="revision",
+            output_dir=tmp_path,
+            seed=0,
+            decoded_image_ids=[],
+        )
 
 
 def test_collect_qwen_rejects_changed_manifest_before_model_load(tmp_path):

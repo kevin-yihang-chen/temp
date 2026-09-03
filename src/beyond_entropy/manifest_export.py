@@ -8,8 +8,9 @@ import json
 import random
 import sys
 from dataclasses import dataclass
+from itertools import zip_longest
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from .cross_benchmark import (
     build_docvqa_prompt,
@@ -471,7 +472,7 @@ def _manifest_payload(
 
 
 def export_benchmark_manifest(
-    rows: Sequence[Mapping[str, Any]],
+    rows: Iterable[Mapping[str, Any]],
     *,
     source_indices: Sequence[int],
     task: str,
@@ -484,19 +485,34 @@ def export_benchmark_manifest(
     selection: str = "seeded round-robin stratified sample",
     selection_metadata: Mapping[str, Any] | None = None,
     preserve_hrbench_image_encoding: bool = False,
+    decoded_image_ids: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Save images and a frozen manifest with a provenance sidecar."""
 
     if task not in BENCHMARK_SPECS:
         raise ValueError(f"unsupported benchmark task: {task}")
-    if len(rows) != len(source_indices):
-        raise ValueError("rows and source_indices must have the same length")
-    if not rows:
-        raise ValueError("rows must not be empty")
     if preserve_hrbench_image_encoding and task not in {"hrbench4k", "hrbench8k"}:
         raise ValueError(
             "preserve_hrbench_image_encoding is only valid for HRBench tasks"
         )
+    if decoded_image_ids is not None:
+        if not preserve_hrbench_image_encoding:
+            raise ValueError(
+                "decoded_image_ids require preserved HRBench source encodings"
+            )
+        if len(decoded_image_ids) != len(source_indices):
+            raise ValueError(
+                "decoded_image_ids and source_indices must have the same length"
+            )
+        for image_id in decoded_image_ids:
+            if len(image_id) != 64:
+                raise ValueError("decoded image IDs must be SHA-256 hex digests")
+            try:
+                int(image_id, 16)
+            except ValueError as exc:
+                raise ValueError(
+                    "decoded image IDs must be SHA-256 hex digests"
+                ) from exc
     resolved_split = (
         BENCHMARK_SPECS[task].split
         if dataset_split is None
@@ -509,7 +525,22 @@ def export_benchmark_manifest(
     image_dir.mkdir(parents=True, exist_ok=True)
     payloads: list[dict[str, Any]] = []
     screenqa_image_cache: dict[str, tuple[str, str]] = {}
-    for row, source_index in zip(rows, source_indices):
+    image_ids: Iterable[str | None] = (
+        decoded_image_ids
+        if decoded_image_ids is not None
+        else (None for _ in source_indices)
+    )
+    missing = object()
+    aligned = zip_longest(rows, source_indices, image_ids, fillvalue=missing)
+    for raw_row, raw_source_index, raw_decoded_image_id in aligned:
+        if missing in (raw_row, raw_source_index, raw_decoded_image_id):
+            raise ValueError(
+                "rows, source_indices, and decoded_image_ids must have the same length"
+            )
+        row = raw_row
+        source_index = raw_source_index
+        decoded_image_id = raw_decoded_image_id
+        assert isinstance(row, Mapping) and isinstance(source_index, int)
         screenqa_raw_id = (
             str(row.get("image_id", "")).strip() if task == "screenqa" else ""
         )
@@ -524,7 +555,9 @@ def export_benchmark_manifest(
 
                     with Image.open(io.BytesIO(encoded_image)) as loaded:
                         image_format = str(loaded.format).upper()
-                        image = loaded.convert("RGB")
+                        image = (
+                            loaded.convert("RGB") if decoded_image_id is None else None
+                        )
                     encoded_suffix = {
                         "BMP": ".bmp",
                         "JPEG": ".jpg",
@@ -540,7 +573,11 @@ def export_benchmark_manifest(
                     raise ValueError("could not preserve HRBench base64 image") from exc
             else:
                 image = _decode_row_image(row, task=task)
-            image_id = image_digest(image)
+            image_id = (
+                str(decoded_image_id)
+                if decoded_image_id is not None
+                else image_digest(image)
+            )
             image_name = f"{image_id}{encoded_suffix or '.png'}"
             image_destination = image_dir / image_name
             if not image_destination.exists():
@@ -563,6 +600,8 @@ def export_benchmark_manifest(
                 state_namespace=state_namespace,
             )
         )
+    if not payloads:
+        raise ValueError("rows must not be empty")
     state_ids = [str(payload["state_id"]) for payload in payloads]
     if len(state_ids) != len(set(state_ids)):
         raise ValueError("export produced duplicate state_id values")
