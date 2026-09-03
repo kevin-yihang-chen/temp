@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 15:05（Asia/Hong_Kong）
+更新时间：2026-09-03 17:47（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1316,3 +1316,43 @@
 - 当前最佳结果与下一步：项目仍无 deployable 正主结果。下一候选重新从 problem selection
   开始，必须解释 privileged oracle 与跨-source router 失败之间的残差，并先通过一手文献、
   可识别性和零成本数据 gate；不把 source weighting 或 fixed-crop 偶然正点包装为贡献。
+
+## E-20260903-17：固定工具 pre-action predictability 协议与资产 smoke
+
+- 假设：如果 pre-action VLM state 含有稳定的工具效用信息，随着 L0 到 L3 representation
+  增强，至少一个成本无关 target 应在 image/source-disjoint test 上转化为优于强基线的
+  正 utility；若只有 post-action probe 成功，则应转向表示/信息获取而不是继续调 gate。
+- 冻结任务：二元 `ANSWER_NOW/USE_VISUAL_TOOL`；工具固定为四-crop exhaustive entropy
+  search，最低 post-action entropy、`action_id` 升序 tie-break、收费四次；不学习 `where`。
+  `lambda=0.05` 仅在 policy time 使用。
+- 协议：ChartQA/DocVQA/HRBench × L0/L1/L2/L3 × direct-gain/rescue-harm/factorized，严格
+  36 cells；seeds `17/29/47`；source 与 decoded-RGB hash 双重隔离；validation-only
+  selection；test 单次冻结评估；20,000 次 paired source bootstrap、95% CI。
+- 实现：新增 typed pre-action allowlist、L0--L3 feature-vector contract、固定工具 sibling
+  collapse、source-balanced headroom、36-cell checker 和确定性终局 verdict hierarchy。
+  raw feature dict 即使含 outcomes，也只能显式拷贝 allowlist；任何 target 字段进入
+  `pre_action` namespace 会 fail closed。
+- Retrospective 输入：既有 opened ChartQA 2,500 decisions、DocVQA 13,580 decisions、
+  V* proxy 191 decisions；rollout SHA-256 分别为 `881526cc...973c`、`9109d5c8...8fc3`、
+  `e4d1a0b0...2aec`。旧 `.pt` bundle 只做存在性/hash 审计，不加载到 predictor。
+- 结果：always-call source-balanced utility 为 `-0.180800/-0.194816/-0.184293`；privileged
+  binary-oracle utility 为 `+0.028160/+0.010270/+0.054450`，oracle call rate 为
+  `3.52%/2.38%/6.81%`。这些结果证明标签实现和非零 headroom，不是正式预测结果。
+- 机械决定：`retrospective_assets_only_formal_matrix_incomplete`；正式矩阵 `0/36`。原因是
+  缺 max probability、top1-top2 margin、完整 L3 states、HRBench 和 untouched test；旧
+  ChartQA split 也不满足当前 RGB/source 双重隔离合同。
+- 验证：16 个 predictability targeted tests 通过；相关 11 文件 mypy 无错误；compileall、
+  Black in-process check 与 `git diff --check` 通过。正式 asset report 可由
+  `PYTHONPATH=src python -m beyond_entropy.predictability_asset_audit --config configs/predictability_retrospective_assets_v1.json --repository-root . --output <new-output.json>`
+  重建。
+- 产物：protocol config SHA-256 `0618583e...df7a`；asset config SHA-256
+  `7f06d11a...794`；机器报告 SHA-256 `14c111b1...c0f`。CPU-only，无 Slurm/GPU、无新
+  checkpoint、无 protected outcome、无邮件状态事件。
+- Full synthetic smoke：三 synthetic benchmark、36/36 cells、seeds `17/29/47`，共 108
+  seed-runs；三组 source/RGB split audit 全通过，`formal_claim_eligible=false`。首次完整
+  运行因单类 AUROC/AUPRC 产生 NaN 而被 strict JSON 拒绝；改为显式 `null` 后原配置重跑
+  通过。报告 SHA-256 `a458cad9...c0f9`。小样本 MLP 的 500-iteration convergence warnings
+  原样保留，未通过调 optimizer/iteration 追 synthetic 指标。
+- 下一步：实现 RGB/source split allocator、统一 L0--L3 exporter、三 target trainer、
+  validation-only threshold/calibration、全指标和 paired bootstrap；先在 synthetic 与旧
+  opened bank 完成真实输入 smoke，再决定最小 GPU feature extraction。

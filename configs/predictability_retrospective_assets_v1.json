@@ -1,0 +1,78 @@
+{
+  "schema": "predictability_retrospective_assets_config_v1",
+  "lambda_cost": 0.05,
+  "fixed_tool_candidate_count": 4,
+  "banks": {
+    "chartqa_opened_test": {
+      "dataset_role": "retrospective_smoke_only",
+      "final_test_eligible": false,
+      "rollouts": {
+        "path": "artifacts/gate1-chartqa-2500/qwen3b-c4-concise-seed0/rollouts.jsonl",
+        "sha256": "881526ccd3ff03753127307128c84dcf9dfa217f06635934ed2c5bca6d93973c"
+      },
+      "features": {
+        "path": "artifacts/gate2-chartqa-2500/qwen3b-roi-concise-seed17/features.pt",
+        "sha256": "ce2310f8ba10e507f54cf372098b219583174370a2d967a563236a5e58fcc5c6"
+      },
+      "declared_available_levels": [
+        "partial_l0_entropy_only",
+        "partial_l1",
+        "l2_semantic"
+      ],
+      "declared_missing_requirements": [
+        "max_probability",
+        "top1_top2_margin",
+        "complete_l3_states",
+        "untouched_test",
+        "rgb_source_disjoint_split"
+      ]
+    },
+    "docvqa_opened_train": {
+      "dataset_role": "retrospective_development_smoke_only",
+      "final_test_eligible": false,
+      "rollouts": {
+        "path": "artifacts/docvqa-train-factorized-v2/ranker-training/qwen3b-c4-seed0/rollouts.jsonl",
+        "sha256": "9109d5c896e59959937c2171e897dd81341237ff51fc5745fb4c56325ddd8fc3"
+      },
+      "features": {
+        "path": "artifacts/docvqa-train-factorized-v2/ranker-training/attention-semantic-v1/features-multimodal-label-free.pt",
+        "sha256": "b6738451d7d844596c42273cb68c3d3acb2cdbaffe604fb20812405d57d48647"
+      },
+      "declared_available_levels": [
+        "partial_l0_entropy_only",
+        "partial_l1",
+        "l2_semantic"
+      ],
+      "declared_missing_requirements": [
+        "max_probability",
+        "top1_top2_margin",
+        "complete_l3_states",
+        "untouched_test"
+      ]
+    },
+    "vstar_opened_proxy": {
+      "dataset_role": "retrospective_proxy_not_final_benchmark",
+      "final_test_eligible": false,
+      "rollouts": {
+        "path": "artifacts/gate1-vstar-191/qwen3b-c4-seed0/rollouts.jsonl",
+        "sha256": "e4d1a0b0f0811233de117ef50e45433cd8eebc5369fcf62fdf5d97f1ca3b2aec"
+      },
+      "features": {
+        "path": "artifacts/gate2-vstar-191/qwen3b-roi-contextual-seed17/features.pt",
+        "sha256": "af4b8c422145a5e7aef824aa5a4120ebfabc3f835ce90835fcd1318f224044c7"
+      },
+      "declared_available_levels": [
+        "partial_l0_entropy_only",
+        "partial_l1",
+        "l2_semantic"
+      ],
+      "declared_missing_requirements": [
+        "max_probability",
+        "top1_top2_margin",
+        "complete_l3_states",
+        "untouched_test",
+        "required_hrbench_benchmark"
+      ]
+    }
+  }
+}

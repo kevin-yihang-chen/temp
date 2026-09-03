@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+from beyond_entropy.predictability_audit import collapse_fixed_entropy_tool
+from beyond_entropy.predictability_evaluation import (
+    Prediction,
+    calls_at_rate,
+    calls_at_threshold,
+    paired_source_bootstrap_utility,
+    policy_curve,
+    policy_metrics,
+    prediction_metrics,
+    select_validation_threshold,
+)
+from test_predictability_audit import _siblings
+
+
+def _outcomes_and_predictions() -> tuple[list, list[Prediction]]:
+    records = []
+    for index in range(4):
+        records.extend(
+            _siblings(state_id=f"s{index}", source_id=f"source-{index // 2}")
+        )
+    outcomes = collapse_fixed_entropy_tool(records)
+    predictions = [
+        Prediction(
+            state_id=item.state_id,
+            replicate_id=item.replicate_id,
+            score=float(index),
+            positive_net_probability=0.8,
+            rescue_probability=0.8,
+            harm_probability=0.1,
+        )
+        for index, item in enumerate(outcomes)
+    ]
+    return outcomes, predictions
+
+
+def test_validation_threshold_is_selected_without_test_inputs() -> None:
+    outcomes, predictions = _outcomes_and_predictions()
+    selected = select_validation_threshold(outcomes, predictions, lambda_cost=0.05)
+    assert selected["threshold"] == 0.0
+    assert selected["validation_calls"] == 4
+    assert selected["validation_utility"] == 0.8
+    assert calls_at_threshold(predictions, float(selected["threshold"])) == [True] * 4
+
+
+def test_policy_metrics_and_fixed_rate_curve() -> None:
+    outcomes, predictions = _outcomes_and_predictions()
+    calls = calls_at_rate(predictions, 0.5)
+    assert calls == [False, False, True, True]
+    metrics = policy_metrics(outcomes, calls, lambda_cost=0.05)
+    assert metrics["call_rate"] == 0.5
+    assert metrics["incremental_utility"] == 0.4
+    curve = policy_curve(
+        outcomes, predictions, lambda_cost=0.05, call_rates=(0.0, 0.5, 1.0)
+    )
+    assert [item["calls"] for item in curve] == [0, 2, 4]
+
+
+def test_prediction_metrics_include_frozen_required_set() -> None:
+    outcomes, predictions = _outcomes_and_predictions()
+    outcomes[0] = type(outcomes[0])(**{**outcomes[0].__dict__, "y_tool": 0.0})
+    metrics = prediction_metrics(outcomes, predictions, lambda_cost=0.05)
+    assert set(metrics) == {
+        "auroc",
+        "auprc",
+        "brier",
+        "calibration_error",
+        "rescue_auprc",
+        "harm_auprc",
+    }
+
+
+def test_paired_bootstrap_uses_source_level_differences() -> None:
+    outcomes, _ = _outcomes_and_predictions()
+    report = paired_source_bootstrap_utility(
+        outcomes,
+        [True, True, True, True],
+        [False, False, False, False],
+        lambda_cost=0.05,
+        resamples=100,
+        confidence_level=0.95,
+        seed=17,
+    )
+    assert report["sources"] == 2
+    assert report["point"] == 0.8
+    assert report["lower"] == 0.8
+    assert report["upper"] == 0.8

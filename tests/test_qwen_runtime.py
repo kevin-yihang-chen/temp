@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from beyond_entropy.qwen_backend import (
+    generated_token_confidence_statistics,
     generated_token_statistics,
     merge_runtime_measurements,
 )
@@ -57,6 +58,17 @@ def test_generated_token_statistics_tracks_selected_token_probability() -> None:
             float(torch.log_softmax(logits[0][0], dim=-1)[0]),
             float(torch.log_softmax(logits[1][0], dim=-1)[2]),
         ]
+    )
+    confidence = generated_token_confidence_statistics(logits)
+    expected = [torch.softmax(value[0], dim=-1).topk(2).values for value in logits]
+    assert confidence["maximum_token_probabilities"] == pytest.approx(
+        [float(value[0]) for value in expected]
+    )
+    assert confidence["top1_top2_token_probability_margins"] == pytest.approx(
+        [float(value[0] - value[1]) for value in expected]
+    )
+    assert confidence["mean_maximum_token_probability"] == pytest.approx(
+        sum(float(value[0]) for value in expected) / 2
     )
 
 

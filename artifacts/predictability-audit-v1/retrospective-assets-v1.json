@@ -1,0 +1,349 @@
+{
+  "banks": {
+    "chartqa_opened_test": {
+      "dataset_role": "retrospective_smoke_only",
+      "features": {
+        "contents_not_loaded": true,
+        "declared_available_levels": [
+          "partial_l0_entropy_only",
+          "partial_l1",
+          "l2_semantic"
+        ],
+        "declared_missing_requirements": [
+          "max_probability",
+          "top1_top2_margin",
+          "complete_l3_states",
+          "untouched_test",
+          "rgb_source_disjoint_split"
+        ],
+        "path": "artifacts/gate2-chartqa-2500/qwen3b-roi-concise-seed17/features.pt",
+        "sha256": "ce2310f8ba10e507f54cf372098b219583174370a2d967a563236a5e58fcc5c6"
+      },
+      "final_test_eligible": false,
+      "fixed_tool_headroom": {
+        "always_call": {
+          "call_rate": 1.0,
+          "utility": -0.18080000000000002
+        },
+        "decisions": 2500,
+        "lambda_cost": 0.05,
+        "mean_tool_cost": 4.0,
+        "privileged_binary_oracle": {
+          "call_rate": 0.0352,
+          "utility": 0.02816
+        },
+        "raw_targets": {
+          "gain": 0.0192,
+          "harm_rate": 0.016,
+          "rescue_rate": 0.0352
+        },
+        "sources": 2500
+      },
+      "identity": {
+        "decisions": 2500,
+        "unique_image_ids": 1509,
+        "unique_source_ids": 2500
+      },
+      "rollouts": {
+        "action_records": 12500,
+        "path": "artifacts/gate1-chartqa-2500/qwen3b-c4-concise-seed0/rollouts.jsonl",
+        "sha256": "881526ccd3ff03753127307128c84dcf9dfa217f06635934ed2c5bca6d93973c"
+      }
+    },
+    "docvqa_opened_train": {
+      "dataset_role": "retrospective_development_smoke_only",
+      "features": {
+        "contents_not_loaded": true,
+        "declared_available_levels": [
+          "partial_l0_entropy_only",
+          "partial_l1",
+          "l2_semantic"
+        ],
+        "declared_missing_requirements": [
+          "max_probability",
+          "top1_top2_margin",
+          "complete_l3_states",
+          "untouched_test"
+        ],
+        "path": "artifacts/docvqa-train-factorized-v2/ranker-training/attention-semantic-v1/features-multimodal-label-free.pt",
+        "sha256": "b6738451d7d844596c42273cb68c3d3acb2cdbaffe604fb20812405d57d48647"
+      },
+      "final_test_eligible": false,
+      "fixed_tool_headroom": {
+        "always_call": {
+          "call_rate": 1.0,
+          "utility": -0.1948156010340392
+        },
+        "decisions": 13580,
+        "lambda_cost": 0.05,
+        "mean_tool_cost": 4.0,
+        "privileged_binary_oracle": {
+          "call_rate": 0.023840847247990106,
+          "utility": 0.010270377381578252
+        },
+        "raw_targets": {
+          "gain": 0.005184398965960817,
+          "harm_rate": 0.02119163059163059,
+          "rescue_rate": 0.054778983714698
+        },
+        "sources": 3500
+      },
+      "identity": {
+        "decisions": 13580,
+        "unique_image_ids": 3500,
+        "unique_source_ids": 3500
+      },
+      "rollouts": {
+        "action_records": 67900,
+        "path": "artifacts/docvqa-train-factorized-v2/ranker-training/qwen3b-c4-seed0/rollouts.jsonl",
+        "sha256": "9109d5c896e59959937c2171e897dd81341237ff51fc5745fb4c56325ddd8fc3"
+      }
+    },
+    "vstar_opened_proxy": {
+      "dataset_role": "retrospective_proxy_not_final_benchmark",
+      "features": {
+        "contents_not_loaded": true,
+        "declared_available_levels": [
+          "partial_l0_entropy_only",
+          "partial_l1",
+          "l2_semantic"
+        ],
+        "declared_missing_requirements": [
+          "max_probability",
+          "top1_top2_margin",
+          "complete_l3_states",
+          "untouched_test",
+          "required_hrbench_benchmark"
+        ],
+        "path": "artifacts/gate2-vstar-191/qwen3b-roi-contextual-seed17/features.pt",
+        "sha256": "af4b8c422145a5e7aef824aa5a4120ebfabc3f835ce90835fcd1318f224044c7"
+      },
+      "final_test_eligible": false,
+      "fixed_tool_headroom": {
+        "always_call": {
+          "call_rate": 1.0,
+          "utility": -0.18429319371727748
+        },
+        "decisions": 191,
+        "lambda_cost": 0.05,
+        "mean_tool_cost": 4.0,
+        "privileged_binary_oracle": {
+          "call_rate": 0.06806282722513089,
+          "utility": 0.05445026178010472
+        },
+        "raw_targets": {
+          "gain": 0.015706806282722512,
+          "harm_rate": 0.05235602094240838,
+          "rescue_rate": 0.06806282722513089
+        },
+        "sources": 191
+      },
+      "identity": {
+        "decisions": 191,
+        "unique_image_ids": 191,
+        "unique_source_ids": 191
+      },
+      "rollouts": {
+        "action_records": 955,
+        "path": "artifacts/gate1-vstar-191/qwen3b-c4-seed0/rollouts.jsonl",
+        "sha256": "e4d1a0b0f0811233de117ef50e45433cd8eebc5369fcf62fdf5d97f1ca3b2aec"
+      }
+    }
+  },
+  "config": {
+    "path": "configs/predictability_retrospective_assets_v1.json",
+    "sha256": "7f06d11ab82ee7ab694ebec4f2293be62f0ada727820483a3d06f98ea81a6794"
+  },
+  "decision": "retrospective_assets_only_formal_matrix_incomplete",
+  "fixed_tool": "four-crop entropy search",
+  "formal_matrix": {
+    "complete": false,
+    "completed_cells": 0,
+    "expected_cells": 36,
+    "missing": [
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l0_uncertainty",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l0_uncertainty",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l0_uncertainty",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l1_shallow",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l1_shallow",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l1_shallow",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l2_semantic",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l2_semantic",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l2_semantic",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "chartqa",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l0_uncertainty",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l0_uncertainty",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l0_uncertainty",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l1_shallow",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l1_shallow",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l1_shallow",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l2_semantic",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l2_semantic",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l2_semantic",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "docvqa",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l0_uncertainty",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l0_uncertainty",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l0_uncertainty",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l1_shallow",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l1_shallow",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l1_shallow",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l2_semantic",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l2_semantic",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l2_semantic",
+        "target": "rescue_harm"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "direct_gain"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "factorized"
+      },
+      {
+        "benchmark": "hrbench",
+        "predictor_level": "l3_frozen_qwen",
+        "target": "rescue_harm"
+      }
+    ],
+    "schema": "predictability_matrix_completion_v1"
+  },
+  "schema": "predictability_retrospective_assets_report_v1",
+  "scientific_boundary": "headroom values validate label construction only; historically opened data, missing L0/L3 features, and absent HRBench prevent a formal verdict"
+}

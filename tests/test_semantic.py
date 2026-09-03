@@ -6,6 +6,7 @@ import beyond_entropy.semantic as semantic
 from beyond_entropy.dataset import group_by_decision, write_jsonl
 from beyond_entropy.qwen_semantic import (
     extract_qwen_semantic_dataset,
+    pool_multimodal_prompt_states,
     reshape_merged_visual_tokens,
     semantic_decision_from_records,
     validate_semantic_feature_dataset,
@@ -205,11 +206,24 @@ def test_qwen_merged_tokens_restore_raster_grid():
     assert torch.equal(restored.reshape(6, 3), merged)
 
 
+def test_multimodal_prompt_pooling_separates_image_language_and_fused_state():
+    torch = pytest.importorskip("torch")
+    hidden = torch.tensor([[[1.0, 0.0], [3.0, 0.0], [0.0, 2.0], [0.0, 4.0]]])
+    input_ids = torch.tensor([[10, 99, 99, 11]])
+    attention = torch.ones_like(input_ids)
+    result = pool_multimodal_prompt_states(
+        hidden, input_ids, attention, image_token_id=99
+    )
+    assert result["pooled_language_state"].tolist() == [0.5, 2.0]
+    assert result["pooled_visual_state"].tolist() == [1.5, 1.0]
+    assert result["fused_multimodal_state"].tolist() == [0.0, 4.0]
+    assert result["multimodal_prompt_tokens"] == 4
+    assert result["multimodal_image_tokens"] == 2
+
+
 def test_label_free_semantic_decision_is_enforced_for_frozen_inference():
     torch = pytest.importorskip("torch")
-    generated = simulate_counterfactual_dataset(
-        n_states=2, num_candidates=4, seed=7
-    )
+    generated = simulate_counterfactual_dataset(n_states=2, num_candidates=4, seed=7)
     records = list(next(iter(group_by_decision(generated).values())))
     siblings = next(iter(group_by_decision(records).values()))
     zooms = sorted(
@@ -252,13 +266,9 @@ def test_label_free_semantic_decision_is_enforced_for_frozen_inference():
         ("question", "wrong question", "question differs"),
     ],
 )
-def test_semantic_validation_rejects_identity_mismatch(
-    field, replacement, message
-):
+def test_semantic_validation_rejects_identity_mismatch(field, replacement, message):
     torch = pytest.importorskip("torch")
-    generated = simulate_counterfactual_dataset(
-        n_states=2, num_candidates=4, seed=17
-    )
+    generated = simulate_counterfactual_dataset(n_states=2, num_candidates=4, seed=17)
     records = list(next(iter(group_by_decision(generated).values())))
     siblings = next(iter(group_by_decision(records).values()))
     zooms = sorted(
@@ -299,9 +309,7 @@ def test_semantic_validation_rejects_identity_mismatch(
 )
 def test_semantic_validation_rejects_preaction_tensor_mismatch(field, message):
     torch = pytest.importorskip("torch")
-    generated = simulate_counterfactual_dataset(
-        n_states=2, num_candidates=4, seed=19
-    )
+    generated = simulate_counterfactual_dataset(n_states=2, num_candidates=4, seed=19)
     records = list(next(iter(group_by_decision(generated).values())))
     siblings = next(iter(group_by_decision(records).values()))
     zooms = sorted(

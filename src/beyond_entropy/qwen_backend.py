@@ -49,6 +49,37 @@ def generated_token_statistics(
     return entropies, token_log_probabilities
 
 
+def generated_token_confidence_statistics(step_logits: Sequence[Any]) -> dict[str, Any]:
+    """Return cost-free confidence summaries from baseline generation logits."""
+
+    import torch  # type: ignore[import-not-found]
+
+    if not step_logits:
+        raise ValueError("confidence statistics require at least one generation step")
+    maximum_probabilities: list[float] = []
+    top1_top2_margins: list[float] = []
+    for logits in step_logits:
+        if getattr(logits, "ndim", None) != 2 or logits.shape[0] != 1:
+            raise ValueError("generation step logits must have shape [1, vocabulary]")
+        if logits.shape[1] < 2:
+            raise ValueError("generation vocabulary must contain at least two tokens")
+        probabilities = torch.softmax(logits[0].to(torch.float32), dim=-1)
+        top_two = torch.topk(probabilities, k=2).values
+        maximum_probabilities.append(float(top_two[0].item()))
+        top1_top2_margins.append(float((top_two[0] - top_two[1]).item()))
+    values = (*maximum_probabilities, *top1_top2_margins)
+    if not all(math.isfinite(value) and 0.0 <= value <= 1.0 for value in values):
+        raise RuntimeError("generation confidence statistics are invalid")
+    return {
+        "maximum_token_probabilities": maximum_probabilities,
+        "top1_top2_token_probability_margins": top1_top2_margins,
+        "mean_maximum_token_probability": sum(maximum_probabilities)
+        / len(maximum_probabilities),
+        "mean_top1_top2_token_probability_margin": sum(top1_top2_margins)
+        / len(top1_top2_margins),
+    }
+
+
 def merge_runtime_measurements(
     previous: Mapping[str, Any] | None,
     current: Mapping[str, Any],
@@ -306,6 +337,7 @@ class Qwen25VLBackend:
         token_entropies, token_log_probabilities = generated_token_statistics(
             step_logits, generated_ids
         )
+        confidence_statistics = generated_token_confidence_statistics(step_logits)
         entropy = sum(token_entropies) / len(token_entropies)
         return ModelOutput(
             answer=answer,
@@ -327,6 +359,7 @@ class Qwen25VLBackend:
                 "mean_generated_token_log_probability": (
                     sum(token_log_probabilities) / len(token_log_probabilities)
                 ),
+                **confidence_statistics,
                 "input_text_sha256": hashlib.sha256(
                     state.backend_prompt.encode()
                 ).hexdigest(),

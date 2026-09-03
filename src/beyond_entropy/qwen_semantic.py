@@ -63,6 +63,56 @@ def reshape_merged_visual_tokens(
     return temporal_grid.mean(dim=0)
 
 
+def pool_multimodal_prompt_states(
+    last_hidden_state: Any,
+    input_ids: Any,
+    attention_mask: Any,
+    *,
+    image_token_id: int,
+) -> dict[str, Any]:
+    """Pool frozen pre-generation Qwen states without outcome information."""
+
+    require_torch()
+    import torch  # type: ignore[import-not-found]
+
+    if (
+        getattr(last_hidden_state, "ndim", None) != 3
+        or getattr(input_ids, "ndim", None) != 2
+        or getattr(attention_mask, "ndim", None) != 2
+        or last_hidden_state.shape[:2] != input_ids.shape
+        or input_ids.shape != attention_mask.shape
+        or last_hidden_state.shape[0] != 1
+    ):
+        raise ValueError("multimodal prompt tensors have incompatible shapes")
+    attended = attention_mask[0].to(dtype=bool)
+    image = attended & (input_ids[0] == image_token_id)
+    language = attended & ~image
+    if not bool(image.any()) or not bool(language.any()):
+        raise ValueError("multimodal prompt must contain image and language tokens")
+    attended_positions = attended.nonzero(as_tuple=False).reshape(-1)
+    final_position = int(attended_positions[-1].item())
+    hidden = last_hidden_state[0]
+    return {
+        "pooled_language_state": hidden[language]
+        .mean(dim=0)
+        .detach()
+        .to(torch.float32)
+        .cpu(),
+        "pooled_visual_state": hidden[image]
+        .mean(dim=0)
+        .detach()
+        .to(torch.float32)
+        .cpu(),
+        "fused_multimodal_state": hidden[final_position]
+        .detach()
+        .to(torch.float32)
+        .cpu(),
+        "multimodal_prompt_tokens": int(attended.sum().item()),
+        "multimodal_image_tokens": int(image.sum().item()),
+        "multimodal_language_tokens": int(language.sum().item()),
+    }
+
+
 class Qwen25VLSemanticExtractor:
     """Extract pre-action Qwen question/image/ROI features with one image pass."""
 
@@ -95,7 +145,9 @@ class Qwen25VLSemanticExtractor:
         if min_pixels <= 0 or max_pixels < min_pixels:
             raise ValueError("pixel limits must be positive and ordered")
         if question_feature_mode not in ("input_mean", "contextual_text_mean"):
-            raise ValueError(f"unsupported question_feature_mode: {question_feature_mode}")
+            raise ValueError(
+                f"unsupported question_feature_mode: {question_feature_mode}"
+            )
         model_kwargs: dict[str, Any] = {
             "dtype": getattr(torch, dtype),
             "device_map": device_map,
@@ -193,13 +245,74 @@ class Qwen25VLSemanticExtractor:
                 question_embedding = question_outputs.last_hidden_state.mean(dim=1)[0]
         return {
             "question_embedding": question_embedding.detach().to(torch.float32).cpu(),
-            "global_visual_embedding": spatial_tokens.mean(dim=(0, 1)).detach().to(
-                torch.float32
-            ).cpu(),
+            "global_visual_embedding": spatial_tokens.mean(dim=(0, 1))
+            .detach()
+            .to(torch.float32)
+            .cpu(),
             "region_embeddings": regions.detach().to(torch.float32).cpu(),
             "bboxes": bbox_tensor.detach().cpu(),
-            "visual_grid_hw": [int(spatial_tokens.shape[0]), int(spatial_tokens.shape[1])],
+            "visual_grid_hw": [
+                int(spatial_tokens.shape[0]),
+                int(spatial_tokens.shape[1]),
+            ],
         }
+
+    def encode_multimodal_states(
+        self,
+        *,
+        image_path: str | Path,
+        model_prompt: str,
+        system_prompt: str,
+    ) -> dict[str, Any]:
+        """Extract L3 states from one original-image prompt before generation."""
+
+        import torch  # type: ignore[import-not-found]
+        from PIL import Image
+
+        if not model_prompt or not system_prompt:
+            raise ValueError("model_prompt and system_prompt must be non-empty")
+        with Image.open(image_path) as loaded:
+            image = loaded.convert("RGB")
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "image": image,
+                            "min_pixels": self.min_pixels,
+                            "max_pixels": self.max_pixels,
+                        },
+                        {"type": "text", "text": model_prompt},
+                    ],
+                },
+            ]
+            inputs = self.processor.apply_chat_template(
+                messages,
+                tokenize=True,
+                add_generation_prompt=True,
+                return_dict=True,
+                return_tensors="pt",
+            )
+        target_device = next(self.model.parameters()).device
+        inputs = inputs.to(target_device)
+        with torch.inference_mode():
+            outputs = self.model(
+                **inputs,
+                use_cache=False,
+                output_hidden_states=True,
+                return_dict=True,
+                logits_to_keep=1,
+            )
+        if not outputs.hidden_states:
+            raise RuntimeError("Qwen did not return multimodal hidden states")
+        return pool_multimodal_prompt_states(
+            outputs.hidden_states[-1],
+            inputs.input_ids,
+            inputs.attention_mask,
+            image_token_id=int(self.model.config.image_token_id),
+        )
 
 
 def _package_version(name: str) -> str | None:
@@ -329,9 +442,7 @@ def validate_semantic_feature_dataset(
             ("question", baseline.question),
         ):
             if decision.get(name) != expected:
-                raise ValueError(
-                    f"semantic {name} differs for decision {key!r}"
-                )
+                raise ValueError(f"semantic {name} differs for decision {key!r}")
         if list(decision["action_ids"]) != [record.action_id for record in zooms]:
             raise ValueError(f"semantic action IDs differ for decision {key!r}")
         expected_costs = torch.tensor(
@@ -384,7 +495,9 @@ def validate_semantic_feature_dataset(
             )
     if not allow_partial and seen != set(grouped):
         missing = sorted(set(grouped) - seen)
-        raise ValueError(f"semantic features are missing rollout decisions: {missing[:5]}")
+        raise ValueError(
+            f"semantic features are missing rollout decisions: {missing[:5]}"
+        )
 
 
 def initialize_semantic_feature_checkpoint(
@@ -517,7 +630,9 @@ def extract_qwen_semantic_dataset(
     }
     unexpected = completed - set(grouped)
     if unexpected:
-        raise ValueError(f"checkpoint has unexpected decisions: {sorted(unexpected)[:5]}")
+        raise ValueError(
+            f"checkpoint has unexpected decisions: {sorted(unexpected)[:5]}"
+        )
     pending = [(key, grouped[key]) for key in sorted(grouped) if key not in completed]
     if pending:
         current_revision = os.environ.get("BE_CODE_REVISION")
@@ -555,7 +670,11 @@ def extract_qwen_semantic_dataset(
                 state_cache[exemplar.state_id] = extractor.encode(
                     image_path=exemplar.original_image,
                     question=exemplar.question,
-                    bboxes=[record.candidate_bbox for record in zooms if record.candidate_bbox],
+                    bboxes=[
+                        record.candidate_bbox
+                        for record in zooms
+                        if record.candidate_bbox
+                    ],
                 )
             decisions.append(
                 semantic_decision_from_records(
@@ -564,8 +683,8 @@ def extract_qwen_semantic_dataset(
                     include_outcomes=include_outcomes,
                 )
             )
-            checkpoint_due = (
-                position % checkpoint_interval == 0 or position == len(pending)
+            checkpoint_due = position % checkpoint_interval == 0 or position == len(
+                pending
             )
             if checkpoint_due:
                 payload = {

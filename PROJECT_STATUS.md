@@ -1,6 +1,35 @@
 # 项目状态
 
-更新时间：2026-09-03 16:14（Asia/Hong_Kong）
+更新时间：2026-09-03 17:47（Asia/Hong_Kong）
+
+## 当前执行状态
+
+项目已从此前的开放式候选搜索收敛到一个固定、可证伪的审计：判断 pre-action VLM state
+能否预测固定四-crop entropy-search 工具的效用。这里不学习 crop 位置，避免把 `where`
+问题再次混入 `whether/when`。完整协议已冻结为 3 benchmark × 4 predictor levels × 3
+targets 的 36-cell 矩阵，并固定 split、强基线、成本、指标、bootstrap 与终局判定规则。
+
+当前完成的是协议和 runner 的第一层基础设施，不是实验成功：typed pre-action allowlist
+会阻止 post-action/label 字段进入模型；固定工具 collapse 会强制四个 sibling crops、稳定
+tie-break 和四次成本；matrix checker 会在少于 36 cells 时拒绝完成；终局 classifier 只能
+按冻结规则输出 `GO/PIVOT/REPRESENTATION/STOP`，证据不足则报 inconclusive。
+
+对既有 opened bank 的只读 smoke 显示，固定工具的 privileged binary oracle utility 在
+ChartQA/DocVQA/V* proxy 分别为 `+0.02816/+0.01027/+0.05445`，说明该二元任务至少有非零
+headroom；但 always-call utility 分别约为 `-0.1808/-0.1948/-0.1843`，说明不能靠多调用
+取胜。这些数据缺关键 L0/L3 特征与 untouched test，V* 也不是最终冻结的 HRBench，因此
+正式完成度仍是 `0/36`，不能据此宣布 GO、PIVOT 或失败。
+
+下一步是完成统一 feature/data contract 和 image/source-disjoint 数据分配，然后实现并
+CPU smoke 三类 target 的训练、validation-only threshold、全指标与 paired source
+bootstrap。当前没有新 Slurm job、GPU 运行或 checkpoint；本轮代码保持本地，除非用户
+再次明确要求，否则不 push。
+
+上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
+seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均
+为零，严格 JSON 报告成功写出。首次运行曾在序列化阶段因单类指标为 NaN 被拒绝，现已
+冻结为 JSON `null` 并原配置复跑通过。小样本 MLP 多次达到 500 iteration 上限，属于
+synthetic convergence 诊断；正式运行必须记录而不能通过增加迭代或改网络追结果。
 
 ## 总体判断
 

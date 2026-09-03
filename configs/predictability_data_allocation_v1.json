@@ -1,0 +1,92 @@
+{
+  "schema": "predictability_data_allocation_config_v1",
+  "frozen_at": "2026-09-03T18:15:00+08:00",
+  "seed": 20260903,
+  "output_root": "data/predictability-audit-v1",
+  "block_all_existing_manifests": "data/**/manifest*.jsonl",
+  "chartqa": {
+    "dataset_id": "HuggingFaceM4/ChartQA",
+    "revision": "b605b6e08b57faf4359aeb2fe6a3ca595f99b6c5",
+    "opened_development_manifest": {
+      "path": "data/chartqa-train-replication-4500/manifest.jsonl",
+      "sha256": "72db6feaa4bc042e98741a48dd55421c5246c1b48c84b1fd75740d1d072ca621"
+    },
+    "train_states": 3600,
+    "validation_states": 900,
+    "test_states": 1000,
+    "test_selection": "balanced_human_augmented_unique_rgb_excluding_every_preexisting_manifest",
+    "parquets": [
+      {
+        "path": "data/external/chartqa-hfm4-b605b6e-train/train-00000-of-00003-49492f364babfa44.parquet",
+        "sha256": "169979f8a8c64ba93ac1be22916bf9b49c9c2e4c57f5c0104e6f671f2aacd83a"
+      },
+      {
+        "path": "data/external/chartqa-hfm4-b605b6e-train/train-00001-of-00003-7302bae5e425bbc7.parquet",
+        "sha256": "a8819291729c807f163b93dcb2dc1fe60044d56412a0c0626cb7312df7392140"
+      },
+      {
+        "path": "data/external/chartqa-hfm4-b605b6e-train/train-00002-of-00003-194c9400785577a2.parquet",
+        "sha256": "528133aec54c7e948f40b8af56b083b98f9b7d1fdcdd1cd9e375f3df984f7ae4"
+      }
+    ]
+  },
+  "docvqa": {
+    "dataset_id": "lmms-lab/DocVQA",
+    "dataset_name": "DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "opened_development_manifest": {
+      "path": "data/docvqa-train-factorized-v2/ranker-training/manifest.jsonl",
+      "sha256": "871ea5b924badba8e0f23477fbd40d2e77085a5f69726d0c48e674e72d64a25d"
+    },
+    "train_sources": 2800,
+    "validation_sources": 700,
+    "test_sources": 500,
+    "test_selection": "whole_docid_hash_rank_excluding_every_preexisting_source_and_rgb",
+    "validation_parquets": [
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00000-of-00006.parquet",
+        "sha256": "a31507f0b700ac64f3ead52057c5dc3ccfb0baadcc62bc0d19d17159f080a4d8"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00001-of-00006.parquet",
+        "sha256": "ce63ba45f11bfb4e17362f9c073984b4c6c84a0e966ba3d33a86fa285a1fb3dc"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00002-of-00006.parquet",
+        "sha256": "2d580a39996ad05226ad462f2d31bad0df02f0f47f46263d96ad8df584a5667b"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00003-of-00006.parquet",
+        "sha256": "588a587567d1548a174b83b160132d97eb2b12a7d57374675d3c45b431403354"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00004-of-00006.parquet",
+        "sha256": "b43b8aa3e28a1b0f8728243fdf776b798a684b5baafb27d6a734edbbe3983302"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00005-of-00006.parquet",
+        "sha256": "5bba6d5f7b8e6ee0b64df2e4c2885f93cd759c732998e4d6f9b86ce4c690fcf2"
+      }
+    ]
+  },
+  "hrbench": {
+    "dataset_id": "DreamMr/HR-Bench",
+    "dataset_name": "hrbench_version_split",
+    "revision": "83b9013d6293b85dc507e87199ca52517536939c",
+    "split": "hrbench_8k",
+    "train_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "test_fraction": 0.2,
+    "parquet": {
+      "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--DreamMr--HR-Bench/snapshots/83b9013d6293b85dc507e87199ca52517536939c/hr_bench_8k.parquet",
+      "sha256": "d4f41878a0d93afcf2673f547cecb0f23bb07230a0d07ef286bfa2277d9b63e2"
+    }
+  },
+  "integrity": {
+    "selection_must_not_read_model_outcomes": true,
+    "pairwise_source_overlap": 0,
+    "pairwise_decoded_rgb_overlap": 0,
+    "historically_opened_manifest_rows_for_test": 0,
+    "test_role_frozen_before_rollout": true
+  }
+}

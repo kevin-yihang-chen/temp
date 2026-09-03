@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 16:14（Asia/Hong_Kong）
+更新时间：2026-09-03 17:47（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -15,6 +15,32 @@
 5. 论文论证与实验支持一致，不把 exploratory/privileged ceiling 当正式结果。
 
 当前尚未达到上述标准。
+
+## 当前唯一执行路线：pre-action predictability audit
+
+2026-09-03 起停止继续做开放式 N6 problem selection。当前唯一研究问题固定为：在不学习
+`where` 的前提下，pre-action VLM state 能否稳定预测一个固定视觉工具的实际效用。决策
+只有 `ANSWER_NOW` 与 `USE_VISUAL_TOOL`；固定工具执行全部四个 UG-grid crops，按
+post-action entropy 选结果并支付四次成本。deployable predictor 永远不能读取任何
+post-action 字段。
+
+机器协议为 `configs/predictability_audit_v1.json`，文字协议为
+`docs/predictability_audit_protocol_v1.md`。正式实验严格为 ChartQA、DocVQA、HRBench ×
+L0/L1/L2/L3 × direct-gain/rescue-harm/factorized，共 36 cells，最多三个固定 seeds。
+train/validation/test 必须按 source 与解码 RGB hash 双重隔离；test 不参与选择。终局文件
+必须是 `PREDICTABILITY_AUDIT.md`，且只能输出 `GO/PIVOT/REPRESENTATION/STOP` 之一。
+
+第一轮 dependency-free 合同与 retrospective asset audit 已完成。现有 opened ChartQA、
+DocVQA、V*Bench bank 只验证固定工具标签构造与 headroom；由于缺 max probability、margin、
+完整 L3 state、HRBench 和 untouched test，正式矩阵完成度为 `0/36`。下一步不是再想新方法，
+而是实现 image/source split、L0--L3 feature export、三个 target trainer、validation-only
+选择、完整指标与 paired source bootstrap；所有 CPU/synthetic smoke 通过后才提交 GPU。
+
+当前 runner 已包含三 target 固定训练、source weighting、validation score calibration、
+threshold、全套 prediction/policy metrics、call-rate curves 与 paired source bootstrap。
+完整 synthetic 36-cell × 3-seed smoke 已通过；这是 108 个 seed-runs 的工程证据，明确标记
+`formal_claim_eligible=false`。剩余主要阻塞已从 evaluator 实现转为真实数据 manifest 和
+Qwen L0--L3 feature export。
 
 ## 当前核心判断
 
