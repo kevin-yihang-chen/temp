@@ -1,0 +1,338 @@
+{
+  "audited_at": "2026-09-03T15:19:34+08:00",
+  "authorized_new_checkpoints": 0,
+  "authorized_new_gpu_jobs": 0,
+  "candidate_core_claims": [
+    "selector_input_information_ledger",
+    "aliasing_vs_policy_regret_decomposition",
+    "matched_visibility_method_comparison",
+    "joint_acquisition_and_proposer_cost_ledger",
+    "cross_information_set_rank_reversal_test"
+  ],
+  "candidate_name": "information-set-correct visual acquisition evaluation",
+  "checks": {
+    "acquisition_and_proposer_costs_both_change_ranking": true,
+    "aliasing_and_policy_regret_are_nonnegative": true,
+    "candidate_does_not_claim_aliasing_or_voi_as_new": true,
+    "conflicting_alias_has_positive_irreducible_regret": true,
+    "cross_information_set_rank_reversal_is_detected": true,
+    "distinct_high_resolution_worlds_share_exact_preview": true,
+    "matched_full_information_ranking_favors_adaptive_selector": true,
+    "matched_preview_ranking_favors_conservative_selector": true,
+    "mismatched_visibility_comparison_is_rejected": true,
+    "refining_observation_removes_aliasing_regret": true,
+    "regret_decomposition_is_exact": true,
+    "required_evaluation_core_survives_collision_screen": true,
+    "shared_optimum_alias_has_zero_aliasing_regret": true,
+    "world_conditioned_oracle_violates_preview_information_boundary": true
+  },
+  "conflicting_alias_decomposition": {
+    "action_count": 3,
+    "additive_residual": 0.0,
+    "aliasing_regret": 0.5,
+    "bayes_actions_by_observable_state": {
+      "same-preview": [
+        1,
+        2
+      ]
+    },
+    "full_information_value": 1.0,
+    "observable_bayes_value": 0.5,
+    "policy_actions_by_observable_state": {
+      "same-preview": 1
+    },
+    "policy_estimation_regret": 0.0,
+    "policy_value": 0.5,
+    "total_regret": 0.5
+  },
+  "covered_core_claims": [
+    "aliasing_vs_policy_regret_decomposition",
+    "joint_acquisition_and_proposer_cost_ledger"
+  ],
+  "decision": "n4_information_boundary_candidate_survives_formal_gate",
+  "exact_visual_alias_fixture": {
+    "high_resolution_worlds_differ": true,
+    "low_bandwidth_previews_are_exactly_equal": true,
+    "preview_left": [
+      [
+        1.0,
+        1.0
+      ]
+    ],
+    "preview_right": [
+      [
+        1.0,
+        1.0
+      ]
+    ],
+    "world_left_raster": [
+      [
+        0,
+        2,
+        1,
+        1
+      ],
+      [
+        2,
+        0,
+        1,
+        1
+      ]
+    ],
+    "world_right_raster": [
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        2,
+        0
+      ]
+    ]
+  },
+  "existing_label_free_real_image_seed": {
+    "decoded_images": 35352,
+    "dimension_mismatches_retained_as_qc_risk": 19,
+    "report": "artifacts/screenqa-train-factorized-v1/image-integrity-audit-v1/report.json",
+    "report_sha256": "ff239a93f12a0e0e173a7d13219f0f605d028807539c02e2d2a11a83de360a73",
+    "required_availability_gates": {
+      "all_required_images_decode": true,
+      "all_required_jpg_and_json_files_present": true,
+      "allocation_components_cover_all_nonbad_train_images": true
+    },
+    "required_images": 35352,
+    "role": "future N5 construction audit only; no outcome was read"
+  },
+  "formal_gate_passed": true,
+  "interpretation": "Formal and novelty-screen evidence only; advancement requires a pre-registered real-data rank-reversal test under matched selector visibility and complete cost accounting.",
+  "leaky_world_policy_actions": {
+    "detail-left": 1,
+    "detail-right": 2
+  },
+  "leaky_world_policy_is_preview_observable": false,
+  "literature_audit": [
+    {
+      "adjacent_scope": "pre-retrieval question-only value-of-information fidelity selection",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2602.03007",
+      "work": "VOILA"
+    },
+    {
+      "adjacent_scope": "coarse-to-fine low-resolution preview and crop acquisition",
+      "overlaps_core_claims": [],
+      "source": "https://openaccess.thecvf.com/content/CVPR2026/html/Lin_AdaptVision_Efficient_Vision-Language_Models_via_Adaptive_Visual_Acquisition_CVPR_2026_paper.html",
+      "work": "AdaptVision"
+    },
+    {
+      "adjacent_scope": "training under constrained visual bandwidth to prevent lazy perception",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2605.18603",
+      "work": "Starve to Perceive"
+    },
+    {
+      "adjacent_scope": "perceptual aliasing in active-vision reinforcement learning",
+      "overlaps_core_claims": [],
+      "source": "https://papers.nips.cc/paper_files/paper/2023/file/20e6b4dd2b1f82bc599c593882f67f75-Paper-Conference.pdf",
+      "work": "Active Vision Reinforcement Learning under Limited Visual Observability"
+    },
+    {
+      "adjacent_scope": "Bayes-risk representation adequacy, action conflicts inside alias cells, and sequential external certification",
+      "overlaps_core_claims": [
+        "aliasing_vs_policy_regret_decomposition"
+      ],
+      "source": "https://arxiv.org/abs/2608.02267",
+      "work": "Self-Certification of Representation Adequacy"
+    },
+    {
+      "adjacent_scope": "causal effect of returned visual observations under fixed prefixes",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2608.06270",
+      "work": "The Illusion of Visual Tool-Use"
+    },
+    {
+      "adjacent_scope": "tool-induced versus intrinsic effects and gain-harm diagnosis",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2602.01334",
+      "work": "MED"
+    },
+    {
+      "adjacent_scope": "client-side preprocessing as a controlled end-to-end VQA cost variable",
+      "overlaps_core_claims": [
+        "joint_acquisition_and_proposer_cost_ledger"
+      ],
+      "source": "https://arxiv.org/abs/2608.07861",
+      "work": "VQABench"
+    },
+    {
+      "adjacent_scope": "label-free active observation completion and hallucination of unseen views",
+      "overlaps_core_claims": [],
+      "source": "https://openaccess.thecvf.com/content_cvpr_2018/html/Jayaraman_Learning_to_Look_CVPR_2018_paper.html",
+      "work": "Learning to Look Around"
+    }
+  ],
+  "n3_decision": "n3_public_initializer_exists_but_joint_gate_failed_before_download",
+  "n3_report_sha256": "6d145cba4846ff608788b5dc8791d7fabcd0cdd1380ff9f2907bea5be3394f5c",
+  "opened_existing_outcomes": 0,
+  "refined_observation_decomposition": {
+    "action_count": 3,
+    "additive_residual": 0.0,
+    "aliasing_regret": 0.0,
+    "bayes_actions_by_observable_state": {
+      "detail-left": [
+        1
+      ],
+      "detail-right": [
+        2
+      ]
+    },
+    "full_information_value": 1.0,
+    "observable_bayes_value": 1.0,
+    "policy_actions_by_observable_state": {
+      "detail-left": 1,
+      "detail-right": 2
+    },
+    "policy_estimation_regret": 0.0,
+    "policy_value": 1.0,
+    "total_regret": 0.0
+  },
+  "registry_sha256": "25dd301a76e933d663ccb95ab9513bed2170e89b401159801e8c3e0bdeebe12f",
+  "required_uncovered_core_claims": [
+    "selector_input_information_ledger",
+    "matched_visibility_method_comparison",
+    "cross_information_set_rank_reversal_test"
+  ],
+  "schema": "n4_selector_information_boundary_audit_v1",
+  "shared_optimum_decomposition": {
+    "action_count": 3,
+    "additive_residual": 0.0,
+    "aliasing_regret": 0.0,
+    "bayes_actions_by_observable_state": {
+      "shared-preview": [
+        1
+      ]
+    },
+    "full_information_value": 0.9,
+    "observable_bayes_value": 0.9,
+    "policy_actions_by_observable_state": {
+      "shared-preview": 1
+    },
+    "policy_estimation_regret": 0.0,
+    "policy_value": 0.9,
+    "total_regret": 0.0
+  },
+  "toy_complete_cost_ledger": {
+    "arms": [
+      {
+        "acquisition_cost": 0.05,
+        "action_bank_id": "answer-now-plus-two-crops",
+        "information_set_id": "preview-only",
+        "method_id": "costly-proposer",
+        "proposer_cost": 0.06,
+        "selector_visible_fields": [
+          "low_resolution_preview",
+          "question"
+        ],
+        "task_utility": 0.7,
+        "utility_definition_id": "task-minus-acquisition-minus-proposer"
+      },
+      {
+        "acquisition_cost": 0.0,
+        "action_bank_id": "answer-now-plus-two-crops",
+        "information_set_id": "preview-only",
+        "method_id": "cheap-baseline",
+        "proposer_cost": 0.0,
+        "selector_visible_fields": [
+          "low_resolution_preview",
+          "question"
+        ],
+        "task_utility": 0.65,
+        "utility_definition_id": "task-minus-acquisition-minus-proposer"
+      }
+    ],
+    "cost_adjusted_ranking": [
+      "cheap-baseline",
+      "costly-proposer"
+    ]
+  },
+  "toy_rank_reversal": {
+    "full_information_arms": [
+      {
+        "acquisition_cost": 0.0,
+        "action_bank_id": "answer-now-plus-two-crops",
+        "information_set_id": "full-resolution-selector-input",
+        "method_id": "adaptive-selector",
+        "proposer_cost": 0.0,
+        "selector_visible_fields": [
+          "full_resolution_image",
+          "question"
+        ],
+        "task_utility": 1.0,
+        "utility_definition_id": "task-minus-acquisition-minus-proposer"
+      },
+      {
+        "acquisition_cost": 0.0,
+        "action_bank_id": "answer-now-plus-two-crops",
+        "information_set_id": "full-resolution-selector-input",
+        "method_id": "conservative-selector",
+        "proposer_cost": 0.0,
+        "selector_visible_fields": [
+          "full_resolution_image",
+          "question"
+        ],
+        "task_utility": 0.6,
+        "utility_definition_id": "task-minus-acquisition-minus-proposer"
+      }
+    ],
+    "full_information_ranking": [
+      "adaptive-selector",
+      "conservative-selector"
+    ],
+    "pairwise_reversals": [
+      [
+        "adaptive-selector",
+        "conservative-selector"
+      ]
+    ],
+    "preview_only_arms": [
+      {
+        "acquisition_cost": 0.0,
+        "action_bank_id": "answer-now-plus-two-crops",
+        "information_set_id": "preview-only",
+        "method_id": "adaptive-selector",
+        "proposer_cost": 0.0,
+        "selector_visible_fields": [
+          "low_resolution_preview",
+          "question"
+        ],
+        "task_utility": 0.5,
+        "utility_definition_id": "task-minus-acquisition-minus-proposer"
+      },
+      {
+        "acquisition_cost": 0.0,
+        "action_bank_id": "answer-now-plus-two-crops",
+        "information_set_id": "preview-only",
+        "method_id": "conservative-selector",
+        "proposer_cost": 0.0,
+        "selector_visible_fields": [
+          "low_resolution_preview",
+          "question"
+        ],
+        "task_utility": 0.6,
+        "utility_definition_id": "task-minus-acquisition-minus-proposer"
+      }
+    ],
+    "preview_only_ranking": [
+      "conservative-selector",
+      "adaptive-selector"
+    ]
+  },
+  "uncovered_core_claims": [
+    "cross_information_set_rank_reversal_test",
+    "matched_visibility_method_comparison",
+    "selector_input_information_ledger"
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "audited_at": "2026-09-03T15:19:34+08:00",
+  "candidate_core_claims": [
+    "selector_input_information_ledger",
+    "aliasing_vs_policy_regret_decomposition",
+    "matched_visibility_method_comparison",
+    "joint_acquisition_and_proposer_cost_ledger",
+    "cross_information_set_rank_reversal_test"
+  ],
+  "required_uncovered_core_claims": [
+    "selector_input_information_ledger",
+    "matched_visibility_method_comparison",
+    "cross_information_set_rank_reversal_test"
+  ],
+  "candidate_name": "information-set-correct visual acquisition evaluation",
+  "literature_audit": [
+    {
+      "adjacent_scope": "pre-retrieval question-only value-of-information fidelity selection",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2602.03007",
+      "work": "VOILA"
+    },
+    {
+      "adjacent_scope": "coarse-to-fine low-resolution preview and crop acquisition",
+      "overlaps_core_claims": [],
+      "source": "https://openaccess.thecvf.com/content/CVPR2026/html/Lin_AdaptVision_Efficient_Vision-Language_Models_via_Adaptive_Visual_Acquisition_CVPR_2026_paper.html",
+      "work": "AdaptVision"
+    },
+    {
+      "adjacent_scope": "training under constrained visual bandwidth to prevent lazy perception",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2605.18603",
+      "work": "Starve to Perceive"
+    },
+    {
+      "adjacent_scope": "perceptual aliasing in active-vision reinforcement learning",
+      "overlaps_core_claims": [],
+      "source": "https://papers.nips.cc/paper_files/paper/2023/file/20e6b4dd2b1f82bc599c593882f67f75-Paper-Conference.pdf",
+      "work": "Active Vision Reinforcement Learning under Limited Visual Observability"
+    },
+    {
+      "adjacent_scope": "Bayes-risk representation adequacy, action conflicts inside alias cells, and sequential external certification",
+      "overlaps_core_claims": [
+        "aliasing_vs_policy_regret_decomposition"
+      ],
+      "source": "https://arxiv.org/abs/2608.02267",
+      "work": "Self-Certification of Representation Adequacy"
+    },
+    {
+      "adjacent_scope": "causal effect of returned visual observations under fixed prefixes",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2608.06270",
+      "work": "The Illusion of Visual Tool-Use"
+    },
+    {
+      "adjacent_scope": "tool-induced versus intrinsic effects and gain-harm diagnosis",
+      "overlaps_core_claims": [],
+      "source": "https://arxiv.org/abs/2602.01334",
+      "work": "MED"
+    },
+    {
+      "adjacent_scope": "client-side preprocessing as a controlled end-to-end VQA cost variable",
+      "overlaps_core_claims": [
+        "joint_acquisition_and_proposer_cost_ledger"
+      ],
+      "source": "https://arxiv.org/abs/2608.07861",
+      "work": "VQABench"
+    },
+    {
+      "adjacent_scope": "label-free active observation completion and hallucination of unseen views",
+      "overlaps_core_claims": [],
+      "source": "https://openaccess.thecvf.com/content_cvpr_2018/html/Jayaraman_Learning_to_Look_CVPR_2018_paper.html",
+      "work": "Learning to Look Around"
+    }
+  ],
+  "schema": "n4_selector_information_boundary_registry_v1",
+  "treats_classical_aliasing_and_voi_as_prior_art": true
+}
