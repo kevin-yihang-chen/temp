@@ -1,0 +1,832 @@
+{
+  "banks": [
+    {
+      "action_id_counts": {
+        "answer-now": 23946,
+        "ug-grid-00": 23946,
+        "ug-grid-01": 23946,
+        "ug-grid-02": 23946,
+        "ug-grid-03": 23946
+      },
+      "action_set_counts": {
+        "answer-now,ug-grid-00,ug-grid-01,ug-grid-02,ug-grid-03": 23946
+      },
+      "action_type_counts": {
+        "ANSWER": 23946,
+        "ZOOM": 95784
+      },
+      "candidate_count_counts": {
+        "4": 23946
+      },
+      "checks": {
+        "all_decisions_have_complete_siblings": true,
+        "image_ids_available": true,
+        "immutable_manifest_hash_available": true,
+        "immutable_rollout_hash_available": true,
+        "one_candidate_count": true,
+        "one_registered_action_set": true,
+        "row_model_matches_provenance": true,
+        "source_ids_available": true
+      },
+      "dataset": "InfographicVQA",
+      "decisions": 23946,
+      "evidence_use_ready_zoom_rows": 0,
+      "images": 4406,
+      "intervention_signal_row_counts": {
+        "action_prefix": 0,
+        "action_tokens": 0,
+        "alternative_observation": 0,
+        "continuation": 0,
+        "continuation_seed": 0,
+        "continuation_tokens": 0,
+        "counterfactual_observation": 0,
+        "factual_observation": 0,
+        "noop_observation": 0,
+        "real_observation": 0,
+        "tool_call_prefix": 0,
+        "tool_observation": 0
+      },
+      "malformed_decisions": 0,
+      "name": "infographicvqa_qwen7b_full",
+      "provenance": "artifacts/infographicvqa-train-v1/decar-v1/full-qwen7b-v1/merged-rollouts/rollouts.merge.json",
+      "provenance_contract": {
+        "candidate_count": 4,
+        "code_revision": "5b1b0211372ccb96ec21fc55fa954d427a5504b5",
+        "generation_seeds": [
+          0
+        ],
+        "manifest_sha256": "b78a024cb623b17bb8cb73416b3c62f78b140e2e3c3b9737e1dde38bdfe3d254",
+        "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "model_revision": "cc594898137f460bfe9f0759e9844b3ce807cfb5",
+        "proposer": "ug-grid",
+        "rollouts_sha256": "9b2313ed122df26f75e8d27326bb695d469f0b1afad0921afb3676c040d3287e",
+        "scientific_status": null
+      },
+      "records": 119730,
+      "replicates_per_state_counts": {
+        "1": 23946
+      },
+      "role": "main_development",
+      "rollouts": "artifacts/infographicvqa-train-v1/decar-v1/full-qwen7b-v1/merged-rollouts/rollouts.jsonl",
+      "row_model_revisions": [
+        "cc594898137f460bfe9f0759e9844b3ce807cfb5"
+      ],
+      "row_models": [
+        "Qwen/Qwen2.5-VL-7B-Instruct"
+      ],
+      "sources": 2204,
+      "states": 23946,
+      "top_level_field_intersection": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "top_level_field_union": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "unique_bboxes_per_action": {
+        "ug-grid-00": 3570,
+        "ug-grid-01": 3580,
+        "ug-grid-02": 3576,
+        "ug-grid-03": 3586
+      }
+    },
+    {
+      "action_id_counts": {
+        "answer-now": 14511,
+        "ug-grid-00": 14511,
+        "ug-grid-01": 14511,
+        "ug-grid-02": 14511,
+        "ug-grid-03": 14511
+      },
+      "action_set_counts": {
+        "answer-now,ug-grid-00,ug-grid-01,ug-grid-02,ug-grid-03": 14511
+      },
+      "action_type_counts": {
+        "ANSWER": 14511,
+        "ZOOM": 58044
+      },
+      "candidate_count_counts": {
+        "4": 14511
+      },
+      "checks": {
+        "all_decisions_have_complete_siblings": true,
+        "image_ids_available": true,
+        "immutable_manifest_hash_available": true,
+        "immutable_rollout_hash_available": true,
+        "one_candidate_count": true,
+        "one_registered_action_set": true,
+        "row_model_matches_provenance": true,
+        "source_ids_available": true
+      },
+      "dataset": "ScreenQA",
+      "decisions": 14511,
+      "evidence_use_ready_zoom_rows": 0,
+      "images": 5993,
+      "intervention_signal_row_counts": {
+        "action_prefix": 0,
+        "action_tokens": 0,
+        "alternative_observation": 0,
+        "continuation": 0,
+        "continuation_seed": 0,
+        "continuation_tokens": 0,
+        "counterfactual_observation": 0,
+        "factual_observation": 0,
+        "noop_observation": 0,
+        "real_observation": 0,
+        "tool_call_prefix": 0,
+        "tool_observation": 0
+      },
+      "malformed_decisions": 0,
+      "name": "screenqa_qwen3b_full",
+      "provenance": "artifacts/screenqa-train-factorized-v1/ranker-rollouts-v1/merged/rollouts.merge.json",
+      "provenance_contract": {
+        "candidate_count": 4,
+        "code_revision": "d1b8dd10524d8610b19c19a91450cd2d5eac2127",
+        "generation_seeds": [
+          0
+        ],
+        "manifest_sha256": "a2b6941e2a073b24571d2ccb50960f7c1cd70cb0ce53dc8339c7ec44a47f67ec",
+        "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+        "proposer": "ug-grid",
+        "rollouts_sha256": "0437d2a499adccb1b4e19eb0160583789cee00edf244718ecae9e290108bb8c9",
+        "scientific_status": null
+      },
+      "records": 72555,
+      "replicates_per_state_counts": {
+        "1": 14511
+      },
+      "role": "main_development",
+      "rollouts": "artifacts/screenqa-train-factorized-v1/ranker-rollouts-v1/merged/rollouts.jsonl",
+      "row_model_revisions": [
+        "66285546d2b821cf421d4f5eb2576359d3770cd3"
+      ],
+      "row_models": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ],
+      "sources": 1510,
+      "states": 14511,
+      "top_level_field_intersection": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "top_level_field_union": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "unique_bboxes_per_action": {
+        "ug-grid-00": 2,
+        "ug-grid-01": 2,
+        "ug-grid-02": 2,
+        "ug-grid-03": 2
+      }
+    },
+    {
+      "action_id_counts": {
+        "answer-now": 13580,
+        "ug-grid-00": 13580,
+        "ug-grid-01": 13580,
+        "ug-grid-02": 13580,
+        "ug-grid-03": 13580
+      },
+      "action_set_counts": {
+        "answer-now,ug-grid-00,ug-grid-01,ug-grid-02,ug-grid-03": 13580
+      },
+      "action_type_counts": {
+        "ANSWER": 13580,
+        "ZOOM": 54320
+      },
+      "candidate_count_counts": {
+        "4": 13580
+      },
+      "checks": {
+        "all_decisions_have_complete_siblings": true,
+        "image_ids_available": true,
+        "immutable_manifest_hash_available": true,
+        "immutable_rollout_hash_available": true,
+        "one_candidate_count": true,
+        "one_registered_action_set": true,
+        "row_model_matches_provenance": true,
+        "source_ids_available": true
+      },
+      "dataset": "DocVQA",
+      "decisions": 13580,
+      "evidence_use_ready_zoom_rows": 0,
+      "images": 3500,
+      "intervention_signal_row_counts": {
+        "action_prefix": 0,
+        "action_tokens": 0,
+        "alternative_observation": 0,
+        "continuation": 0,
+        "continuation_seed": 0,
+        "continuation_tokens": 0,
+        "counterfactual_observation": 0,
+        "factual_observation": 0,
+        "noop_observation": 0,
+        "real_observation": 0,
+        "tool_call_prefix": 0,
+        "tool_observation": 0
+      },
+      "malformed_decisions": 0,
+      "name": "docvqa_qwen3b_full",
+      "provenance": "artifacts/docvqa-train-factorized-v2/ranker-training/qwen3b-c4-seed0/rollouts.provenance.json",
+      "provenance_contract": {
+        "candidate_count": 4,
+        "code_revision": "2042c2e1f01f28b24b38d78b7d9c9bbfccb78232",
+        "generation_seeds": [
+          0
+        ],
+        "manifest_sha256": "871ea5b924badba8e0f23477fbd40d2e77085a5f69726d0c48e674e72d64a25d",
+        "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+        "proposer": "ug-grid",
+        "rollouts_sha256": "9109d5c896e59959937c2171e897dd81341237ff51fc5745fb4c56325ddd8fc3",
+        "scientific_status": "fresh DocVQA-train factorized-v2 ranker sibling bank; outcomes may train the sole candidate only"
+      },
+      "records": 67900,
+      "replicates_per_state_counts": {
+        "1": 13580
+      },
+      "role": "main_development",
+      "rollouts": "artifacts/docvqa-train-factorized-v2/ranker-training/qwen3b-c4-seed0/rollouts.jsonl",
+      "row_model_revisions": [
+        "66285546d2b821cf421d4f5eb2576359d3770cd3"
+      ],
+      "row_models": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ],
+      "sources": 3500,
+      "states": 13580,
+      "top_level_field_intersection": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "top_level_field_union": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "unique_bboxes_per_action": {
+        "ug-grid-00": 1986,
+        "ug-grid-01": 1986,
+        "ug-grid-02": 1998,
+        "ug-grid-03": 1998
+      }
+    },
+    {
+      "action_id_counts": {
+        "answer-now": 7912,
+        "ug-grid-00": 7912,
+        "ug-grid-01": 7912,
+        "ug-grid-02": 7912,
+        "ug-grid-03": 7912
+      },
+      "action_set_counts": {
+        "answer-now,ug-grid-00,ug-grid-01,ug-grid-02,ug-grid-03": 7912
+      },
+      "action_type_counts": {
+        "ANSWER": 7912,
+        "ZOOM": 31648
+      },
+      "candidate_count_counts": {
+        "4": 7912
+      },
+      "checks": {
+        "all_decisions_have_complete_siblings": true,
+        "image_ids_available": true,
+        "immutable_manifest_hash_available": true,
+        "immutable_rollout_hash_available": true,
+        "one_candidate_count": true,
+        "one_registered_action_set": true,
+        "row_model_matches_provenance": true,
+        "source_ids_available": true
+      },
+      "dataset": "TextVQA",
+      "decisions": 7912,
+      "evidence_use_ready_zoom_rows": 0,
+      "images": 5000,
+      "intervention_signal_row_counts": {
+        "action_prefix": 0,
+        "action_tokens": 0,
+        "alternative_observation": 0,
+        "continuation": 0,
+        "continuation_seed": 0,
+        "continuation_tokens": 0,
+        "counterfactual_observation": 0,
+        "factual_observation": 0,
+        "noop_observation": 0,
+        "real_observation": 0,
+        "tool_call_prefix": 0,
+        "tool_observation": 0
+      },
+      "malformed_decisions": 0,
+      "name": "textvqa_qwen3b_full",
+      "provenance": "artifacts/textvqa-train-scale-v1/ranker-training/qwen3b-c4-seed0/rollouts.provenance.json",
+      "provenance_contract": {
+        "candidate_count": 4,
+        "code_revision": "bb0a395e07ed3c95d6819fb9a22ca9a585c2150a",
+        "generation_seeds": [
+          0
+        ],
+        "manifest_sha256": "5a93e5279036db874076f0a5109ace91261f2416a48c3d397bc592d7d03c4468",
+        "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+        "proposer": "ug-grid",
+        "rollouts_sha256": "1c1d5b67010b5ddfbdabe47072291336b34dcc54928e5db7a12727daa4f14c8e",
+        "scientific_status": "scaled TextVQA train ranker-development sibling bank; outcomes may tune architectures"
+      },
+      "records": 39560,
+      "replicates_per_state_counts": {
+        "1": 7912
+      },
+      "role": "main_development",
+      "rollouts": "artifacts/textvqa-train-scale-v1/ranker-training/qwen3b-c4-seed0/rollouts.jsonl",
+      "row_model_revisions": [
+        "66285546d2b821cf421d4f5eb2576359d3770cd3"
+      ],
+      "row_models": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ],
+      "sources": 5000,
+      "states": 7912,
+      "top_level_field_intersection": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "top_level_field_union": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "unique_bboxes_per_action": {
+        "ug-grid-00": 741,
+        "ug-grid-01": 741,
+        "ug-grid-02": 741,
+        "ug-grid-03": 741
+      }
+    },
+    {
+      "action_id_counts": {
+        "answer-now": 512,
+        "ug-grid-00": 512,
+        "ug-grid-01": 512,
+        "ug-grid-02": 512,
+        "ug-grid-03": 512
+      },
+      "action_set_counts": {
+        "answer-now,ug-grid-00,ug-grid-01,ug-grid-02,ug-grid-03": 512
+      },
+      "action_type_counts": {
+        "ANSWER": 512,
+        "ZOOM": 2048
+      },
+      "candidate_count_counts": {
+        "4": 512
+      },
+      "checks": {
+        "all_decisions_have_complete_siblings": true,
+        "image_ids_available": true,
+        "immutable_manifest_hash_available": true,
+        "immutable_rollout_hash_available": true,
+        "one_candidate_count": true,
+        "one_registered_action_set": true,
+        "row_model_matches_provenance": true,
+        "source_ids_available": true
+      },
+      "dataset": "ScreenQA",
+      "decisions": 512,
+      "evidence_use_ready_zoom_rows": 0,
+      "images": 512,
+      "intervention_signal_row_counts": {
+        "action_prefix": 0,
+        "action_tokens": 0,
+        "alternative_observation": 0,
+        "continuation": 0,
+        "continuation_seed": 0,
+        "continuation_tokens": 0,
+        "counterfactual_observation": 0,
+        "factual_observation": 0,
+        "noop_observation": 0,
+        "real_observation": 0,
+        "tool_call_prefix": 0,
+        "tool_observation": 0
+      },
+      "malformed_decisions": 0,
+      "name": "screenqa_qwen7b_512",
+      "provenance": "artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/merged-rollouts/rollouts.merge.json",
+      "provenance_contract": {
+        "candidate_count": 4,
+        "code_revision": "bef9d0fc04266bc07e430ddfad0c104aeee4575b",
+        "generation_seeds": [
+          0
+        ],
+        "manifest_sha256": "4af43ac80a1666c174774d1c33383adca625e1ef4fc535ffb74e627f149290d0",
+        "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "model_revision": "cc594898137f460bfe9f0759e9844b3ce807cfb5",
+        "proposer": "ug-grid",
+        "rollouts_sha256": "33e9330c144f65a148820cbe008fb9b469bdb1e7a1add9301302367dcc02c76a",
+        "scientific_status": null
+      },
+      "records": 2560,
+      "replicates_per_state_counts": {
+        "1": 512
+      },
+      "role": "opened_development_diagnostic",
+      "rollouts": "artifacts/screenqa-train-factorized-v1/backbone-7b-diagnostic-v1/full-h800-v1/merged-rollouts/rollouts.jsonl",
+      "row_model_revisions": [
+        "cc594898137f460bfe9f0759e9844b3ce807cfb5"
+      ],
+      "row_models": [
+        "Qwen/Qwen2.5-VL-7B-Instruct"
+      ],
+      "sources": 512,
+      "states": 512,
+      "top_level_field_intersection": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "top_level_field_union": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "unique_bboxes_per_action": {
+        "ug-grid-00": 1,
+        "ug-grid-01": 1,
+        "ug-grid-02": 1,
+        "ug-grid-03": 1
+      }
+    },
+    {
+      "action_id_counts": {
+        "answer-now": 4500,
+        "ug-grid-00": 4500,
+        "ug-grid-01": 4500,
+        "ug-grid-02": 4500,
+        "ug-grid-03": 4500
+      },
+      "action_set_counts": {
+        "answer-now,ug-grid-00,ug-grid-01,ug-grid-02,ug-grid-03": 4500
+      },
+      "action_type_counts": {
+        "ANSWER": 4500,
+        "ZOOM": 18000
+      },
+      "candidate_count_counts": {
+        "4": 4500
+      },
+      "checks": {
+        "all_decisions_have_complete_siblings": true,
+        "image_ids_available": true,
+        "immutable_manifest_hash_available": true,
+        "immutable_rollout_hash_available": true,
+        "one_candidate_count": true,
+        "one_registered_action_set": true,
+        "row_model_matches_provenance": true,
+        "source_ids_available": true
+      },
+      "dataset": "ChartQA",
+      "decisions": 4500,
+      "evidence_use_ready_zoom_rows": 0,
+      "images": 4500,
+      "intervention_signal_row_counts": {
+        "action_prefix": 0,
+        "action_tokens": 0,
+        "alternative_observation": 0,
+        "continuation": 0,
+        "continuation_seed": 0,
+        "continuation_tokens": 0,
+        "counterfactual_observation": 0,
+        "factual_observation": 0,
+        "noop_observation": 0,
+        "real_observation": 0,
+        "tool_call_prefix": 0,
+        "tool_observation": 0
+      },
+      "malformed_decisions": 0,
+      "name": "chartqa_qwen3b_4500",
+      "provenance": "artifacts/replication-chartqa-train-4500/qwen3b-c4-concise-seed0/rollouts.provenance.json",
+      "provenance_contract": {
+        "candidate_count": 4,
+        "code_revision": "cdc425ed892a7a4c6c8365be622cbc113544a2dc",
+        "generation_seeds": [
+          0
+        ],
+        "manifest_sha256": "72db6feaa4bc042e98741a48dd55421c5246c1b48c84b1fd75740d1d072ca621",
+        "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+        "proposer": "ug-grid",
+        "rollouts_sha256": "f32d8ab8d5ad46ba264de97667540d41022b52aaae8ef3f0ce3a2df939cc36f9",
+        "scientific_status": "diagnostic; not a benchmark claim"
+      },
+      "records": 22500,
+      "replicates_per_state_counts": {
+        "1": 4500
+      },
+      "role": "diagnostic_replication",
+      "rollouts": "artifacts/replication-chartqa-train-4500/qwen3b-c4-concise-seed0/rollouts.jsonl",
+      "row_model_revisions": [
+        "66285546d2b821cf421d4f5eb2576359d3770cd3"
+      ],
+      "row_models": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ],
+      "sources": 4500,
+      "states": 4500,
+      "top_level_field_intersection": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "top_level_field_union": [
+        "action_id",
+        "action_type",
+        "answer_after",
+        "answer_before",
+        "candidate_bbox",
+        "correct_after",
+        "correct_before",
+        "entropy_after",
+        "entropy_before",
+        "generation_seed",
+        "image_id",
+        "metadata",
+        "original_image",
+        "pre_action_features",
+        "question",
+        "replicate_id",
+        "source_id",
+        "state_id",
+        "tool_cost"
+      ],
+      "unique_bboxes_per_action": {
+        "ug-grid-00": 630,
+        "ug-grid-01": 630,
+        "ug-grid-02": 636,
+        "ug-grid-03": 636
+      }
+    }
+  ],
+  "decision": "n1_existing_assets_insufficient_for_top_tier_regret_benchmark",
+  "estimand_identifiability": {
+    "action_selection_regret_within_registered_bank": {
+      "identifiable": true,
+      "reason": "Every complete decision contains outcomes for every registered sibling action."
+    },
+    "evidence_use_regret": {
+      "identifiable": false,
+      "reason": "Requires a fixed action prefix plus matched factual and counterfactual observations and a controlled continuation; those fields are absent."
+    },
+    "stop_regret": {
+      "identifiable": true,
+      "reason": "Every complete decision contains answer-now and observed tool outcomes."
+    }
+  },
+  "gate_checks": {
+    "action_selection_regret_identifiable": true,
+    "all_main_banks_schema_complete": true,
+    "at_least_three_main_datasets": true,
+    "evidence_use_regret_identifiable": false,
+    "immutable_reproduction_metadata_available": true,
+    "more_than_one_tool_action_family": false,
+    "multiple_stochastic_replicates_per_state": false,
+    "same_dataset_multibackbone_main_factor": false,
+    "source_level_identifiers_available": true,
+    "stop_regret_identifiable": true
+  },
+  "schema": "n1_sibling_bank_inventory_v1",
+  "summary": {
+    "all_main_single_replicate": true,
+    "cross_backbone_same_dataset_comparisons": [
+      {
+        "dataset": "ScreenQA",
+        "left_bank": "screenqa_qwen3b_full",
+        "left_model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "left_role": "main_development",
+        "overlapping_states": 512,
+        "right_bank": "screenqa_qwen7b_512",
+        "right_model": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "right_role": "opened_development_diagnostic"
+      }
+    ],
+    "dataset_to_main_models": {
+      "DocVQA": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ],
+      "InfographicVQA": [
+        "Qwen/Qwen2.5-VL-7B-Instruct"
+      ],
+      "ScreenQA": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ],
+      "TextVQA": [
+        "Qwen/Qwen2.5-VL-3B-Instruct"
+      ]
+    },
+    "diagnostic_bank_count": 2,
+    "main_bank_count": 4,
+    "main_datasets": [
+      "DocVQA",
+      "InfographicVQA",
+      "ScreenQA",
+      "TextVQA"
+    ],
+    "main_decisions": 59949,
+    "main_models": [
+      "Qwen/Qwen2.5-VL-3B-Instruct",
+      "Qwen/Qwen2.5-VL-7B-Instruct"
+    ],
+    "main_proposers": [
+      "ug-grid"
+    ],
+    "main_records": 299745,
+    "main_sources_summed_without_cross_dataset_deduplication": 12214,
+    "main_tool_action_types": [
+      "ZOOM"
+    ]
+  }
+}
