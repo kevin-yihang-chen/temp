@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from beyond_entropy.predictability_audit import (
     AUDIT_BENCHMARKS,
     AuditVerdict,
@@ -198,7 +200,11 @@ def test_split_audit_rejects_rgb_leakage() -> None:
 def _verdict_rows(**updates: float) -> list[BenchmarkVerdictEvidence]:
     defaults = dict(
         oracle_utility=0.02,
-        deployable_beats_strongest_baseline_lower_ci=-0.001,
+        primary_deployable_beats_strongest_baseline_lower_ci=-0.001,
+        maximum_lower_ci_across_all_deployable_policies=-0.001,
+        deployable_accuracy_cost_pareto=True,
+        deployable_rescue_precision_higher=True,
+        deployable_harm_rate_not_higher=True,
         post_action_probe_utility_lower_ci=0.001,
         l3_in_domain_improvement_lower_ci=-0.001,
         l3_image_or_cross_domain_improvement_upper_ci=0.001,
@@ -214,9 +220,20 @@ def test_final_verdict_rules_are_deterministic() -> None:
     assert classify_completed_audit(_verdict_rows()) == AuditVerdict.PIVOT
     assert (
         classify_completed_audit(
-            _verdict_rows(deployable_beats_strongest_baseline_lower_ci=0.001)
+            _verdict_rows(primary_deployable_beats_strongest_baseline_lower_ci=0.001)
         )
         == AuditVerdict.GO
+    )
+    assert (
+        classify_completed_audit(
+            _verdict_rows(
+                primary_deployable_beats_strongest_baseline_lower_ci=0.001,
+                deployable_accuracy_cost_pareto=False,
+                l3_in_domain_improvement_lower_ci=0.001,
+                l3_image_or_cross_domain_improvement_upper_ci=-0.001,
+            )
+        )
+        == AuditVerdict.REPRESENTATION
     )
     assert (
         classify_completed_audit(
@@ -231,3 +248,10 @@ def test_final_verdict_rules_are_deterministic() -> None:
         classify_completed_audit(_verdict_rows(oracle_utility=0.001))
         == AuditVerdict.STOP
     )
+
+
+def test_pivot_requires_every_deployable_policy_to_fail() -> None:
+    with pytest.raises(ValueError, match="does not support"):
+        classify_completed_audit(
+            _verdict_rows(maximum_lower_ci_across_all_deployable_policies=0.001)
+        )

@@ -1,6 +1,6 @@
 # 项目发展记录
 
-更新时间：2026-09-03 21:04（Asia/Hong_Kong）
+更新时间：2026-09-04 09:05（Asia/Hong_Kong）
 
 ## 项目要解决的问题
 
@@ -156,6 +156,36 @@ geometry 和原图加该 crop 的冻结 Qwen prompt state；它与 deployable in
 provenance/label/coverage 校验和原子 merge。含 probe 的完整 synthetic matrix 与 662 tests
 通过，真实 ChartQA 单行 Job `206664` 又确认 `6167` 维 post-action vector 可实际导出。
 
-正式矩阵仍为 `0/36`，test 未打开。下一步用三域较大 opened-train shards 冻结 v2 性能与
-预算，随后生成完整 train/validation outcomes；最终 `PREDICTABILITY_AUDIT.md` 仍只能在
-完整真实矩阵后给出 `GO/PIVOT/REPRESENTATION/STOP`。
+随后又关闭了一个会破坏一次性 test 可信度的接口缺口。原 runner 在一个函数里同时持有
+train/validation/test，即使选择逻辑正确，也无法留下“test 在 freeze 前不可达”的强证据。
+commit `e90299a` 把它拆成 development-only fit/freeze 与 held-out-only evaluate 两个类型化
+阶段；freeze 保存全部 estimator、calibrator、threshold、baseline、validation inventory
+和 development source/RGB identity digest，并要求哈希匹配后才能加载。formal 一键调用被
+禁止。进一步自审发现，如果 test rollout/features 已经生成，再由 evaluator 写 ledger，
+时间顺序仍不可信。因此当前实现改为 ledger-first 的单体事务：Phase A freeze 后先建立不
+读取 test 的 hash-bound plan，唯一 H800 job 在所有非-test preflight 后首先写不可覆盖
+ledger，再读取 allocation/test manifest、生成三域 test、检查 development-vs-test
+source/RGB 零重叠并执行冻结推断；ledger 后发生任何中断都禁止自动重提。
+
+同一轮还纠正了一个概念泄漏：早期 calibrator 把 `gain-lambda*cost>0` 当概率标签，与本阶段
+“只预测 cost-independent quantity”冲突。现在模型与 calibrator 只学习
+`gain>0/rescue/harm`，lambda 仅在 validation threshold 和 policy utility 使用。每 seed 的
+deployable/L3 cell 选择与三-seed 多数投票都在 validation 冻结，post-action probe 也使用
+相同 seed aggregation；终局 report 明确保存 oracle、完整 ladder、rescue/harm、三条 curve、
+paired bootstrap、GO/PIVOT/REPRESENTATION/STOP 证据和唯一下一阶段建议。
+
+64-state 跨域吞吐 gate 随后全部完成。ChartQA/DocVQA/HRBench Job
+`206665/206666/206668` 的 elapsed 为 `119/189/623` 秒，三者各生成 64 states、320
+rollouts 与 64 v2 features，并各自通过 16/16 独立检查。由此冻结的完整 development
+点估计/1.5 倍保守预算为 `15.19/22.79 H800-hours`，最终文件约 `1.63GB`；六个 role
+顺序执行，每 256 states 保存到同一个可恢复 rollout/feature 文件，持久 resume 文件共
+12 个且 learned-backbone checkpoint 为 0。
+
+一次性 test 的额外冻结预算为 ChartQA/DocVQA/HRBench `1000/2147/160` states，按同一
+吞吐估计合计 `2.71 H800-hours`，1.5 倍保守为 `4.07`；三个 test roles 共 28 次原子保存、
+6 个滚动 resume 文件。test 尚未打开；这些文件只会在完整 development freeze 存在后由
+ledger-first transaction 生成。
+
+正式矩阵仍为 `0/36`，test 未打开。下一步生成完整 train/validation outcomes；最终
+`PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出
+`GO/PIVOT/REPRESENTATION/STOP`。

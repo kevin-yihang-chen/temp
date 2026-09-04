@@ -307,7 +307,7 @@ def fit_raw_target_model(
 
 @dataclass
 class ScoreCalibrators:
-    positive_net: Any
+    positive_gain: Any
     rescue: Any
     harm: Any
 
@@ -319,7 +319,7 @@ class ScoreCalibrators:
         import numpy as np  # type: ignore[import-not-found]
 
         rows = np.asarray(scores, dtype=np.float64).reshape(-1, 1)
-        positive = _positive_probability(self.positive_net, rows)
+        positive = _positive_probability(self.positive_gain, rows)
         rescue = _positive_probability(self.rescue, rows)
         harm = _positive_probability(self.harm, rows)
         return [
@@ -327,7 +327,7 @@ class ScoreCalibrators:
                 state_id=example.outcome.state_id,
                 replicate_id=example.outcome.replicate_id,
                 score=float(score),
-                positive_net_probability=float(p_positive),
+                positive_gain_probability=float(p_positive),
                 rescue_probability=float(p_rescue),
                 harm_probability=float(p_harm),
             )
@@ -341,7 +341,6 @@ def fit_score_calibrators(
     examples: Sequence[LabeledOutcomeExample],
     scores: Sequence[float],
     *,
-    lambda_cost: float,
     seed: int,
 ) -> ScoreCalibrators:
     import numpy as np  # type: ignore[import-not-found]
@@ -351,9 +350,7 @@ def fit_score_calibrators(
     rows = np.asarray(scores, dtype=np.float64).reshape(-1, 1)
     weights = source_balanced_weights(examples)
     labels = {
-        "positive_net": [
-            item.outcome.incremental_utility(lambda_cost) > 0.0 for item in examples
-        ],
+        "positive_gain": [item.outcome.gain > 0.0 for item in examples],
         "rescue": [item.outcome.rescue for item in examples],
         "harm": [item.outcome.harm for item in examples],
     }
@@ -411,7 +408,6 @@ def fit_frozen_audit_cell(
         calibrators = fit_score_calibrators(
             validation,
             validation_scores,
-            lambda_cost=lambda_cost,
             seed=seed + variant_index * 10 + 3,
         )
         predictions = calibrators.predictions(validation, validation_scores)

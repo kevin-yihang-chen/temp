@@ -18,7 +18,7 @@ class Prediction:
     state_id: str
     replicate_id: str
     score: float
-    positive_net_probability: float
+    positive_gain_probability: float
     rescue_probability: float
     harm_probability: float
 
@@ -28,7 +28,7 @@ class Prediction:
         if not math.isfinite(self.score):
             raise ValueError("prediction score must be finite")
         for name in (
-            "positive_net_probability",
+            "positive_gain_probability",
             "rescue_probability",
             "harm_probability",
         ):
@@ -296,15 +296,14 @@ def prediction_metrics(
     outcomes: Sequence[BinaryToolOutcome],
     predictions: Sequence[Prediction],
     *,
-    lambda_cost: float,
     calibration_bins: int = 10,
 ) -> dict[str, float | None]:
     aligned = align_predictions(outcomes, predictions)
-    positive_net = [item.incremental_utility(lambda_cost) > 0.0 for item in outcomes]
+    positive_gain = [item.gain > 0.0 for item in outcomes]
     rescue = [item.rescue for item in outcomes]
     harm = [item.harm for item in outcomes]
-    probabilities = [item.positive_net_probability for item in aligned]
-    primary = _binary_metrics(positive_net, probabilities)
+    probabilities = [item.positive_gain_probability for item in aligned]
+    primary = _binary_metrics(positive_gain, probabilities)
     rescue_metrics = _binary_metrics(
         rescue, [item.rescue_probability for item in aligned]
     )
@@ -313,10 +312,10 @@ def prediction_metrics(
         {
             "brier": mean(
                 (probability - float(label)) ** 2
-                for probability, label in zip(probabilities, positive_net)
+                for probability, label in zip(probabilities, positive_gain)
             ),
             "calibration_error": _expected_calibration_error(
-                positive_net, probabilities, bins=calibration_bins
+                positive_gain, probabilities, bins=calibration_bins
             ),
             "rescue_auprc": rescue_metrics["auprc"],
             "harm_auprc": harm_metrics["auprc"],

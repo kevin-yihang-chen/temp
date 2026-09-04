@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import math
 import hashlib
+import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -548,7 +548,11 @@ class AuditVerdict(str, Enum):
 class BenchmarkVerdictEvidence:
     benchmark: str
     oracle_utility: float
-    deployable_beats_strongest_baseline_lower_ci: float
+    primary_deployable_beats_strongest_baseline_lower_ci: float
+    maximum_lower_ci_across_all_deployable_policies: float
+    deployable_accuracy_cost_pareto: bool
+    deployable_rescue_precision_higher: bool
+    deployable_harm_rate_not_higher: bool
     post_action_probe_utility_lower_ci: float
     l3_in_domain_improvement_lower_ci: float
     l3_image_or_cross_domain_improvement_upper_ci: float
@@ -576,7 +580,17 @@ def classify_completed_audit(
     count = lambda predicate: sum(bool(predicate(item)) for item in evidence)
     if count(lambda item: item.oracle_utility <= small_oracle_utility) >= 2:
         return AuditVerdict.STOP
-    if count(lambda item: item.deployable_beats_strongest_baseline_lower_ci > 0.0) >= 2:
+    if (
+        count(
+            lambda item: (
+                item.primary_deployable_beats_strongest_baseline_lower_ci > 0.0
+            )
+            and item.deployable_accuracy_cost_pareto
+            and item.deployable_rescue_precision_higher
+            and item.deployable_harm_rate_not_higher
+        )
+        >= 2
+    ):
         return AuditVerdict.GO
     if (
         count(lambda item: item.l3_in_domain_improvement_lower_ci > 0.0) >= 2
@@ -589,7 +603,9 @@ def classify_completed_audit(
     if (
         count(lambda item: item.oracle_utility > small_oracle_utility) >= 2
         and count(lambda item: item.post_action_probe_utility_lower_ci > 0.0) >= 2
-        and count(lambda item: item.deployable_beats_strongest_baseline_lower_ci <= 0.0)
+        and count(
+            lambda item: item.maximum_lower_ci_across_all_deployable_policies <= 0.0
+        )
         == 3
     ):
         return AuditVerdict.PIVOT

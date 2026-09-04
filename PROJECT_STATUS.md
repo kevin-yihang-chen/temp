@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-03 21:04（Asia/Hong_Kong）
+更新时间：2026-09-04 09:05（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -77,9 +77,36 @@ synthetic 36/36 × 3-seed 矩阵、662 tests、mypy 和 torch merger smoke 全�
 
 真实 Job `206664` 在 opened ChartQA train 一个 state 上 `COMPLETED/ExitCode=0:0`，runtime
 25 秒。独立 14/14 checks 确认 format v2、四次工具成本、selected action、pre/post 隔离、
-全部有限值与 hashes；post-action 实际维度为 `6167`。正式矩阵仍为 `0/36`，test 继续
-封存；下一步是较大三域 opened-train shard throughput/recovery gate，之后才提交完整
-train/validation。
+全部有限值与 hashes；post-action 实际维度为 `6167`。
+
+commit `e90299a645e528dc937c7c346cd5978e8016a599` 已把正式 fit 与 test evaluation 从类型和
+调用图上拆开。fit API 只接收 train/validation 并输出含 development source/RGB identity
+index 的持久化 frozen bundle；test API 只应用冻结的 model/calibrator/threshold/baseline，
+不包含 fit 或 selection。随后自审发现“先生成 test artifact、再由 evaluator 建 ledger”仍
+不足以证明 untouched test；现在改成单一 test transaction：先验证 freeze/code/GPU/离线
+权重并 exclusive-create 不可覆盖 ledger，再读取 allocation/test manifest，然后在同一不可
+自动重提的 H800 job 中顺序生成三域 test、冻结推断和渲染终局报告。两阶段 input artifact
+loader 会逐一验证 manifest/rollout/feature/code/protocol/allocation hashes 和 feature metadata。
+
+同一次自审还修正了 cost-independent target 的实质泄漏：旧 probability calibrator 使用
+`gain-lambda*cost>0` 标签，等于把 lambda 学进模型。新接口完全移除 calibrator 与 prediction
+metric 的 lambda 参数，只校准 `gain>0/rescue/harm`；lambda 现在只进入 validation threshold
+与 policy utility。每个 seed 的 primary deployable 只按 validation utility、调用数和冻结
+level/target 顺序选择，三个 seed 以多数投票冻结；L3 与 post-action diagnostic 同样预先冻结
+聚合。GO 的 Pareto/rescue/harm、PIVOT 的“所有 cell-seed 及 primary 均失败”、L3 的
+validation/test representation evidence 都已进入 machine report 与终局 renderer。
+
+较大吞吐 gate 已全部完成。ChartQA/DocVQA/HRBench Job `206665/206666/206668` 都是
+opened-train 64 states、320 条 rollout 和 64 条 v2 feature，均 `COMPLETED` 且各自通过
+16/16 独立检查；elapsed 为 `119/189/623` 秒，对应吞吐
+`1936.13/1219.05/369.82 states/H800-hour`。HRBench 明显更慢，但没有错误、restart 或
+维度漂移。完整 train+validation 的点估计/1.5 倍保守预算为
+`15.19/22.79 H800-hours`，最终小产物约 `1.63GB`。checkpoint cadence 固定为 256 states、
+六个顺序 role jobs 和 12 个持久 resume 文件，不训练或保存 VLM checkpoint。正式矩阵仍为
+`0/36`；test transaction 预计另含 3307 states、`2.71/4.07` raw/保守 H800-hours、28 次
+原子保存和 6 个滚动 resume 文件。新的 matrix round-trip `7/7` tests 在 1000.58 秒内通过，
+18 个相关 Python 文件 mypy 通过，全仓 676 tests 回归 `ExitCode=0`；clean commit 完成前
+不会提交正式作业。下一步仍从 ChartQA train 开始生成完整 development evidence。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均
@@ -439,7 +466,7 @@ GPU、新 checkpoint 或 protected outcome。
 | N4/N5 selector information-boundary 现实效应 gate | N4 formal 14/14 通过；N5 现实效应 8/8 条件失败，当前候选关闭 |
 | Fixed-tool predictability 数据冻结 | ChartQA/DocVQA/HRBench 的 source 与 decoded-RGB 双隔离 split 已完成，test 未打开 |
 | 三域真实 Qwen rollout + L0--L3 feature path | Jobs 206628--206631 通过；只证明工程可运行 |
-| 36-cell predictability 正式矩阵 | `0/36`；强基线、post-action probe 与 shard merge 已完成，待三域正式 train/validation |
+| 36-cell predictability 正式矩阵 | `0/36`；强基线、post-action probe、两阶段 freeze/test、恢复与 22.79 H800-hour 预算已冻结，待完整 train/validation |
 | 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
 | 独立 calibration 通过 | 未开始；无候选获授权 |
 | Sealed formal 一次性通过 | 未开始 |
@@ -451,13 +478,13 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 20:07 HKT，实时 `squeue -u yihangc` 为空。Job `206630/206631` 已分别
-以 `COMPLETED`、`ExitCode=0:0` 结束，均配置
-`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`；这证明 Slurm 通知配置存在，不能
-据此确认邮件客户端实际送达。GPU quota 同时刻快照为 222,000 分钟总额、42,239 已用、
-179,761 剩余，即总计/已用/剩余约 `3700.00/703.98/2996.02 GPU-hours`，利用率约
-`19.03%`。持久盘可用 350,277,861,376 bytes（约 326.22 GiB），使用率 73%。这些队列、
-配额和磁盘数字是时点数据；当前没有训练在后台运行。
+截至 2026-09-03 21:36 HKT，Job `206665/206666/206668` 均已结束，当前没有本轮吞吐作业
+在运行；三者均配置 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。这证明 Slurm
+通知配置存在，不能据此确认邮件客户端实际送达。GPU quota 时点快照为 222,000 分钟总额、
+42,244 已用、179,756 剩余，即总计/已用/剩余约
+`3700.00/704.07/2995.93 GPU-hours`，利用率约 `19.03%`。持久盘可用
+350,262,132,736 bytes（约 326.20 GiB），使用率 73%。这些队列、配额和磁盘数字都是时点
+数据；下一正式 development job 尚未提交。
 
 ## 已关闭的路线
 
@@ -538,10 +565,10 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
 `206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。当前唯一行动是
-fixed-tool predictability audit 的 pre-formal 代码合同已经完成：strong-baseline ledger、
-独立 paired bootstrap、唯一 post-action probe 和 recoverable shard merge 分别绑定在
-`daa43c1/19631c8`，真实单行 v2 gate Job `206664` 也已通过。现在用三域较大 opened-train
-shards 冻结 throughput、shard count/checkpoint cadence 和总预算；随后运行三个 benchmark
-的完整 train/validation。threshold、variant 和 calibration 只在 validation 选择，test 只在
-全部选择冻结后打开一次。不得用更多相似 feature、
+fixed-tool predictability audit 的 pre-formal 合同现已完成：strong-baseline ledger、paired
+bootstrap、post-action probe、恢复、两阶段 freeze/test interface 与 22.79 H800-hour 保守
+预算均已有代码/机器配置。三域 64-state throughput Jobs `206665/206666/206668` 全部通过。
+下一步按冻结顺序先运行 ChartQA train，再顺序完成六个 train/validation roles；每个 role
+完成后做 hash/coverage/label 独立审计。全部 development artifacts 结束后才 fit 并持久化
+唯一 frozen matrix，之后才允许 test transaction。不得用更多相似 feature、
 阈值搜索或扩大模型容量重开已关闭路线；正式 36 cells 完成前不生成终局 verdict。

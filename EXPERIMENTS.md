@@ -1538,3 +1538,85 @@
 - 科学边界：本项只证明 privileged probe 与 recoverable export 可以真实执行，不是效用
   可预测性结果；正式矩阵仍为 `0/36`，test 未打开。下一步先用三域较大 opened-train
   shards 冻结吞吐、shard count、checkpoint cadence 和预算，再运行完整 train/validation。
+
+## E-20260903-25：两阶段 test 隔离与三域 64-state 预算 gate
+
+- 风险与修正：旧 matrix runner 虽然只在 validation 选择 variant/threshold/baseline，却在
+  同一个调用里持有 test，无法产生“test 在 freeze 前不可达”的强审计证据。commit
+  `e90299a645e528dc937c7c346cd5978e8016a599` 将其拆为只接收 train/validation 的 fit-freeze
+  API 与只接收 frozen bundle/test 的 evaluate API；formal one-shot wrapper 被禁止。
+  bundle 保存全部 estimator/calibrator/threshold/baseline 与 development source/RGB
+  identity index，加载必须匹配 SHA-256；test CLI 在触碰 test artifacts 前写 hash-bound、
+  exclusive-create access ledger，之后仍要做 development-vs-test 零重叠检查。
+- Artifact gate：严格 input spec 会验证 protocol/code、manifest/rollout/feature/provenance
+  hashes、manifest coverage、fixed-tool labels 和实际维度。精确 feature contract 在任何正式
+  validation/test outcome 前固定为 Qwen2.5-VL-3B revision `662855...cd3`、seed 0、16 tokens、
+  bf16/SDPA/offline、pixels `200704/602112` 与 v2 维度 `3/22/6147/6147`、post `6167`。
+  development-only freeze/test round-trip、错误 hash、RGB leakage 和 formal one-shot 拒绝均有
+  回归；真实 torch 2.4 artifact loader smoke 为 `20/20/100` pre/post/siblings。
+- GPU 范围：三个作业都只从各 benchmark 的 opened train role 取前 64 states，使用 1×H800、
+  邮件 `ALL`、固定四 crop，无 test。ChartQA Job `206665`、DocVQA Job `206666`、HRBench
+  Job `206668` 全部 `COMPLETED`、零 restart，elapsed 分别为 `119/189/623` 秒。每个 run
+  都生成 320 sibling records 与 64 条 v2 feature，并各自通过 16/16 独立检查。
+- 吞吐与预算：实测速率为 `1936.13/1219.05/369.82 states/H800-hour`；按冻结的
+  `4500/13580/640` development states，线性合计 `15.1946 H800-hours`，1.5 倍保守预算
+  `22.7919 H800-hours`。最终 rollout+feature 估计 `1,632,023,533 bytes`。正式执行固定为
+  六个顺序 role jobs、checkpoint interval 256；每个 role 只有一个滚动 rollout JSONL 和
+  feature PT，故持久 resume 文件为 12，计划原子保存事件为 152，learned VLM checkpoints
+  为 0，最终 matrix bundle 为 1。
+- 资源：2026-09-03 21:36 HKT 时点 GPU 总/已用/剩余为
+  `3700.00/704.07/2995.93 hours`，持久盘剩余 `350,262,132,736 bytes`；资源充足。正式
+  execution config/protocol SHA-256 为
+  `49a559a6839867554f2edbd66873b5148b6fbc720dca6fe04919479f847a934e` /
+  `699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1`；二者包含
+  E-20260904-26 在正式 outcome 前完成的选模、lambda 与 test-transaction 修订。
+- 核心 hashes（manifest/rollout/feature）：ChartQA
+  `619cbb76...4095/d3e8e25a...287b/e9145309...945e`；DocVQA
+  `23282312...e30/5f97a660...c503/68e671d8...35e8`；HRBench
+  `36777e80...f81a/00291959...dc9/4c3e1a2f...5ccf`。这些仍是工程与预算证据，不能计入
+  正式 36 cells。
+- 决定：pre-formal throughput gate 通过；正式矩阵仍为 `0/36`，test 未打开。完成全量
+  回归并绑定 clean revision 后，按冻结顺序只提交第一个 ChartQA train role；其 sealed
+  artifact 独立审计通过后才提交下一个角色。
+
+## E-20260904-26：cost-independent 修复、冻结选模与 ledger-first test transaction
+
+- 假设/风险：正式矩阵即使完成，如果没有在 test 前唯一冻结 cell/seed aggregation、
+  Pareto/rescue/harm 判据和四类 verdict 的输入字段，仍可能在结果后形成隐性选择；如果
+  calibrator 用 `gain-lambda*cost>0`，则违反“模型只预测 cost-independent quantity”；如果
+  test rollouts/features 已生成后 evaluator 才建 ledger，也不能证明 untouched test。
+- 修复：probability API 从 `positive_net` 改为 `positive_gain`，calibrator 和 prediction
+  metrics 完全移除 lambda，后者只保留在 validation threshold 与 policy utility。每 seed
+  在 validation 上按 utility、调用数、冻结 level/target 顺序选唯一 primary；三 seed 对
+  call mask 多数投票。L3 representation 与唯一 post-action probe 同样冻结多数投票。
+  machine report v3 新增 test oracle headroom、primary、所有 deployable lower-CI 最大值、
+  L3 validation/test、post-action ensemble、真实 curves 和确定性 bootstrap seed schedule。
+- 终局：新增 fail-closed renderer；只有 formal=true、完整 36 cells、三个固定 seeds、三域
+  source/RGB split audit、已有 one-shot ledger 与 20,000-resample paired source bootstrap
+  全部齐备且冻结规则能给出唯一类别时，才 exclusive-create
+  `PREDICTABILITY_AUDIT.md`。报告包含 oracle、ladder、rescue/harm、accuracy-cost/call-rate
+  curves、CI、四类 verdict 和唯一研究路线。
+- test 事务：新增 pre-access transaction plan、不可覆盖 starter、三域 test role finalizer、
+  input-spec builder、单体 H800 worker 与 submitter。worker 在 ledger 前只验证 frozen
+  model/report、clean code、GPU、离线权重与非-test hashes；ledger 落盘后才 hash/count/load
+  allocation/test manifests，随后顺序生成 ChartQA/DocVQA/HRBench test 并评估。任何 ledger
+  后失败都禁止自动重提。test 预算固定为 3307 states、`2.7103/4.0655` raw/1.5x H800-hours、
+  28 次原子保存和 6 个滚动 resume 文件；邮件为 `ALL`。
+- 完整性：exclusive writer 从有覆盖竞争窗口的 `os.replace` 改成同目录 hard-link commit，
+  因而 access ledger、freeze 与最终 Markdown 都不会在并发 race 中覆盖既有 artifact。
+  test allocation report SHA-256 为
+  `4c072355b75dcd7b228267f30c4790efa3d9facbdae1a731ac903ec351efb468`，三个 test manifest
+  SHA-256 分别为 `a3e3020c...25ba/cac7d76b...68bc/268efda9...5c96`，allocation 中
+  `historically_opened=false` 将在 ledger 后重新验证。
+- 当前验证：18 个相关 Python 文件 mypy 通过；bash syntax、JSON parse、diff check 通过；
+  audit/evaluation/modeling/post-action/baseline/artifact/test-transaction/verdict targeted tests
+  通过；matrix 的 7 个拟合/冻结/恢复/held-out/RGB-leak/formal-rejection tests 在
+  `1000.58s` 内全通过。全仓 676 tests 的 pytest 回归 `ExitCode=0`；qwen-vl 环境又重新加载 Job `206668` 的真实 HRBench artifact，
+  得到 `64/64/320` pre/post/sibling 和 `3/22/6147/6147/6167` 精确维度。尚未形成 clean
+  implementation commit。
+- 当前科学状态：正式 matrix 仍为 `0/36`，test outcome 未打开，本项没有提交 Slurm/GPU
+  或生成正式 checkpoint。协议/development execution/test execution SHA-256 为
+  `699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1` /
+  `49a559a6839867554f2edbd66873b5148b6fbc720dca6fe04919479f847a934e` /
+  `819eab49f90c68af8dadc0f8c4915b1163c6fb2dcc55d03a0fb3d70e89cd7ccd`。下一步是全仓
+  pytest、真实 artifact loader smoke、clean commit，然后只提交 ChartQA train role。

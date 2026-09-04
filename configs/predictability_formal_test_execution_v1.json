@@ -1,0 +1,55 @@
+{
+  "schema": "predictability_formal_test_execution_config_v1",
+  "frozen_at": "2026-09-03T22:35:00+08:00",
+  "protocol": {
+    "path": "configs/predictability_audit_v1.json",
+    "sha256": "699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1"
+  },
+  "scope": "one_shot_held_out_test_after_frozen_matrix_only",
+  "gpu": "h800",
+  "partition": "q-hgpu-small",
+  "requested_time": "06:00:00",
+  "checkpoint_interval_states": 256,
+  "checkpoint_semantics": "atomic_rewrite_of_one_rollout_jsonl_and_one_feature_pt_per_test_role",
+  "allocation_report": {
+    "path": "data/predictability-audit-v1/allocation.report.json",
+    "sha256": "4c072355b75dcd7b228267f30c4790efa3d9facbdae1a731ac903ec351efb468",
+    "required_test_historically_opened": false
+  },
+  "persistent_resume_files": 6,
+  "planned_checkpoint_save_events": 28,
+  "automatic_retry_after_access_ledger": false,
+  "roles_in_execution_order": [
+    {
+      "benchmark": "chartqa",
+      "states": 1000,
+      "expected_manifest_sha256": "a3e3020cfe93bebd86301843e90db60bb01fde5d122093a90f7e479a9b1a25ba",
+      "raw_estimated_h800_hours": 0.5164930555555556,
+      "planned_checkpoint_save_events": 8
+    },
+    {
+      "benchmark": "docvqa",
+      "states": 2147,
+      "expected_manifest_sha256": "cac7d76b703c3da7a53aa78ff784ec62cc545d7c61226286ab653e82253b68bc",
+      "raw_estimated_h800_hours": 1.7612109375,
+      "planned_checkpoint_save_events": 18
+    },
+    {
+      "benchmark": "hrbench",
+      "states": 160,
+      "expected_manifest_sha256": "268efda90c3cad24a82fde79cc302e6fd0bf3ed47aef43f5df89e3c933e05c96",
+      "raw_estimated_h800_hours": 0.4326388888888889,
+      "planned_checkpoint_save_events": 2
+    }
+  ],
+  "aggregate": {
+    "states": 3307,
+    "raw_estimated_h800_hours": 2.7103428819444444,
+    "conservative_runtime_multiplier": 1.5,
+    "conservative_reserved_h800_hours": 4.065514322916666
+  },
+  "terminal_outputs": {
+    "machine_report": "predictability-matrix-test-report.json",
+    "audit_markdown": "PREDICTABILITY_AUDIT.md"
+  }
+}

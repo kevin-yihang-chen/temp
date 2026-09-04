@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 21:04（Asia/Hong_Kong）
+更新时间：2026-09-03 21:28（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -77,9 +77,35 @@ post-action diagnostic probe 固定为 direct-gain `[128,32]` MLP；输入与 de
 
 真实 Job `206664` 又在 opened ChartQA train 单行上于 25 秒内通过：pre-action 维度仍为
 `3/22/6147/6147`，post-action probe 为 `6167` 维且全部有限，固定工具四次成本与
-entropy-selected action 完全一致。正式矩阵仍为 `0/36`；下一步先用较大的三域
-opened-train shards 冻结 v2 吞吐、shard size 和预算，再提交完整 train/validation，test
-继续封存。
+entropy-selected action 完全一致。
+
+正式 test 隔离不再只靠约定。commit `e90299a645e528dc937c7c346cd5978e8016a599`
+把 matrix 拆为不接受 test 参数的 train/validation fit-freeze API，以及只接受持久化 freeze
+和 held-out data 的 evaluate API；formal one-shot wrapper 会 fail closed。冻结 bundle、
+development source/RGB identity index、全部 variant/threshold/calibrator/baseline 和 JSON
+inventory 均有 SHA-256。后续自审把 transaction 顺序进一步收紧：不允许先生成 test 再由
+evaluator 建账；独立 starter 必须先 exclusive-create ledger，同一个不可自动重提的 H800
+job 才能读取 allocation/test manifest、顺序生成三域 test artifacts、应用冻结 matrix 并
+渲染终局报告。两阶段 artifact loader/CLI 和 test transaction worker 已实现，待全量回归与
+clean commit 绑定。
+
+冻结前还修复了 lambda 泄漏：probability calibrator 现在只学习成本无关的
+`gain>0/rescue/harm`，lambda 仅用于 validation threshold 与 policy utility。每个 seed 在
+validation 上唯一选择 primary cell，三个 seed 多数投票；L3 和 post-action probe 同样冻结
+聚合。GO 的 Pareto/rescue/harm 与 PIVOT 的“所有 individual cell-seed 和 primary 的 lower
+CI 均不为正”已有可执行证据字段，终局 renderer 会在 matrix、one-shot ledger 或 split
+证据不完整时拒绝生成 `PREDICTABILITY_AUDIT.md`。
+
+64-state 较大吞吐 gate 已全部完成：ChartQA/DocVQA/HRBench Job
+`206665/206666/206668` 分别运行 `119/189/623` 秒，折合
+`1936.13/1219.05/369.82 states/H800-hour`；三个 run 均为 64 states、320 sibling
+rollouts、64 条 v2 feature，并各自通过 16/16 独立检查。完整 train+validation 的线性点估计
+为 `15.19 H800-hours`，1.5 倍冻结保守预算为 `22.79 H800-hours`，最终 rollout+feature
+约 `1.63GB`。正式执行固定为六个顺序 role jobs、每 256 states 原子 checkpoint；不训练
+VLM、持久 resume 文件共 12 个，最后只保存一个 matrix bundle。正式矩阵仍为 `0/36`，
+test 继续封存。test transaction 预注册为 3307 states、`2.71/4.07` raw/保守 H800-hours、
+28 次原子保存和 6 个滚动 resume 文件。matrix round-trip 新回归 `7/7` 通过，全仓 676 tests
+回归 `ExitCode=0`；完成 clean commit 后才提交 ChartQA train。
 
 ## 当前核心判断
 

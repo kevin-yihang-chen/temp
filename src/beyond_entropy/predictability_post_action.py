@@ -263,7 +263,6 @@ def fit_frozen_post_action_probe(
     calibrators = fit_score_calibrators(
         validation,
         validation_scores,
-        lambda_cost=lambda_cost,
         seed=seed + 3,
     )
     predictions = calibrators.predictions(validation, validation_scores)

@@ -122,7 +122,7 @@
     ],
     "maximum_seeds": 3,
     "source_weighting": "inverse_question_count_per_source_normalized_to_mean_one",
-    "probability_calibration": "validation_logistic_calibration_of_frozen_raw_score_for_positive_net_rescue_and_harm",
+    "probability_calibration": "validation_logistic_calibration_of_frozen_raw_score_for_positive_gain_rescue_and_harm_without_lambda",
     "fixed_model_hyperparameters": {
       "linear_regularization": 1.0,
       "l1_small_mlp_hidden": [
@@ -141,6 +141,62 @@
     },
     "threshold_selection": "maximize_validation_utility_then_fewer_calls_then_ascending_threshold",
     "no_architecture_loss_feature_or_seed_search_after_freeze": true
+  },
+  "frozen_policy_aggregation": {
+    "operationalized_at": "2026-09-03T22:30:00+08:00",
+    "primary_deployable_per_seed_selection": "maximum_validation_source_balanced_utility_then_fewer_calls_then_frozen_predictor_level_order_then_frozen_target_order",
+    "primary_deployable_seed_aggregation": "strict_majority_vote_of_the_three_seed_call_masks",
+    "l3_diagnostic_per_seed_selection": "maximum_validation_source_balanced_utility_then_fewer_calls_then_frozen_target_order_within_l3",
+    "l3_seed_aggregation": "strict_majority_vote_of_the_three_seed_call_masks",
+    "post_action_probe_seed_aggregation": "strict_majority_vote_of_the_three_seed_call_masks",
+    "even_seed_tie_for_nonformal_smoke": "no_call",
+    "test_selection_allowed": false,
+    "pareto_definition": "candidate_accuracy_at_least_baseline_and_candidate_cost_at_most_baseline_with_at_least_one_strict_inequality_at_the_frozen_operating_point",
+    "rescue_condition": "candidate_rescue_precision_strictly_higher_than_strongest_baseline",
+    "harm_condition": "candidate_harm_rate_per_call_not_higher_than_strongest_baseline",
+    "zero_call_undefined_rate_convention": 0.0,
+    "all_deployables_fail_definition": "maximum_paired_95pct_lower_ci_across_every_individual_cell_seed_policy_and_the_frozen_primary_ensemble_is_at_most_zero"
+  },
+  "two_phase_execution": {
+    "operationalized_at": "2026-09-03T21:27:00+08:00",
+    "development_phase_inputs": "train_validation_features_and_sibling_rollouts_only",
+    "development_phase_output": "hash_bound_serialized_models_thresholds_calibrators_baselines_and_identity_index",
+    "test_data_accepted_by_development_api": false,
+    "formal_one_shot_wrapper_allowed": false,
+    "test_phase_inputs": "persisted_frozen_bundle_plus_preaccess_transaction_plan_then_generated_test_features_and_sibling_rollouts",
+    "test_phase_fitting_or_selection_allowed": false,
+    "test_access_ledger": "exclusive_durable_record_written_before_any_test_manifest_allocation_report_rollout_or_feature_is_hashed_counted_or_loaded",
+    "automatic_test_rerun_after_access_record": false,
+    "test_generation_transaction": "one_h800_job_generates_chartqa_docvqa_hrbench_in_order_then_evaluates_the_frozen_matrix",
+    "test_failure_recovery": "ledger_remains_and_only_explicit_human_audited_exact_recovery_is_allowed",
+    "frozen_bundle_load": "trusted_local_pickle_with_required_sha256",
+    "development_test_overlap_check": "stored_source_ids_and_decoded_rgb_sha256_against_test_before_metrics"
+  },
+  "feature_extraction": {
+    "operationalized_at": "2026-09-03T21:30:00+08:00",
+    "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+    "generation_seeds": [
+      0
+    ],
+    "max_new_tokens": 16,
+    "proposer": "ug-grid",
+    "visual_crop_ratio": 2.0,
+    "visual_cost_per_crop": 1.0,
+    "dtype": "bfloat16",
+    "attention_implementation": "sdpa",
+    "min_pixels": 200704,
+    "max_pixels": 602112,
+    "local_files_only": true,
+    "require_prompt_hash": true,
+    "feature_format_version": 2,
+    "pre_action_dimensions": {
+      "l0_uncertainty": 3,
+      "l1_shallow": 22,
+      "l2_semantic": 6147,
+      "l3_frozen_qwen": 6147
+    },
+    "post_action_probe_dimension": 6167
   },
   "hard_matrix": {
     "benchmarks": 3,
@@ -179,6 +235,8 @@
       1.0
     ],
     "primary_endpoint": "incremental_source_balanced_utility",
+    "prediction_probability_label": "Ytool_minus_Y0_greater_than_zero_cost_independent",
+    "lambda_use": "policy_threshold_and_utility_only_never_a_training_or_calibration_label",
     "uncertainty": {
       "method": "paired_source_bootstrap",
       "confidence_level": 0.95,
@@ -237,9 +295,9 @@
     ],
     "minimum_benchmarks": 2,
     "small_oracle_utility": 0.005,
-    "GO": "best deployable beats strongest baseline with paired 95% lower CI above zero on at least two benchmarks and passes registered rescue_harm_Pareto checks",
-    "PIVOT": "oracle utility exceeds small threshold and post-action probe utility lower CI is positive on at least two benchmarks while every deployable predictor fails",
-    "REPRESENTATION": "L3 in-domain improvement lower CI is positive on at least two benchmarks but image-disjoint or cross-domain improvement upper CI is non-positive on at least two",
+    "GO": "frozen validation-selected three-seed-majority primary deployable beats strongest baseline with paired 95% lower CI above zero on at least two benchmarks and passes registered operating-point Pareto rescue and harm checks",
+    "PIVOT": "oracle utility exceeds small threshold and frozen post-action three-seed-majority probe utility lower CI versus answer-now is positive on at least two benchmarks while the maximum lower CI over every deployable cell-seed and primary policy is at most zero on all three",
+    "REPRESENTATION": "validation-selected L3 three-seed-majority improvement lower CI is positive on at least two benchmarks but its untouched source-and-RGB-disjoint test improvement upper CI is non-positive on at least two",
     "STOP": "oracle utility is at most the small threshold on at least two benchmarks",
     "inconclusive": "raise_and_do_not_emit_final_verdict"
   }

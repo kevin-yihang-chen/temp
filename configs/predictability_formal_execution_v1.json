@@ -1,0 +1,113 @@
+{
+  "schema": "predictability_formal_execution_config_v1",
+  "frozen_at": "2026-09-03T21:35:00+08:00",
+  "protocol": {
+    "path": "configs/predictability_audit_v1.json",
+    "sha256": "699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1"
+  },
+  "scope": "development_train_and_validation_only",
+  "test_artifacts_authorized": false,
+  "gpu": "h800",
+  "partition": "q-hgpu-small",
+  "partition_max_time": "18:00:00",
+  "maximum_concurrent_or_submitted_jobs": 1,
+  "checkpoint_interval_states": 256,
+  "checkpoint_semantics": "atomic_rewrite_of_one_rollout_jsonl_and_one_feature_pt_per_role",
+  "persistent_resume_files": 12,
+  "planned_checkpoint_save_events": 152,
+  "learned_backbone_checkpoints": 0,
+  "final_frozen_matrix_bundles_after_development": 1,
+  "conservative_runtime_multiplier": 1.5,
+  "observed_64_state_throughput": {
+    "chartqa": {
+      "job_id": "206665",
+      "elapsed_seconds": 119,
+      "states_per_h800_hour": 1936.1344537815125,
+      "bytes_per_state_rollout_plus_feature": 87950.640625,
+      "independent_checks": "16/16"
+    },
+    "docvqa": {
+      "job_id": "206666",
+      "elapsed_seconds": 189,
+      "states_per_h800_hour": 1219.047619047619,
+      "bytes_per_state_rollout_plus_feature": 87100.640625,
+      "independent_checks": "16/16"
+    },
+    "hrbench": {
+      "job_id": "206668",
+      "elapsed_seconds": 623,
+      "states_per_h800_hour": 369.8234349919743,
+      "bytes_per_state_rollout_plus_feature": 83467.109375,
+      "independent_checks": "16/16"
+    }
+  },
+  "roles_in_submission_order": [
+    {
+      "benchmark": "chartqa",
+      "role": "train",
+      "states": 3600,
+      "raw_estimated_h800_hours": 1.859375,
+      "requested_time": "04:00:00",
+      "planned_checkpoint_save_events": 30
+    },
+    {
+      "benchmark": "chartqa",
+      "role": "validation",
+      "states": 900,
+      "raw_estimated_h800_hours": 0.46484375,
+      "requested_time": "01:30:00",
+      "planned_checkpoint_save_events": 8
+    },
+    {
+      "benchmark": "docvqa",
+      "role": "train",
+      "states": 10861,
+      "raw_estimated_h800_hours": 8.9094140625,
+      "requested_time": "16:00:00",
+      "planned_checkpoint_save_events": 86
+    },
+    {
+      "benchmark": "docvqa",
+      "role": "validation",
+      "states": 2719,
+      "raw_estimated_h800_hours": 2.2304296875,
+      "requested_time": "04:00:00",
+      "planned_checkpoint_save_events": 22
+    },
+    {
+      "benchmark": "hrbench",
+      "role": "train",
+      "states": 480,
+      "raw_estimated_h800_hours": 1.2979166666666668,
+      "requested_time": "02:30:00",
+      "planned_checkpoint_save_events": 4
+    },
+    {
+      "benchmark": "hrbench",
+      "role": "validation",
+      "states": 160,
+      "raw_estimated_h800_hours": 0.4326388888888889,
+      "requested_time": "01:00:00",
+      "planned_checkpoint_save_events": 2
+    }
+  ],
+  "aggregate": {
+    "states": 18720,
+    "raw_estimated_h800_hours": 15.194618055555557,
+    "conservative_reserved_h800_hours": 22.791927083333334,
+    "estimated_final_rollout_plus_feature_bytes": 1632023533,
+    "resource_preflight_at": "2026-09-03T21:36:00+08:00",
+    "gpu_quota_minutes_total": 222000,
+    "gpu_quota_minutes_used": 42244,
+    "gpu_quota_minutes_remaining": 179756,
+    "available_gpu_hours_at_last_preflight": 2995.9333333333334,
+    "available_disk_bytes_at_last_preflight": 350262132736
+  },
+  "recovery": {
+    "resume_same_role_only": true,
+    "maximum_recomputed_states_after_interruption": 256,
+    "rollout_and_feature_resume_metadata_must_match": true,
+    "completed_role_artifacts_are_immutable": true,
+    "test_role_resume_or_generation": "forbidden_before_frozen_matrix_bundle"
+  }
+}

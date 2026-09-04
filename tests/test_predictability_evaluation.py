@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 from beyond_entropy.predictability_audit import collapse_fixed_entropy_tool
 from beyond_entropy.predictability_evaluation import (
@@ -30,7 +31,7 @@ def _outcomes_and_predictions() -> tuple[list, list[Prediction]]:
             state_id=item.state_id,
             replicate_id=item.replicate_id,
             score=float(index),
-            positive_net_probability=0.8,
+            positive_gain_probability=0.8,
             rescue_probability=0.8,
             harm_probability=0.1,
         )
@@ -76,7 +77,7 @@ def test_policy_metrics_and_fixed_rate_curve() -> None:
 def test_prediction_metrics_include_frozen_required_set() -> None:
     outcomes, predictions = _outcomes_and_predictions()
     outcomes[0] = type(outcomes[0])(**{**outcomes[0].__dict__, "y_tool": 0.0})
-    metrics = prediction_metrics(outcomes, predictions, lambda_cost=0.05)
+    metrics = prediction_metrics(outcomes, predictions)
     assert set(metrics) == {
         "auroc",
         "auprc",
@@ -85,6 +86,8 @@ def test_prediction_metrics_include_frozen_required_set() -> None:
         "rescue_auprc",
         "harm_auprc",
     }
+    changed_cost = [replace(item, tool_cost=item.tool_cost * 100.0) for item in outcomes]
+    assert prediction_metrics(changed_cost, predictions) == metrics
 
 
 def test_paired_bootstrap_uses_source_level_differences() -> None:
