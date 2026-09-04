@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-03 21:28（Asia/Hong_Kong）
+更新时间：2026-09-04 09:36（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -86,8 +86,8 @@ development source/RGB identity index、全部 variant/threshold/calibrator/base
 inventory 均有 SHA-256。后续自审把 transaction 顺序进一步收紧：不允许先生成 test 再由
 evaluator 建账；独立 starter 必须先 exclusive-create ledger，同一个不可自动重提的 H800
 job 才能读取 allocation/test manifest、顺序生成三域 test artifacts、应用冻结 matrix 并
-渲染终局报告。两阶段 artifact loader/CLI 和 test transaction worker 已实现，待全量回归与
-clean commit 绑定。
+渲染终局报告。两阶段 artifact loader/CLI 和 test transaction worker 已实现，并已通过
+全量回归、绑定到 clean implementation commit `cf70e2245bfbd629a156978861a8e96bf6fd5384`。
 
 冻结前还修复了 lambda 泄漏：probability calibrator 现在只学习成本无关的
 `gain>0/rescue/harm`，lambda 仅用于 validation threshold 与 policy utility。每个 seed 在
@@ -105,7 +105,7 @@ rollouts、64 条 v2 feature，并各自通过 16/16 独立检查。完整 train
 VLM、持久 resume 文件共 12 个，最后只保存一个 matrix bundle。正式矩阵仍为 `0/36`，
 test 继续封存。test transaction 预注册为 3307 states、`2.71/4.07` raw/保守 H800-hours、
 28 次原子保存和 6 个滚动 resume 文件。matrix round-trip 新回归 `7/7` 通过，全仓 676 tests
-回归 `ExitCode=0`；完成 clean commit 后才提交 ChartQA train。
+回归 `ExitCode=0`；当前未提交正式作业，下一步只提交 ChartQA train。
 
 ## 当前核心判断
 

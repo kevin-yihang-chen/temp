@@ -1,6 +1,6 @@
 # 项目状态
 
-更新时间：2026-09-04 09:05（Asia/Hong_Kong）
+更新时间：2026-09-04 09:36（Asia/Hong_Kong）
 
 ## 当前执行状态
 
@@ -105,8 +105,9 @@ opened-train 64 states、320 条 rollout 和 64 条 v2 feature，均 `COMPLETED`
 六个顺序 role jobs 和 12 个持久 resume 文件，不训练或保存 VLM checkpoint。正式矩阵仍为
 `0/36`；test transaction 预计另含 3307 states、`2.71/4.07` raw/保守 H800-hours、28 次
 原子保存和 6 个滚动 resume 文件。新的 matrix round-trip `7/7` tests 在 1000.58 秒内通过，
-18 个相关 Python 文件 mypy 通过，全仓 676 tests 回归 `ExitCode=0`；clean commit 完成前
-不会提交正式作业。下一步仍从 ChartQA train 开始生成完整 development evidence。
+17 个相关 Python 文件 mypy 通过，全仓 676 tests 回归 `ExitCode=0`；完整工作流已绑定到
+clean implementation commit `cf70e2245bfbd629a156978861a8e96bf6fd5384`。当前尚未提交正式
+作业；下一步仍从 ChartQA train 开始生成完整 development evidence。
 
 上述 runner 现已完成一次非科学 synthetic 全矩阵 smoke：36/36 cells、每 cell 三个固定
 seeds，共 108 个 seed-runs 全部结束；三个 synthetic benchmark 的 source/RGB overlap 均

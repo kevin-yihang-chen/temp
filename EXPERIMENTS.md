@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-03 20:07（Asia/Hong_Kong）
+更新时间：2026-09-04 09:36（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1608,15 +1608,15 @@
   `4c072355b75dcd7b228267f30c4790efa3d9facbdae1a731ac903ec351efb468`，三个 test manifest
   SHA-256 分别为 `a3e3020c...25ba/cac7d76b...68bc/268efda9...5c96`，allocation 中
   `historically_opened=false` 将在 ledger 后重新验证。
-- 当前验证：18 个相关 Python 文件 mypy 通过；bash syntax、JSON parse、diff check 通过；
+- 当前验证：17 个相关 Python 文件 mypy 通过；bash syntax、JSON parse、diff check 通过；
   audit/evaluation/modeling/post-action/baseline/artifact/test-transaction/verdict targeted tests
   通过；matrix 的 7 个拟合/冻结/恢复/held-out/RGB-leak/formal-rejection tests 在
   `1000.58s` 内全通过。全仓 676 tests 的 pytest 回归 `ExitCode=0`；qwen-vl 环境又重新加载 Job `206668` 的真实 HRBench artifact，
-  得到 `64/64/320` pre/post/sibling 和 `3/22/6147/6147/6167` 精确维度。尚未形成 clean
-  implementation commit。
+  得到 `64/64/320` pre/post/sibling 和 `3/22/6147/6147/6167` 精确维度。实现已绑定到
+  clean commit `cf70e2245bfbd629a156978861a8e96bf6fd5384`。
 - 当前科学状态：正式 matrix 仍为 `0/36`，test outcome 未打开，本项没有提交 Slurm/GPU
   或生成正式 checkpoint。协议/development execution/test execution SHA-256 为
   `699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1` /
   `49a559a6839867554f2edbd66873b5148b6fbc720dca6fe04919479f847a934e` /
-  `819eab49f90c68af8dadc0f8c4915b1163c6fb2dcc55d03a0fb3d70e89cd7ccd`。下一步是全仓
-  pytest、真实 artifact loader smoke、clean commit，然后只提交 ChartQA train role。
+  `819eab49f90c68af8dadc0f8c4915b1163c6fb2dcc55d03a0fb3d70e89cd7ccd`。当前未提交正式
+  Slurm 作业；下一步只提交 ChartQA train role，并在 sealed artifact 独立审计后推进。

@@ -1,6 +1,6 @@
 # 项目发展记录
 
-更新时间：2026-09-04 09:05（Asia/Hong_Kong）
+更新时间：2026-09-04 09:36（Asia/Hong_Kong）
 
 ## 项目要解决的问题
 
@@ -185,6 +185,12 @@ rollouts 与 64 v2 features，并各自通过 16/16 独立检查。由此冻结�
 吞吐估计合计 `2.71 H800-hours`，1.5 倍保守为 `4.07`；三个 test roles 共 28 次原子保存、
 6 个滚动 resume 文件。test 尚未打开；这些文件只会在完整 development freeze 存在后由
 ledger-first transaction 生成。
+
+这一阶段的协议、两阶段 artifact API、ledger-first test transaction、冻结选择规则、
+终局 renderer、Slurm 执行脚本及回归测试已统一绑定到 implementation commit
+`cf70e2245bfbd629a156978861a8e96bf6fd5384`。发布快照通过 17 个相关 Python 文件的 mypy、
+Shell/JSON/hash 检查、关键定向测试与全仓 676 tests；该提交只包含代码、配置、测试和文字
+记录，不包含本地数据集、模型权重、checkpoint 或大型实验 artifact。
 
 正式矩阵仍为 `0/36`，test 未打开。下一步生成完整 train/validation outcomes；最终
 `PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出
