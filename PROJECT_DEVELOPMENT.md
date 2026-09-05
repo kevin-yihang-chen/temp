@@ -1,6 +1,6 @@
 # 项目发展记录
 
-更新时间：2026-09-04 09:36（Asia/Hong_Kong）
+更新时间：2026-09-05 17:34（Asia/Hong_Kong）
 
 ## 项目要解决的问题
 
@@ -195,3 +195,25 @@ Shell/JSON/hash 检查、关键定向测试与全仓 676 tests；该提交只包
 正式矩阵仍为 `0/36`，test 未打开。下一步生成完整 train/validation outcomes；最终
 `PREDICTABILITY_AUDIT.md` 仍只能在完整真实矩阵后给出
 `GO/PIVOT/REPRESENTATION/STOP`。
+
+## 第六阶段终局：完整矩阵与一次性 test
+
+2026-09-04 至 2026-09-05，六个 formal development roles 按冻结顺序完成：ChartQA
+train/validation `3600/900` states，DocVQA `10861/2719` states，HRBench `480/160`
+states。全部 role 都绑定 clean revision `2151b82e44bee0bcd48c30aebc7bc02e1da418a7`
+和协议 SHA-256
+`699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1`。随后冻结 36 个
+科学 cells、108 个 seed-specific fits；独立 audit 确认三个 development split、六个强基线、
+deployable/L3 selection 与 post-action probes 完整，并确认 freeze 时没有 test data。
+
+唯一 test transaction Job `208184` 在 ledger 落盘后顺序完成 ChartQA/DocVQA/HRBench
+`1000/2147/160` 个 held-out states、冻结推断和机器报告。最终 report 为
+`formal_claim_eligible=true`、`frozen_before_test=true`、matrix `36/36`，三域 split audit
+全部通过。Job 的非零 exit 只发生在最后一步：四个预注册 verdict 都未命中，renderer 按
+fail-closed 合同拒绝制造一个类别；此前所有 test artifacts 和 evaluator 均已完成。
+
+科学上，fixed tool 在三域都有显著 oracle headroom，但 primary deployable policy 的相对
+改进 lower CI 在三域均不大于零，post-action diagnostic 也没有正 lower CI。用户明确选择
+保留这一冻结组合为最终 **INCONCLUSIVE** 结果。它关闭了当前 static pre-action router
+主张，但不证明新的 sequential evidence-acquisition 机制必然失败。由于 test 已消费，任何
+后续路线都必须重新预注册并使用新的 held-out test。

@@ -36,21 +36,27 @@ method training is not currently authorized.
 ## Current status and development record
 
 The repository is an active research codebase, but it does **not** currently
-contain a top-conference-ready positive result. The current route is a frozen,
-36-cell audit of whether pre-action VLM state can predict the value of one fixed
-four-crop visual tool. Source- and decoded-RGB-disjoint ChartQA, DocVQA, and
-HRBench splits are frozen, and the real Qwen rollout plus L0--L3 feature path has
-passed train-role smoke tests on all three benchmarks. These are engineering
-milestones only: the formal matrix is still `0/36`, protected test outcomes have
-not been opened, and the heterogeneous strong-baseline comparator plus the sole
-post-action diagnostic probe still have to be implemented before formal runs.
-Negative results and route closures are retained as first-class evidence.
+contain a top-conference-ready positive result. The frozen 36-cell audit of
+whether pre-action VLM state predicts the value of one fixed four-crop visual
+tool is now complete on source- and decoded-RGB-disjoint ChartQA, DocVQA, and
+HRBench splits. All 36 predictor/target cells and three fixed seeds were
+evaluated in a ledger-first, one-shot held-out transaction with 20,000 paired
+whole-source bootstrap resamples.
+
+The terminal status is **INCONCLUSIVE**. The fixed tool has statistically
+positive oracle headroom on all three benchmarks, but neither the tested
+deployable pre-action policies nor the diagnostic post-action probe established
+stable positive utility. None of the preregistered `GO`, `PIVOT`,
+`REPRESENTATION`, or `STOP` branches fired; the user explicitly accepted the
+protocol's fail-closed inconclusive branch as the final report. The consumed
+test is not reused for model, threshold, seed, or verdict selection.
 
 - [项目当前状态](PROJECT_STATUS.md)
 - [研究计划与路线决策](PLANS.md)
 - [项目发展记录](PROJECT_DEVELOPMENT.md)
 - [完整实验账本](EXPERIMENTS.md)
 - [固定工具 predictability 协议](docs/predictability_audit_protocol_v1.md)
+- [最终 predictability 审计（INCONCLUSIVE）](artifacts/predictability-audit-v1/formal-test-once-v1/PREDICTABILITY_AUDIT.md)
 - [N5 回顾性结果](artifacts/docvqa-train-factorized-v2/ops/n5-information-set-retrospective-result-20260903-v1.md)
 
 ## Quick start
@@ -135,7 +141,18 @@ The submit wrapper reads the notification recipient from the private,
 git-ignored `.slurm-notify-email` file and requests email for all Slurm state
 changes. This keeps contact information out of the public repository.
 
-## Current scientific checkpoint
+## Final fixed-tool predictability checkpoint
+
+The completed formal report is `formal_claim_eligible=true`, frozen before test,
+and complete at 36/36 scientific cells (108 seed-specific fits). Oracle utility
+is `+0.02320` on ChartQA, `+0.01935` on DocVQA, and `+0.05000` on HRBench, with
+all three 95% intervals above zero. However, the primary deployable policy's
+paired lower confidence bound is non-positive on every benchmark, and the
+post-action diagnostic has no positive lower confidence bound on any benchmark.
+This closes the tested static-router claim without claiming that a future,
+separately preregistered sequential acquisition method must fail.
+
+## Earlier scientific checkpoints
 
 The complete 2,500-state ChartQA development diagnostic establishes sparse
 counterfactual headroom: answer-now accuracy is 0.8128, exhaustive four-crop

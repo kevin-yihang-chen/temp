@@ -1,8 +1,39 @@
 # 项目状态
 
-更新时间：2026-09-04 09:36（Asia/Hong_Kong）
+更新时间：2026-09-05 17:34（Asia/Hong_Kong）
 
-## 当前执行状态
+## 2026-09-05 终局状态
+
+固定四-crop visual tool 的 pre-action predictability audit 已完成。六个 development
+roles 共生成 ChartQA/DocVQA/HRBench 的 train/validation `4500/13580/640` states；随后
+在 test 之前冻结 36 个科学 cells、108 个 seed-specific fits 和唯一 post-action probe。
+冻结模型 SHA-256 为
+`be7f08f417653f20a15e49cee7f65bd893cbb3f2eeac935c64bea8c71c21ecbf`，独立 freeze
+audit 通过，且确认 `test_data_present=false`。
+
+唯一 ledger-first test transaction 为 Job `208184`，覆盖三个 held-out benchmark 的
+`1000/2147/160` states。机器报告满足 `formal_claim_eligible=true`、
+`frozen_before_test=true`、matrix `36/36`、三域 split audit 全部通过，并对要求的区间执行
+20,000 次 paired whole-source bootstrap。机器报告 SHA-256 为
+`adbd3f53ddb3d7d5dee04ff5b0ab553495cc74ff5c9464e42ebb5492ccd7d49f`。
+
+最终状态为 **INCONCLUSIVE**。三域 fixed-tool oracle utility 均显著为正：ChartQA
+`+0.023200 [0.015200, 0.032000]`、DocVQA
+`+0.019355 [0.013229, 0.026421]`、HRBench
+`+0.050000 [0.020000, 0.080000]`；但 primary deployable policy 在三域相对最强基线的
+95% CI lower endpoint 分别为 `-0.004400/-0.000918/-0.022813`，没有一个显著为正。
+唯一 post-action diagnostic 的 lower endpoint 也在三域均不大于零。预注册的
+`GO/PIVOT/REPRESENTATION/STOP` 四个分支均未完整命中；协议的 fail-closed 分支拒绝制造
+类别，用户随后明确接受 `INCONCLUSIVE` 作为终局标注。
+
+这意味着：固定工具确有可利用 headroom，但本次完整 predictor ladder 没有证明稳定、
+可部署的动作前效用信号；同时也没有证据保证 sequential acquisition 会成功。当前 test
+已消耗，不得用于选择新模型、阈值、特征、seed 或判定规则。若继续研究，必须另写协议，
+使用全新的 held-out test 检验 active/sequential evidence acquisition，而不是继续调当前
+static gate。最终公开报告位于
+`artifacts/predictability-audit-v1/formal-test-once-v1/PREDICTABILITY_AUDIT.md`。
+
+## 冻结与执行过程（历史记录）
 
 项目已从此前的开放式候选搜索收敛到一个固定、可证伪的审计：判断 pre-action VLM state
 能否预测固定四-crop entropy-search 工具的效用。这里不学习 crop 位置，避免把 `where`
@@ -437,6 +468,14 @@ GPU、新 checkpoint 或 protected outcome。
 
 ## 当前最佳结果与解释边界
 
+- 最终 formal 结论为 `INCONCLUSIVE`，不是 deployable 正结果。
+- 最强可靠正证据是三域 fixed-tool oracle headroom 的 95% CI 均高于零；它只证明正确
+  决策有价值，不证明动作前可以预测。
+- 三域 primary deployable improvement 的 lower CI 均不大于零；post-action probe 也没有
+  任何一个 benchmark 的正 lower CI。因此不能宣布 `GO`，也不能用 privileged headroom
+  冒充方法结果。
+- 当前 static-router test 已消耗；后续任何新方法都必须使用新协议和新 held-out test。
+
 - 最强 deployable `where`：raw-attention action；它显著超过四个旧 where 基线，
   但在现有 stopping 下仍为负 utility，不能进入 calibration。
 - 最清晰机制证据：固定 raw action 后，privileged stop 上界 `+0.021318`；这证明
@@ -465,12 +504,12 @@ GPU、新 checkpoint 或 protected outcome。
 | N0 action-boundary interventional objective | 零支持数值与一手文献 gate 完成；退化为既有 listwise/AWR/value-router 家族，GPU 前关闭 |
 | N3 公开 checkpoint 与 novelty 联合 gate | VTool 3B/7B 可用，但 artifact provenance 不完整且 H5 core claims 全部碰撞；下载/GPU/checkpoint 均为 0 |
 | N4/N5 selector information-boundary 现实效应 gate | N4 formal 14/14 通过；N5 现实效应 8/8 条件失败，当前候选关闭 |
-| Fixed-tool predictability 数据冻结 | ChartQA/DocVQA/HRBench 的 source 与 decoded-RGB 双隔离 split 已完成，test 未打开 |
-| 三域真实 Qwen rollout + L0--L3 feature path | Jobs 206628--206631 通过；只证明工程可运行 |
-| 36-cell predictability 正式矩阵 | `0/36`；强基线、post-action probe、两阶段 freeze/test、恢复与 22.79 H800-hour 预算已冻结，待完整 train/validation |
-| 可部署方法在 source-OOF train gate 取得正且显著 utility | 未完成 |
-| 独立 calibration 通过 | 未开始；无候选获授权 |
-| Sealed formal 一次性通过 | 未开始 |
+| Fixed-tool predictability 数据冻结 | 完成；ChartQA/DocVQA/HRBench source 与 decoded-RGB 双隔离，one-shot test 已消费 |
+| 三域真实 Qwen rollout + L0--L3 feature path | 完成；六个 development roles 与三个 test roles 均通过 artifact audit |
+| 36-cell predictability 正式矩阵 | 完成 `36/36`、三个 seeds；frozen bundle 为 108 个 seed-specific fits |
+| 可部署方法在 frozen test 上取得正且显著 utility | 未达到；三域 primary lower CI 均不大于零 |
+| 独立 calibration 与 freeze | 完成；所有选择在 test 前冻结 |
+| Sealed formal 一次性评估 | 完成；终局为 `INCONCLUSIVE`，没有重跑或事后调参 |
 | 第二数据集/骨干与外部方法比较 | 未完成 |
 | 完整论文主张 | 仅有诊断与负结果骨架 |
 
@@ -479,13 +518,11 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 正在运行
 
-截至 2026-09-03 21:36 HKT，Job `206665/206666/206668` 均已结束，当前没有本轮吞吐作业
-在运行；三者均配置 `--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。这证明 Slurm
-通知配置存在，不能据此确认邮件客户端实际送达。GPU quota 时点快照为 222,000 分钟总额、
-42,244 已用、179,756 剩余，即总计/已用/剩余约
-`3700.00/704.07/2995.93 GPU-hours`，利用率约 `19.03%`。持久盘可用
-350,262,132,736 bytes（约 326.20 GiB），使用率 73%。这些队列、配额和磁盘数字都是时点
-数据；下一正式 development job 尚未提交。
+截至 2026-09-05 17:34 HKT，`squeue -u yihangc` 为空，没有运行或排队的作业。Job
+`208184` 已完成三个 test roles 和机器 evaluator；其 `ExitCode=1:0` 只来自旧终局 renderer
+在四个注册类别均未命中时按协议拒绝写 verdict，不是矩阵或 test 失败。GPU quota 时点
+快照为 222,000 分钟总额、43,141 已用、178,859 剩余，即总计/已用/剩余约
+`3700.00/719.02/2980.98 GPU-hours`，利用率约 `19.43%`。这些队列和配额数字均为时点数据。
 
 ## 已关闭的路线
 
@@ -564,12 +601,9 @@ generalization 四个实质台阶。现在不能承诺日期。
 
 ## 下一步最优行动
 
-不再做 VTool 等价性审计，也不再重跑当前 G1、V2 或换公开 initializer 重开 H5。Job
-`206205`、Job `206227`、N0、N1、N2、N3 与 N4/N5 均已按各自 gate 关闭。当前唯一行动是
-fixed-tool predictability audit 的 pre-formal 合同现已完成：strong-baseline ledger、paired
-bootstrap、post-action probe、恢复、两阶段 freeze/test interface 与 22.79 H800-hour 保守
-预算均已有代码/机器配置。三域 64-state throughput Jobs `206665/206666/206668` 全部通过。
-下一步按冻结顺序先运行 ChartQA train，再顺序完成六个 train/validation roles；每个 role
-完成后做 hash/coverage/label 独立审计。全部 development artifacts 结束后才 fit 并持久化
-唯一 frozen matrix，之后才允许 test transaction。不得用更多相似 feature、
-阈值搜索或扩大模型容量重开已关闭路线；正式 36 cells 完成前不生成终局 verdict。
+当前 fixed-tool static-router 路线已经完成并以 `INCONCLUSIVE` 关闭。不得重用 Job
+`208184` 的 test outcome 调当前 predictor、threshold、feature、seed 或 verdict rule。
+如果继续项目，信息价值最高的合法下一步是先提出并预注册一个新的 active/sequential
+evidence-acquisition 假设，明确它为何能利用 static pre-action gate 未捕获的信号，并为其
+分配全新的 held-out test。新路线必须先过文献碰撞、可识别性、强基线、成本与小规模真实
+输入 gate，再决定是否使用 GPU；在这之前不提交新的正式计算作业。

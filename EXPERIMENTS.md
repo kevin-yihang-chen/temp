@@ -1,6 +1,6 @@
 # 实验记录
 
-更新时间：2026-09-04 09:36（Asia/Hong_Kong）
+更新时间：2026-09-05 17:34（Asia/Hong_Kong）
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
@@ -1620,3 +1620,59 @@
   `49a559a6839867554f2edbd66873b5148b6fbc720dca6fe04919479f847a934e` /
   `819eab49f90c68af8dadc0f8c4915b1163c6fb2dcc55d03a0fb3d70e89cd7ccd`。当前未提交正式
   Slurm 作业；下一步只提交 ChartQA train role，并在 sealed artifact 独立审计后推进。
+
+## E-20260905-27：六个 formal development roles 与 matrix freeze
+
+- 假设/协议：按冻结顺序完成 ChartQA、DocVQA、HRBench 的 train/validation rollout 与
+  L0--L3/post-action feature export，只用 development data 拟合并冻结完整 36-cell matrix；
+  test 在 freeze 前不可达。代码 revision 为
+  `2151b82e44bee0bcd48c30aebc7bc02e1da418a7`，协议 SHA-256 为
+  `699073b149c957022b203e71dc0ae9e7c7733515efb125f26a86713021a3c6e1`。
+- Role jobs：ChartQA train/validation Jobs `206990/207043`，states `3600/900`；DocVQA
+  Jobs `207065/207839`，states `10861/2719`；HRBench Jobs `207890/208070`，states
+  `480/160`。六份 `complete.json` 均为 `passed=true`，每 state 恰有五条 sibling rollout
+  和一个 post-action example，合计 development states `18,720`。
+- Freeze：首个 Job `208072` 因旧 CLI protocol-contract 表达不兼容，在产生 freeze 前
+  fail closed；compat launcher Job `208073` 使用相同数据、协议、代码和科学配置完成冻结。
+  MLP convergence warnings 原样保留，未改变 iteration、architecture 或 selection。
+- 结果：frozen model SHA-256
+  `be7f08f417653f20a15e49cee7f65bd893cbb3f2eeac935c64bea8c71c21ecbf`；freeze report
+  SHA-256 `1005e507df87e02c6c6cb0af8a8569fa0b2b1af1961682b7fb9b5ff9d02b4572`；development
+  input spec SHA-256 `b6fc4c87516af0c25e6aa1321cdb30d253fd7b0afeb0fa837bee9f9c775fb3a0`。
+  独立 Job `208175` audit 通过：36 scientific cells、108 seed-specific cells、三个
+  development split audit 和六个强基线完整，`formal_claim_eligible=true`、
+  `test_data_present=false`。
+- 结论：development matrix 合法冻结，允许唯一 ledger-first test transaction。这一步只
+  冻结模型和选择，不是 held-out 结果。
+
+## E-20260905-28：唯一 held-out test 与 INCONCLUSIVE 终局
+
+- Test transaction：Job `208184`，1×H800，2026-09-05 14:11:16--17:02:07 HKT，
+  runtime `02:50:51`。Access ledger SHA-256
+  `1bcb3c548dd3356eb3744ad00dc4690a186121136978f8834ff05bd3ea65e111`；test input spec
+  SHA-256 `e5dfb19f3924033c71604a1421f565e1d0b66800e1d6324291f573f9f3ff8921`。Ledger
+  之后顺序完成 ChartQA/DocVQA/HRBench `1000/2147/160` test states、冻结推断与 evaluator。
+- 完整性：机器报告 schema 为 `predictability_matrix_report_v3`，
+  `formal_claim_eligible=true`、`frozen_before_test=true`、matrix `36/36`、seeds
+  `17/29/47`，三域 source/RGB split audit 全部通过。所有要求的 interval 均使用 20,000
+  次 paired whole-source bootstrap。报告 SHA-256 为
+  `adbd3f53ddb3d7d5dee04ff5b0ab553495cc74ff5c9464e42ebb5492ccd7d49f`。
+- Oracle headroom：ChartQA `+0.023200 [0.015200,0.032000]`、DocVQA
+  `+0.019355 [0.013229,0.026421]`、HRBench
+  `+0.050000 [0.020000,0.080000]`；三域均显著为正。
+- Deployable evidence：primary-vs-strongest lower CI 分别为
+  `-0.004400/-0.000918/-0.022813`；所有 deployable policy 的最大 lower CI 分别为
+  `0.000000/+0.000049/-0.004375`。完整 GO 条件通过 `0/3`，尤其 harm-not-higher 在三域
+  均失败。
+- Diagnostic：post-action lower CI 分别为 `0.000000/-0.001548/-0.003750`；L3
+  validation-positive benchmark 数为 0，L3 test upper-CI non-positive 数为 1。因此
+  `REPRESENTATION` 与 `PIVOT` 的完整条件也未命中；oracle-small 数为 0，故不满足 `STOP`。
+- Renderer/终局：Job `ExitCode=1:0` 只来自最后的 frozen classifier 抛出
+  `completed matrix does not support one of the frozen verdicts`；所有 test roles 和机器
+  evaluator 已完成，`validate_completed_formal_report(...)` 通过。没有重跑 test、修改
+  threshold/architecture/seed 或事后映射到四个 verdict。用户随后明确接受 fail-closed
+  组合为最终 `INCONCLUSIVE`。
+- 最终报告：
+  `artifacts/predictability-audit-v1/formal-test-once-v1/PREDICTABILITY_AUDIT.md`，SHA-256
+  `4ce979e1242a375937d1573d93be50c9db1ef6c118b50f30f50c87c8f5e07465`。当前 static-router
+  路线结束；若继续，必须为 active/sequential acquisition 冻结新协议并使用新 held-out test。

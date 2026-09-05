@@ -1,6 +1,6 @@
 # 研究计划
 
-更新时间：2026-09-04 09:36（Asia/Hong_Kong）
+更新时间：2026-09-05 17:34（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 
@@ -16,7 +16,14 @@
 
 当前尚未达到上述标准。
 
-## 当前唯一执行路线：pre-action predictability audit
+## 已完成路线：pre-action predictability audit
+
+2026-09-05 终局更新：六个 development roles、36 个科学 cells、三个固定 seeds、唯一
+post-action probe 和 ledger-first held-out test 已全部完成。机器报告通过 formal、freeze、
+split、coverage 与 20,000 次 source bootstrap 合同。结果未命中预注册的
+`GO/PIVOT/REPRESENTATION/STOP` 任一完整分支；用户明确接受 fail-closed 结果作为终局，
+因此最终报告标注为 **INCONCLUSIVE**。当前 test 已消耗，禁止用它继续选模型、阈值、
+feature、seed 或判定规则。
 
 2026-09-03 起停止继续做开放式 N6 problem selection。当前唯一研究问题固定为：在不学习
 `where` 的前提下，pre-action VLM state 能否稳定预测一个固定视觉工具的实际效用。决策
@@ -108,6 +115,11 @@ test 继续封存。test transaction 预注册为 3307 states、`2.71/4.07` raw/
 回归 `ExitCode=0`；当前未提交正式作业，下一步只提交 ChartQA train。
 
 ## 当前核心判断
+
+完整 formal audit 的核心结论是：三域 fixed-tool oracle utility 均显著为正，但已测试的
+pre-action predictor ladder 没有在任何 benchmark 上取得相对最强基线为正的 95% CI lower
+endpoint；post-action diagnostic 也没有正 lower endpoint。因此当前 static-router 主张没有
+得到支持，但证据不足以断言另行预注册的 active/sequential acquisition 必然失败。
 
 InfographicVQA 上，raw attention 的 `where` 信号真实存在，但在相同 entropy
 call set 上仍不能产生正净 utility。ViCrop 与 LASER 两个冻结文献 attention
@@ -348,7 +360,18 @@ intent”。机器报告与路线审计见 `vtool-g1-intent-format-posthoc-job-2
 - 新候选若在文献审计或最小 gate 失败，继续选择实质方法/benchmark contribution；
   不以降低投稿目标作为完成条件。
 
-## 紧接着的行动
+## 下一阶段计划（覆盖下方历史执行清单）
+
+1. 将本次 formal test 视为已消费、只读证据，不重跑、不事后调参。
+2. 停止当前 fixed-tool static gate 路线；`INCONCLUSIVE` 是终局记录，不改写为四个注册
+   verdict 中的任意一个。
+3. 如继续研究，先提出 active/sequential evidence acquisition 的新 estimand、机制和强基线，
+   完成一手文献碰撞与可识别性审计。
+4. 新路线必须使用新协议和新 held-out test；先做 CPU/小规模真实输入 gate，再按信息价值、
+   排队时间、运行时间和 GPU-hours 决定是否提交多 GPU 作业。
+5. 在新协议冻结前不启动正式 GPU 实验。
+
+## 历史执行清单（已由上节覆盖）
 
 1. Answer-conditioned candidate 已因文献碰撞关闭；VTool 仅保留为运行底座和
    outcome-only comparator，停止所有进一步 equivalence 审计。
