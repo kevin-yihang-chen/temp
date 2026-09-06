@@ -178,6 +178,16 @@ four GPUs and must pass exact manifest, completion, byte-hash, identity and
 decision-coverage validation before merging. This transaction cannot read a
 held-out manifest or outcome.
 
+The final-method deadline is 2026-09-13 23:59 HKT. Train rollout Jobs
+209177/209178/209179 completed with 1,024/1,012/388 exact records for
+ChartQA/DocVQA/HRBench. The frozen selector matrix uses seeds 17/29/47 and
+3,072 optimizer steps per arm, implemented as 1,024 outcome-independent draws
+per domain. Outcome-only, direct counterfactual utility, and Factorized
+Potential Outcomes share the identical schedule for a seed and run as three
+independent matched arms. Previously seen 128-state validation banks are
+monitor-only; they cannot select the method, seed, threshold, or formal rule.
+No Phase-C held-out path appears in this training matrix.
+
 ## One-week stop boundary
 
 No RL, 7B, continuous bbox, free-form tool syntax, second acquisition, new

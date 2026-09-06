@@ -1,10 +1,11 @@
 # 项目状态
 
-## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 18:05 HKT）
+## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 18:33 HKT）
 
 项目没有停止，但此前的 direct Utility-SFT、Sequential frozen critic 和 direct
-Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户现要求最多一周形成最终
-方法。基于 Job `209090` 的机制证据，新的唯一候选是三头端到端 factorization：
+Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户要求最迟在
+**2026-09-13 23:59 HKT** 前形成最终方法。基于 Job `209090` 的机制证据，新的唯一候选是
+三头端到端 factorization：
 
 `expected_gain = P(stop wrong) * P(continue correct | stop wrong)`
 ` - P(stop correct) * P(continue wrong | stop correct)`。
@@ -53,18 +54,23 @@ state/source/image overlap 都为零，ChartQA/DocVQA held-out 还与全部历�
 `3bd94f0cba17b6ea476003d91278370026dd5a7d53bdb88b9d39e8df8efedc08`。首次 Job `209161`
 的失败 staging 仅保留为取证，不作数据结果。
 
-当前执行边界是**只生成 train outcomes**。已实现 4×RTX 4090 确定性分片 worker、严格
-merge validator 与定向测试；merge 要求四个 completion record 的 manifest/code/model
-配置一致、rollout bytes hash 正确、state/decision coverage 精确且无重复。下一步提交
-ChartQA/DocVQA/HRBench 三个 train-bank jobs；模型/selector 冻结和正式 evaluation
-transaction 写完之前不会读取 held-out outcome。
+三个 train-bank jobs 已全部 `COMPLETED/0:0`：ChartQA `209177` 用时 3分45秒、1024
+records；DocVQA `209178` 用时 5分29秒、1012 records；HRBench `209179` 用时 7分01秒、
+388 records。每个 merged bank 都通过 manifest/code/completion/bytes/identity/exact
+coverage 验证。train beneficial/harmful/neutral 分别为 ChartQA `84/20/920`、DocVQA
+`34/23/955`、HRBench `28/21/339`，所以三域都有可监督 headroom，但信号稀疏。
+
+当前在冻结三域 selector training：seeds `17/29/47`，每 seed 3072 steps、每域 1024
+outcome-independent draws；Outcome-only/direct gain/Factorized 三臂匹配并占 3 GPU 并行。
+配置显式不包含 Phase-C held-out 路径；旧 128-state validation banks 只作 previously-seen
+monitor。单个 seed 的 machine status 只能是 `PHASE_C_SEED_FROZEN`，不能作正式 claim。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
 harm，并在动作前、固定成本下形成 acquisition score。它还必须实证超过 Outcome-only、
-direct gain 与 strongest uncertainty 才能成立。Job `209157/209158/209159/209161/209165`
-的状态邮件均由 Slurm 发送；下一步是完成 Phase-C train banks 与三 seed selector freeze，
-不直接宣布成功。
+direct gain 与 strongest uncertainty 才能成立。Job
+`209157/209158/209159/209161/209165/209177/209178/209179` 的状态邮件均由 Slurm 发送；
+下一步是完成三 seed selector freeze 和一次性 held-out transaction，不直接宣布成功。
 
 ## Counterfactual Visual Utility Post-training：Phase B NO-GO（2026-09-06）
 

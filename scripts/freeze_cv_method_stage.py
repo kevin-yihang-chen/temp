@@ -65,6 +65,9 @@ def main() -> None:
         "execute_cv_method_stage.py", "freeze_cv_method_stage.py",
         "slurm_cv_method_stage.sh", "slurm_factorized_method_stage.sh",
         "submit_factorized_method_stage.sh",
+        "materialize_factorized_phase_c_training.py",
+        "slurm_factorized_phase_c_training.sh",
+        "submit_factorized_phase_c_training.sh",
     )
     paths = sorted((root / "src/beyond_entropy").glob("*.py")) + [
         root / "scripts" / name for name in script_names

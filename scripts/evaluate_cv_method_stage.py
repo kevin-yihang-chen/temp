@@ -19,7 +19,7 @@ from beyond_entropy.sequential_metrics import (
 from beyond_entropy.sequential_schema import SequentialRolloutRecord
 
 
-BENCHMARKS = ("chartqa", "docvqa")
+SUPPORTED_BENCHMARKS = ("chartqa", "docvqa", "hrbench")
 RATES = (0.0, 0.1, 0.25, 0.5, 0.75, 1.0)
 LAMBDAS = (0.0, 0.025, 0.05, 0.1, 0.2)
 BASELINE_ORDER = ("entropy", "confidence", "margin")
@@ -77,12 +77,12 @@ def phase_b_decision(benchmarks: dict) -> tuple[str, str]:
     versus_baseline = {
         benchmark: benchmarks[benchmark]["primary_comparisons"]
         ["counterfactual_minus_strongest_uncertainty"]["accuracy"]["observed_delta"]
-        for benchmark in BENCHMARKS
+        for benchmark in benchmarks
     }
     versus_outcome = {
         benchmark: benchmarks[benchmark]["primary_comparisons"]
         ["counterfactual_minus_outcome_only"]["accuracy"]["observed_delta"]
-        for benchmark in BENCHMARKS
+        for benchmark in benchmarks
     }
     if all(value <= 0 for value in versus_baseline.values()):
         reason = "counterfactual did not improve over the strongest matched baseline on either benchmark"
@@ -104,13 +104,13 @@ def factorized_phase_b_decision(benchmarks: dict) -> tuple[str, str]:
         benchmark: benchmarks[benchmark]["primary_comparisons"]
         ["factorized_potential_outcomes_minus_strongest_uncertainty"]
         ["accuracy"]["observed_delta"]
-        for benchmark in BENCHMARKS
+        for benchmark in benchmarks
     }
     versus_outcome = {
         benchmark: benchmarks[benchmark]["primary_comparisons"]
         ["factorized_potential_outcomes_minus_outcome_only"]
         ["accuracy"]["observed_delta"]
-        for benchmark in BENCHMARKS
+        for benchmark in benchmarks
     }
     if all(value <= 0 for value in versus_baseline.values()):
         return (
@@ -252,11 +252,25 @@ def main() -> None:
     args = parser.parse_args()
     config = json.loads(Path(args.config).read_text())
     if (config.get("schema") != "cv_method_evaluation_config_v1"
-            or config.get("stage") not in ("phase_a_smoke", "phase_b_pilot", "phase_c_confirmation")
+            or config.get("stage") not in (
+                "phase_a_smoke", "phase_b_pilot", "phase_c_training",
+                "phase_c_confirmation",
+            )
             or config.get("test_authorized") is not False
             or tuple(config.get("rates", ())) != RATES
             or tuple(config.get("lambdas", ())) != LAMBDAS):
         raise ValueError("invalid frozen evaluation config")
+    validation_rollouts = config.get("validation_rollouts")
+    if not isinstance(validation_rollouts, dict):
+        raise ValueError("validation_rollouts must be a mapping")
+    benchmark_names = tuple(sorted(validation_rollouts))
+    expected_benchmarks = (
+        ("chartqa", "docvqa")
+        if config["stage"] in ("phase_a_smoke", "phase_b_pilot")
+        else tuple(sorted(SUPPORTED_BENCHMARKS))
+    )
+    if benchmark_names != expected_benchmarks:
+        raise ValueError("invalid frozen evaluation benchmark set")
     reports = {
         "outcome_only": load_report(args.outcome_report, "outcome_only"),
         "counterfactual_utility": load_report(
@@ -275,14 +289,14 @@ def main() -> None:
         raise ValueError("training arms did not use the same state schedule")
     predictions = {}
     for method, report in reports.items():
-        predictions[method] = {benchmark: {} for benchmark in BENCHMARKS}
+        predictions[method] = {benchmark: {} for benchmark in benchmark_names}
         for row in report["validation"]["predictions"]:
             key = (row["state_id"], row["replicate_id"])
             if key in predictions[method][row["benchmark"]]:
                 raise ValueError("duplicate model prediction")
             predictions[method][row["benchmark"]][key] = row
     benchmarks = {}
-    for benchmark in BENCHMARKS:
+    for benchmark in benchmark_names:
         spec = config["validation_rollouts"][benchmark]
         if sha256_file(spec["path"]) != spec["sha256"]:
             raise ValueError("validation rollout changed after evaluation freeze")
@@ -320,12 +334,17 @@ def main() -> None:
                 else phase_b_decision(benchmarks)
             )
         else:
-            # Phase C aggregation across three seeds is intentionally separate;
-            # one seed report cannot authorize scaling.
-            decision, reason = "PHASE_C_SEED_COMPLETE", "await three-seed aggregation"
+            # Formal held-out access and three-seed aggregation are separate;
+            # a monitor report can only freeze one selector seed.
+            decision, reason = (
+                "PHASE_C_SEED_FROZEN",
+                "selector trained; formal held-out transaction remains unopened",
+            )
     report = {
         "schema": "cv_method_stage_evaluation_v1", "stage": config["stage"],
-        "test_accessed": False, "primary_call_rate": .25,
+        "test_accessed": False, "formal_claim_eligible": False,
+        "evaluation_role": config.get("validation_role", "development_validation"),
+        "primary_call_rate": .25,
         "rates": RATES, "lambdas": LAMBDAS,
         "decision": decision, "decision_reason": reason,
         "engineering_checks": engineering_checks, "benchmarks": benchmarks,
@@ -343,7 +362,7 @@ def main() -> None:
     atomic_json_write_exclusive(output / "report.json", report)
     try:
         import matplotlib.pyplot as plt
-        for benchmark in BENCHMARKS:
+        for benchmark in benchmark_names:
             frontier = benchmarks[benchmark]["frontier"]
             plt.figure(figsize=(6.5, 4.5))
             for policy in reports:

@@ -1,0 +1,68 @@
+{
+  "schema": "factorized_phase_c_training_matrix_v1",
+  "stage": "phase_c_training",
+  "methods": ["outcome_only", "counterfactual_utility", "factorized_potential_outcomes"],
+  "seeds": [17, 29, 47],
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "head_dim": 128,
+  "learning_rate": 0.00001,
+  "head_learning_rate": 0.0003,
+  "weight_decay": 0,
+  "gradient_clip": 1,
+  "steps": 3072,
+  "schedule": "domain_balanced_1024_draws_per_domain",
+  "gradient_accumulation": 1,
+  "checkpoint_interval": 256,
+  "train_fraction": 1,
+  "min_pixels": 200704,
+  "max_pixels": 602112,
+  "trainable_backbone": "visual_merger_and_last_language_block",
+  "test_authorized": false,
+  "formal_heldout_referenced": false,
+  "development_monitor_only": true,
+  "datasets": {
+    "chartqa": {
+      "train": {
+        "states": 1024,
+        "manifest": {"path": "data/factorized-phase-c-v1/chartqa/train/manifest.jsonl", "sha256": "128298315ff3cc0940849de10285c446dca4e88652528ce029964f703355cbc7"},
+        "rollouts": {"path": "artifacts/factorized-potential-outcomes-v1/phase-c-data/chartqa/train-v1/job-209177/merged/rollouts.jsonl", "sha256": "e40f832f258b1f9da6cfd570154ddfb3799d152b51e073532725457e1d750bbd"}
+      },
+      "validation": {
+        "states": 128,
+        "manifest": {"path": "data/predictability-audit-v1/chartqa/validation/manifest.jsonl", "sha256": "81f1a5b0ac1bc053398633bdecfc4811a6ce5f83507d4f503eee87a8d064d550"},
+        "rollouts": {"path": "artifacts/sequential-acquisition-v1/smoke-chartqa-validation-128-v1/job-209052/rollouts.jsonl", "sha256": "5e200db737f2a7166136efefa5527394ec72b392bb5a0ea4bcab34829c2987a8"}
+      }
+    },
+    "docvqa": {
+      "train": {
+        "states": 1012,
+        "manifest": {"path": "data/factorized-phase-c-v1/docvqa/train/manifest.jsonl", "sha256": "6b94bfe1daef0c8adb81012fe892e45fd84962700cd742858b0ca438f8c4bbf6"},
+        "rollouts": {"path": "artifacts/factorized-potential-outcomes-v1/phase-c-data/docvqa/train-v1/job-209178/merged/rollouts.jsonl", "sha256": "b657a0b9442cd17a773c688efe01f37d5b784537a67de4697fc0c8d83dfa0a37"}
+      },
+      "validation": {
+        "states": 128,
+        "manifest": {"path": "data/predictability-audit-v1/docvqa/validation/manifest.jsonl", "sha256": "96f24b924ef64dd7a7f9f35c2dd7f68ffbc6146998282dd26d8cfb4aff726da5"},
+        "rollouts": {"path": "artifacts/sequential-acquisition-v1/smoke-docvqa-validation-128-v1/job-209049/rollouts.jsonl", "sha256": "68948adefbfa2f057da7953edd4099e006c088a350a7d9f05baa8ffd0821cf7c"}
+      }
+    },
+    "hrbench": {
+      "train": {
+        "states": 388,
+        "manifest": {"path": "data/factorized-phase-c-v1/hrbench/train/manifest.jsonl", "sha256": "c65c15966b33c48fe35ae69106cdbe000687ee3d5c70edc4e054b7394e28c9e9"},
+        "rollouts": {"path": "artifacts/factorized-potential-outcomes-v1/phase-c-data/hrbench/train-v1/job-209179/merged/rollouts.jsonl", "sha256": "2726a51496e54350fdb24adc3fc816a03ac8328d41fba3a9e2cd1a4ce15d972f"}
+      },
+      "validation": {
+        "states": 128,
+        "manifest": {"path": "data/predictability-audit-v1/hrbench/validation/manifest.jsonl", "sha256": "47be8e6de1bad255489e9d0aa53d62588db83972e02dce5ffb5e0937ce886454"},
+        "rollouts": {"path": "artifacts/sequential-acquisition-v1/smoke-hrbench-validation-128-v1/job-209053/rollouts.jsonl", "sha256": "6f3a7fc91fdac9eff37f1ff786e77e7d8a33bfa75ba7d1385329c33920b4641a"}
+      }
+    }
+  },
+  "evaluation": {
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 20260906,
+    "rates": [0, 0.1, 0.25, 0.5, 0.75, 1],
+    "lambdas": [0, 0.025, 0.05, 0.1, 0.2]
+  }
+}

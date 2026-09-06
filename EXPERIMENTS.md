@@ -163,6 +163,20 @@
   merged bank 前验证 manifest/code/config、每片 completion 与 bytes hash、全部
   state/replicate decision 精确覆盖和 identity 一致。held-out manifest/outcome 不由该
   worker 读取。
+- Train bank execution：ChartQA Job `209177`（4×4090，3分45秒）严格合并 1024 records，
+  rollout/report SHA 为 `e40f832f...0bbd` / `a9f99645...8207`；DocVQA Job `209178`
+  （5分29秒）合并 1012，SHA `b657a0b9...0a37` / `95c97968...b20`；HRBench Job `209179`
+  （7分01秒）合并 388，SHA `2726a514...972f` / `686d3e1e...e39f`。三 job 均
+  `COMPLETED/0:0`、无 requeue、邮件 ALL。
+- Headroom：ChartQA beneficial/harmful/neutral `84/20/920`、mean gain `.0625`；DocVQA
+  `34/23/955`、mean gain `.005271`；HRBench `28/21/339`、mean gain `.018041`。三域
+  entropy-gain Pearson 仅 `.081/.115/.070`，说明 uncertainty 不是充分 proxy，但这本身
+  还不证明 Factorized selector 有优势。
+- 冻结 selector-training matrix：三域联合，3072 steps（domain-balanced 1024 draws/domain），
+  matched Outcome-only/direct-gain/Factorized，seeds `17/29/47`，原 Phase-B optimizer/
+  head/backbone/pixel settings 不变。旧 validation 仅作 previously-seen monitor；matrix
+  不含 held-out path，训练/monitor report 的 `formal_claim_eligible=false`。正式 outcome
+  只允许在三个 seed selectors 与一次性 evaluation transaction 全部冻结后打开。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 

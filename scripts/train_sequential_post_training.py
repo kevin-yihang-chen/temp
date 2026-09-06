@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train one bounded ChartQA+DocVQA STOP/CONTINUE post-training arm."""
+"""Train one bounded multidomain STOP/CONTINUE post-training arm."""
 from __future__ import annotations
 
 import argparse
@@ -28,7 +28,7 @@ from beyond_entropy.sequential_post_training import (
 from beyond_entropy.utility_training import optimizer_to_device
 
 
-BENCHMARKS = ("chartqa", "docvqa")
+SUPPORTED_BENCHMARKS = ("chartqa", "docvqa", "hrbench")
 
 
 def tensor_hash(tensor: torch.Tensor) -> str:
@@ -37,17 +37,38 @@ def tensor_hash(tensor: torch.Tensor) -> str:
     ).hexdigest()
 
 
-def validate_config(config: dict) -> None:
+def configured_benchmarks(config: dict) -> tuple[str, ...]:
+    datasets = config.get("datasets")
+    if not isinstance(datasets, dict):
+        raise ValueError("post-training datasets must be a mapping")
+    benchmarks = tuple(sorted(datasets))
+    if not benchmarks or not set(benchmarks) <= set(SUPPORTED_BENCHMARKS):
+        raise ValueError("unsupported post-training benchmark set")
+    return benchmarks
+
+
+def validate_config(config: dict) -> tuple[str, ...]:
+    benchmarks = configured_benchmarks(config)
     if (config.get("schema") != "cv_method_post_training_config_v1"
-            or config.get("stage") not in ("phase_a_smoke", "phase_b_pilot", "phase_c_confirmation")
+            or config.get("stage") not in (
+                "phase_a_smoke", "phase_b_pilot", "phase_c_training",
+                "phase_c_confirmation",
+            )
             or config.get("method") not in (
                 "outcome_only", "counterfactual_utility",
                 "factorized_potential_outcomes",
             )
             or config.get("test_authorized") is not False
-            or config.get("trainable_backbone") != "visual_merger_and_last_language_block"
-            or set(config.get("datasets", {})) != set(BENCHMARKS)):
+            or config.get("trainable_backbone") != "visual_merger_and_last_language_block"):
         raise ValueError("unsupported CV-method post-training config")
+    if config["stage"] in ("phase_a_smoke", "phase_b_pilot") and benchmarks != (
+        "chartqa", "docvqa"
+    ):
+        raise ValueError("Phase A/B require the original two-domain benchmark set")
+    if config["stage"] in ("phase_c_training", "phase_c_confirmation") and benchmarks != tuple(
+        sorted(SUPPORTED_BENCHMARKS)
+    ):
+        raise ValueError("Phase C requires ChartQA, DocVQA, and HRBench")
     for key in ("steps", "gradient_accumulation", "checkpoint_interval",
                 "head_dim", "min_pixels", "max_pixels"):
         if type(config.get(key)) is not int or config[key] <= 0:
@@ -58,13 +79,14 @@ def validate_config(config: dict) -> None:
         raise ValueError("post-smoke stages must use the full frozen train bank")
     if config["gradient_accumulation"] != 1:
         raise ValueError("v1 protocol freezes one state per optimizer step")
+    return benchmarks
 
 
-def load_data(config: dict) -> dict[str, dict[str, list]]:
+def load_data(config: dict, benchmarks: tuple[str, ...]) -> dict[str, dict[str, list]]:
     result = {"train": {}, "validation": {}}
     train_sources, validation_sources = set(), set()
     train_images, validation_images = set(), set()
-    for benchmark in BENCHMARKS:
+    for benchmark in benchmarks:
         for role in ("train", "validation"):
             spec = config["datasets"][benchmark][role]
             for field in ("manifest", "rollouts"):
@@ -100,7 +122,7 @@ def main() -> None:
     args = parser.parse_args()
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text())
-    validate_config(config)
+    benchmarks = validate_config(config)
     if not torch.cuda.is_available() or not os.environ.get("SLURM_JOB_ID"):
         raise RuntimeError("real post-training must run inside a GPU Slurm allocation")
     root = Path(__file__).resolve().parents[1]
@@ -123,7 +145,7 @@ def main() -> None:
         if run.exists():
             raise FileExistsError("refusing to reuse an existing run directory")
         atomic_json_write_exclusive(run / "started.json", provenance)
-    data = load_data(config)
+    data = load_data(config, benchmarks)
     seed = int(config["seed"])
     random.seed(seed)
     torch.manual_seed(seed)
@@ -162,7 +184,7 @@ def main() -> None:
                     for domain, item in schedule]
     schedule_sha256 = hashlib.sha256("\n".join(schedule_ids).encode()).hexdigest()
     audit_examples = []
-    for domain in BENCHMARKS:
+    for domain in benchmarks:
         candidates = [
             item for item in data["train"][domain]
             if (
@@ -251,7 +273,7 @@ def main() -> None:
     predictions = []
     model.eval()
     with torch.no_grad():
-        for benchmark in BENCHMARKS:
+        for benchmark in benchmarks:
             for example in data["validation"][benchmark]:
                 output = model(example.inputs)
                 logits = output["action_logits"][0].float().cpu().tolist()
@@ -339,21 +361,25 @@ def main() -> None:
                 "conditional_loss_weights": "error_mass_and_correct_mass",
             }
         } if config["method"] == "factorized_potential_outcomes" else {}),
-        "scientific_status": "engineering_smoke" if config["stage"] == "phase_a_smoke" else "development_pilot",
-        "test_accessed": False, "formal_claim_eligible": config["stage"] == "phase_c_confirmation",
+        "scientific_status": (
+            "engineering_smoke" if config["stage"] == "phase_a_smoke"
+            else "development_pilot" if config["stage"] == "phase_b_pilot"
+            else "selector_training_pre_formal_heldout"
+        ),
+        "test_accessed": False, "formal_claim_eligible": False,
         "provenance": provenance, "schedule_sha256": schedule_sha256,
         "train": {
-            "states": {name: len(data["train"][name]) for name in BENCHMARKS},
+            "states": {name: len(data["train"][name]) for name in benchmarks},
             "gain_counts": {name: {
                 "beneficial": sum(item.gain > 0 for item in data["train"][name]),
                 "harmful": sum(item.gain < 0 for item in data["train"][name]),
                 "neutral": sum(item.gain == 0 for item in data["train"][name]),
-            } for name in BENCHMARKS},
+            } for name in benchmarks},
             "schedule_draws": {name: sum(domain == name for domain, _ in schedule)
-                               for name in BENCHMARKS},
+                               for name in benchmarks},
         },
         "validation": {
-            "states": {name: len(data["validation"][name]) for name in BENCHMARKS},
+            "states": {name: len(data["validation"][name]) for name in benchmarks},
             "predictions": predictions,
         },
         "checks": checks,

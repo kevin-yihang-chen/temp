@@ -1,8 +1,9 @@
 # 研究计划
 
-## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06 18:05 HKT）
+## 9月13日最终方法冲刺：Factorized Potential Outcomes（2026-09-06 18:33 HKT）
 
-用户给出的硬约束是：从当前全部结果出发，最多一周形成最终方法，目标为 CVPR/ICCV/ECCV。
+用户给出的硬约束是：从当前全部结果出发，最迟在 **2026-09-13 23:59 HKT** 前形成最终
+方法，目标为 CVPR/ICCV/ECCV。
 本周不再并行发散多个 idea。唯一候选冻结为 **Factorized Potential-Outcome Visual
 Acquisition**：端到端预测当前答案错误风险、错误条件下的 crop rescue 概率和当前正确
 条件下的 crop harm 概率，并用
@@ -56,6 +57,15 @@ manifest 后抽 512 个平衡 held-out states；DocVQA 从固定 official-valida
 state/source/image overlap 均为零，选择未使用模型 outcome，held-out sequential outcomes
 仍未打开。现在只生成三域 train paired banks；每域一个 4×RTX 4090 job 做确定性 state
 sharding，再用 manifest/code/completion/record hashes 和 exact decision coverage 合并。
+
+三个 train-bank jobs 已全部成功：ChartQA Job `209177`（3分45秒，rollout SHA
+`e40f832f...0bbd`）、DocVQA Job `209178`（5分29秒，`b657a0b9...0a37`）、HRBench Job
+`209179`（7分01秒，`2726a514...972f`）。对应 beneficial/harmful/neutral 为
+`84/20/920`、`34/23/955`、`28/21/339`。下一步已冻结为三域联合训练：每个 seed 做
+3072 steps（每域恰好 1024 draws），seeds `17/29/47`；Outcome-only、direct gain 和
+Factorized 三臂使用完全相同的 outcome-independent schedule 并占三张 GPU 并行。旧
+validation 只作为 previously-seen monitor，不能选方法、seed 或阈值；正式 held-out
+不出现在训练 matrix 中。
 
 ## Counterfactual Visual Utility Post-training 已关闭：Phase B NO-GO（2026-09-06）
 
