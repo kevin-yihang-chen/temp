@@ -56,7 +56,7 @@ def main() -> None:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--benchmark", choices=("chartqa", "docvqa", "hrbench"), required=True)
-    parser.add_argument("--dataset-role", choices=("train", "validation"), required=True)
+    parser.add_argument("--dataset-role", choices=("train", "validation", "test"), required=True)
     parser.add_argument("--model", default="Qwen/Qwen2.5-VL-3B-Instruct")
     parser.add_argument("--revision", required=True)
     parser.add_argument("--device-map", default="cuda:0")
@@ -72,6 +72,8 @@ def main() -> None:
     parser.add_argument("--checkpoint-interval", type=int, default=8)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--features-output")
+    parser.add_argument("--test-freeze")
+    parser.add_argument("--test-access-ledger")
     args = parser.parse_args()
     if not os.environ.get("SLURM_JOB_ID"):
         raise RuntimeError("real sequential rollout generation must run under Slurm")
@@ -88,6 +90,51 @@ def main() -> None:
     output = Path(args.output).resolve()
     provenance_path = output.with_suffix(output.suffix + ".provenance.json")
     completion_path = output.with_suffix(output.suffix + ".complete.json")
+    current_revision = git_revision(root)
+    test_freeze = None
+    if args.dataset_role == "test":
+        if not args.features_output or not args.test_freeze or not args.test_access_ledger:
+            raise ValueError("test generation requires freeze, ledger, and feature output")
+        if (
+            args.resume
+            or output.exists()
+            or provenance_path.exists()
+            or completion_path.exists()
+            or Path(args.features_output).exists()
+            or Path(args.test_access_ledger).exists()
+        ):
+            raise FileExistsError("one-shot test outputs/ledger must not already exist")
+        from beyond_entropy.sequential_test_transaction import (
+            sha256_file as transaction_sha256,
+            start_test_transaction,
+        )
+
+        # The irreversible ledger is written before manifest bytes are read.
+        start_test_transaction(
+            args.test_freeze,
+            args.test_access_ledger,
+            benchmark=args.benchmark,
+            manifest_path=manifest,
+            rollouts_output=output,
+            features_output=args.features_output,
+            model=args.model,
+            model_revision=args.revision,
+            generation_seeds=list(seeds),
+            code_revision=current_revision,
+            dtype=args.dtype,
+            attention_implementation=args.attention_implementation,
+            max_new_tokens=args.max_new_tokens,
+            min_pixels=args.min_pixels,
+            max_pixels=args.max_pixels,
+            manifest_limit=args.limit,
+            shard_count=args.shard_count,
+            shard_index=args.shard_index,
+        )
+        test_freeze = json.loads(Path(args.test_freeze).read_text())
+        if transaction_sha256(manifest) != test_freeze["expected_manifest_sha256"]:
+            raise ValueError("test manifest changed after the access ledger was created")
+    elif args.test_freeze or args.test_access_ledger:
+        raise ValueError("development generation must not receive test authorization")
     examples = load_manifest(manifest, limit=args.limit)
     examples = [
         item
@@ -103,8 +150,10 @@ def main() -> None:
         raise ValueError("selected sequential shard is empty")
     provenance = {
         "schema": "sequential_prefix_rollout_provenance_v1",
-        "scientific_status": "development_only_test_unopened",
-        "test_accessed": False,
+        "scientific_status": (
+            "one_shot_test" if args.dataset_role == "test" else "development_only_test_unopened"
+        ),
+        "test_accessed": args.dataset_role == "test",
         "dataset_role": args.dataset_role,
         "benchmark": args.benchmark,
         "manifest": str(manifest),
@@ -126,7 +175,7 @@ def main() -> None:
         "shard_algorithm": SHARD_ALGORITHM,
         "shard_count": args.shard_count,
         "shard_index": args.shard_index,
-        "code_revision": git_revision(root),
+        "code_revision": current_revision,
         "slurm_job_id": os.environ["SLURM_JOB_ID"],
     }
     if completion_path.exists():
@@ -221,6 +270,7 @@ def main() -> None:
             min_pixels=args.min_pixels,
             max_pixels=args.max_pixels,
             checkpoint_interval=args.checkpoint_interval,
+            test_accessed=args.dataset_role == "test",
         )
     completion = {
         **provenance,

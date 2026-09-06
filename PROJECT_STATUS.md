@@ -1,6 +1,6 @@
 # 项目状态
 
-## Sequential Visual Acquisition：代码 gate 已通过，等待真实 headroom smoke（2026-09-06）
+## Sequential Visual Acquisition：真实 smoke 通过，科学状态仍为 PENDING（2026-09-06）
 
 当前不是复现旧 Utility-SFT，也不是重开 static router。新 estimand 是：模型已经看到原图和
 一个固定局部后，是否应 STOP，还是再获取一个固定的新局部。Phase 0 审计确认旧 bank 缺少
@@ -9,13 +9,24 @@
 新实现保证 STOP/CONTINUE 同 state、prefix、seed、prompt、scorer 和 decoding config；
 STOP 不增加成本，CONTINUE 只增加一次成本。critic 输入由严格 allowlist 构造，proposed
 crop 不会在 feature 阶段执行，CONTINUE output/correctness/gain 只留在 label/diagnostic
-namespace。当前完成 14 个新文件与定向回归，尚未产生真实 sequential outcome，因此科学
-状态仍是 **PENDING**，不能声称新方法成功。
+namespace。三域真实 Qwen smoke 已生成 144 个 sequential states 和对应 frozen features，
+六个 Job `209040--209045` 全部正常结束。
+
+ChartQA train/validation 的 beneficial/harmful/neutral 为 `4/1/27` 与 `2/0/14`；DocVQA
+为 `2/1/29` 与 `2/0/14`；HRBench 为 `1/4/27` 与 `2/2/12`。这证明第二次观察不是空动作，
+但 signal 很稀疏且跨域 signed mean 不稳定。entropy useful precision 分别低至约
+`0.11/0.05/0.00`（train），支持研究 stopping，但不证明 learned critic 可行。
+
+ChartQA `32/16` tiny critic/eval 已端到端完成。在 `lambda=.05`、50% acquisition rate 下，
+learned gain utility `+0.0375`，entropy/confidence matched 均为 `+0.1000`；差为 `-0.0625`，
+CI 跨零。由于仅 16 个 validation states，该结果只标记“无早期正证据”，不触发终局 Stop。
+科学状态仍是 **PENDING**，不能声称新方法成功。
 
 实时资源快照（2026-09-06 11:10 HKT）：GPU quota 222,000 minutes，已用 43,378，剩余
 178,622（约 2,977.0 GPU-hours）；用户无排队/运行 job，多台 RTX 4090 空闲。计划将三域
 train/validation smoke 独立分片并行，以近似相同 GPU-hours 换取更短墙钟，所有作业使用
-`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。
+`--mail-user=yihangc@connect.hku.hk --mail-type=ALL`。下一步为三域 `256/128` 有界 pilot；
+不会直接跳到完整 18,720-state bank。
 
 ## Utility-SFT 终局：NO-GO（2026-09-06）
 

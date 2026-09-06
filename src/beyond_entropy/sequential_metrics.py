@@ -224,3 +224,76 @@ def paired_source_bootstrap_delta(
         "bootstrap_samples": samples,
         "bootstrap_seed": seed,
     }
+
+
+def paired_source_bootstrap_utility_delta(
+    records: Sequence[SequentialRolloutRecord],
+    left_mask: Sequence[bool],
+    right_mask: Sequence[bool],
+    *,
+    lambda_cost: float,
+    samples: int = 10_000,
+    seed: int = 20260906,
+) -> dict[str, float | int]:
+    """Vectorized paired source bootstrap for incremental net utility."""
+
+    if samples < 10_000:
+        raise ValueError("formal paired bootstrap requires at least 10,000 samples")
+    if not records or len(records) != len(left_mask) or len(records) != len(right_mask):
+        raise ValueError("bootstrap inputs must align")
+    if not math.isfinite(lambda_cost) or lambda_cost < 0:
+        raise ValueError("lambda_cost must be finite and non-negative")
+    groups: dict[str, list[int]] = {}
+    for index, record in enumerate(records):
+        groups.setdefault(record.source_id, []).append(index)
+    sources = sorted(groups)
+    source_sums: list[float] = []
+    source_counts: list[int] = []
+    for source in sources:
+        indices = groups[source]
+        difference = 0.0
+        for index in indices:
+            record = records[index]
+            per_call = record.delta_success - lambda_cost * record.proposed_visual_cost
+            difference += (
+                float(bool(left_mask[index])) - float(bool(right_mask[index]))
+            ) * per_call
+        source_sums.append(difference)
+        source_counts.append(len(indices))
+    observed = sum(source_sums) / sum(source_counts)
+    try:
+        import numpy as np  # type: ignore[import-not-found]
+
+        rng = np.random.default_rng(seed)
+        sums = np.asarray(source_sums, dtype=np.float64)
+        counts = np.asarray(source_counts, dtype=np.float64)
+        values = np.empty(samples, dtype=np.float64)
+        chunk = max(1, min(256, 4_000_000 // len(sources)))
+        for start in range(0, samples, chunk):
+            size = min(chunk, samples - start)
+            draws = rng.integers(0, len(sources), size=(size, len(sources)))
+            values[start : start + size] = sums[draws].sum(axis=1) / counts[
+                draws
+            ].sum(axis=1)
+        low, high = np.quantile(values, (0.025, 0.975), method="linear")
+        ci_low, ci_high = float(low), float(high)
+    except ModuleNotFoundError:  # pragma: no cover - base install fallback
+        rng = random.Random(seed)
+        values = []
+        for _ in range(samples):
+            draws = [rng.randrange(len(sources)) for _ in sources]
+            values.append(
+                sum(source_sums[index] for index in draws)
+                / sum(source_counts[index] for index in draws)
+            )
+        values.sort()
+        ci_low = values[int(0.025 * samples)]
+        ci_high = values[min(samples - 1, int(0.975 * samples))]
+    return {
+        "observed_delta": observed,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "bootstrap_samples": samples,
+        "bootstrap_seed": seed,
+        "resampling_unit": "source",
+    }

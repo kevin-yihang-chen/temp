@@ -17,8 +17,8 @@ case "${gpu}" in
 esac
 case "${benchmark}" in chartqa|docvqa|hrbench) ;; *) exit 2 ;; esac
 case "${role}" in train|validation) ;; *) exit 2 ;; esac
-if [[ ! "${limit}" =~ ^[1-9][0-9]*$ || "${limit}" -gt 64 ]]; then
-  echo "smoke state count must be in [1,64]" >&2
+if [[ ! "${limit}" =~ ^[1-9][0-9]*$ || "${limit}" -gt 512 ]]; then
+  echo "bounded development state count must be in [1,512]" >&2
   exit 2
 fi
 

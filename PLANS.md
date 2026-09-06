@@ -13,10 +13,13 @@ risk/gain critic；不学习 where，不做 exhaustive candidates、RL、7B 或�
 rollout、严格 pre-action feature allowlist、Critic A/B、policy/metrics、10,000 次 source
 bootstrap、三域配置和 test authorization 骨架；相关定向测试 `20 passed, 2 skipped`。
 
-下一步先在三域 train/validation 各跑有界真实 smoke，先看 beneficial/harmful/neutral 与
-oracle headroom，再决定是否允许 critic fit。test 继续封存；初步 smoke 不能作为 GO。
+三域 train `32` / validation `16` 的真实 smoke 已全部完成，证明第二次观察存在稀疏的
+beneficial 和 harmful support；ChartQA tiny critic/evaluator 也已端到端通过，但没有优于
+entropy 的证据。下一步按协议扩大到 train `256` / validation `128` 的有界 diagnostic，
+分别训练 linear/MLP critic；只有至少两个域显示可学习且 matched-rate CI 方向合理，才生成
+完整 development bank。test 继续封存；smoke/pilot 均不能作为 GO。
 
-更新时间：2026-09-06 11:16（Asia/Hong_Kong）
+更新时间：2026-09-06 11:43（Asia/Hong_Kong）
 
 ## 当前用户授权目标：Counterfactual Utility SFT（2026-09-05）
 

@@ -11,12 +11,13 @@ import torch
 
 from beyond_entropy.acquisition_critic import AcquisitionCritic, examples_from_feature_dataset
 from beyond_entropy.sequential_metrics import (
-    paired_source_bootstrap_delta,
+    paired_source_bootstrap_utility_delta,
     policy_metrics,
     risk_metrics,
     sequential_diagnostic,
 )
 from beyond_entropy.sequential_schema import SequentialRolloutRecord
+from beyond_entropy.sequential_test_transaction import validate_test_access
 from beyond_entropy.stopping_policy import matched_rate_random_mask
 
 
@@ -55,19 +56,27 @@ def load_selected(checkpoint, target, input_dim):
     return model, spec
 
 
-def authorize_test(path: Path | None, *, features: Path, checkpoint: Path) -> None:
-    if path is None:
-        raise ValueError("test evaluation requires a frozen one-shot authorization")
-    value = json.loads(path.read_text())
+def authorize_test(
+    freeze_path: Path | None,
+    ledger_path: Path | None,
+    *,
+    features: Path,
+    rollouts: Path,
+    checkpoint: Path,
+    config: Path,
+) -> None:
+    if freeze_path is None or ledger_path is None:
+        raise ValueError("test evaluation requires frozen plan and access ledger")
+    freeze, _ = validate_test_access(freeze_path, ledger_path)
     if (
-        value.get("schema") != "sequential_test_freeze_v1"
-        or value.get("one_shot") is not True
-        or value.get("test_authorized") is not True
-        or value.get("features_sha256") != sha256_file(features)
-        or value.get("checkpoint_sha256") != sha256_file(checkpoint)
-        or int(value.get("bootstrap_samples", 0)) < 10_000
+        Path(freeze["features_output"]).resolve() != features
+        or Path(freeze["rollouts_output"]).resolve() != rollouts
+        or Path(freeze["critics_path"]).resolve() != checkpoint
+        or Path(freeze["config_path"]).resolve() != config
+        or freeze["critics_sha256"] != sha256_file(checkpoint)
+        or freeze["config_sha256"] != sha256_file(config)
     ):
-        raise ValueError("invalid or drifted sequential test freeze")
+        raise ValueError("test artifacts differ from the pre-access freeze")
 
 
 def main() -> None:
@@ -78,10 +87,12 @@ def main() -> None:
     parser.add_argument("--critics", required=True)
     parser.add_argument("--dataset-role", choices=("validation", "test"), required=True)
     parser.add_argument("--test-freeze")
+    parser.add_argument("--test-access-ledger")
     parser.add_argument("--static-voi-scores")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    config = json.loads(Path(args.config).read_text())
+    config_path = Path(args.config).resolve()
+    config = json.loads(config_path.read_text())
     if config.get("schema") != "sequential_critic_config_v1":
         raise ValueError("unexpected sequential evaluation config")
     feature_path = Path(args.features).resolve()
@@ -90,13 +101,20 @@ def main() -> None:
     if args.dataset_role == "test":
         authorize_test(
             None if args.test_freeze is None else Path(args.test_freeze).resolve(),
+            None
+            if args.test_access_ledger is None
+            else Path(args.test_access_ledger).resolve(),
             features=feature_path,
+            rollouts=rollout_path,
             checkpoint=critic_path,
+            config=config_path,
         )
     payload = torch.load(feature_path, map_location="cpu", weights_only=True)
     if payload["metadata"].get("dataset_role") != args.dataset_role:
         raise ValueError("feature dataset role differs from evaluation role")
-    examples = examples_from_feature_dataset(payload)
+    examples = examples_from_feature_dataset(
+        payload, allow_test=args.dataset_role == "test"
+    )
     records_by_id = {item.decision_id: item for item in read_records(rollout_path)}
     ids = [(item.inputs.state_id, item.replicate_id) for item in examples]
     if set(ids) != set(records_by_id) or len(ids) != len(records_by_id):
@@ -185,13 +203,6 @@ def main() -> None:
         }
         comparisons = {}
 
-        def utility_stat(subset, mask):
-            return float(
-                policy_metrics(
-                    subset, mask, lambda_cost=lambda_cost, policy_name="bootstrap"
-                )["incremental_net_utility"]
-            )
-
         for baseline in (
             "random_matched",
             "entropy_matched",
@@ -200,11 +211,11 @@ def main() -> None:
             "static_voi_matched",
         ):
             if baseline in masks:
-                comparisons[f"learned_gain_minus_{baseline}"] = paired_source_bootstrap_delta(
+                comparisons[f"learned_gain_minus_{baseline}"] = paired_source_bootstrap_utility_delta(
                     records,
                     learned,
                     masks[baseline],
-                    statistic=utility_stat,
+                    lambda_cost=lambda_cost,
                     samples=int(config["bootstrap_samples"]),
                     seed=int(config["bootstrap_seed"]),
                 )

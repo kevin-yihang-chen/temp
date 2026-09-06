@@ -35,9 +35,15 @@ def load_development(path: Path, role: str):
 
 
 def matrix(examples, level):
-    return torch.tensor(
-        [item.inputs.feature_vector(level) for item in examples], dtype=torch.float32
-    )
+    first = item_vector = examples[0].inputs.feature_vector(level)
+    result = torch.empty((len(examples), len(first)), dtype=torch.float32)
+    result[0] = torch.tensor(first, dtype=torch.float32)
+    for index, item in enumerate(examples[1:], start=1):
+        item_vector = item.inputs.feature_vector(level)
+        if len(item_vector) != result.shape[1]:
+            raise ValueError("critic feature dimensions changed between rows")
+        result[index] = torch.tensor(item_vector, dtype=torch.float32)
+    return result
 
 
 def regression_metrics(predictions, targets):

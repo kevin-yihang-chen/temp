@@ -303,12 +303,17 @@ else:
             raise RuntimeError("AcquisitionCritic requires PyTorch")
 
 
-def examples_from_feature_dataset(value: Mapping[str, Any]) -> list[AcquisitionExample]:
+def examples_from_feature_dataset(
+    value: Mapping[str, Any], *, allow_test: bool = False
+) -> list[AcquisitionExample]:
     if value.get("format_version") != SEQUENTIAL_FEATURE_FORMAT_VERSION:
         raise ValueError("unsupported sequential feature format")
     metadata = value.get("metadata")
-    if not isinstance(metadata, Mapping) or metadata.get("test_accessed") is not False:
-        raise ValueError("feature metadata must explicitly attest test_accessed=false")
+    if not isinstance(metadata, Mapping):
+        raise ValueError("feature metadata must be a mapping")
+    test_accessed = metadata.get("test_accessed")
+    if test_accessed is not False and not (allow_test and test_accessed is True):
+        raise ValueError("feature metadata/test authorization mismatch")
     rows = value.get("rows")
     if not isinstance(rows, list) or not rows:
         raise ValueError("feature dataset requires non-empty rows")
@@ -508,11 +513,14 @@ def extract_sequential_feature_dataset(
     min_pixels: int = 256 * 28 * 28,
     max_pixels: int = 768 * 28 * 28,
     checkpoint_interval: int = 16,
+    test_accessed: bool = False,
 ) -> dict[str, Any]:
     """Extract original ROI features and the current-prefix frozen Qwen state."""
 
-    if dataset_role not in {"train", "validation"}:
-        raise ValueError("development feature extractor cannot open test")
+    if dataset_role not in {"train", "validation", "test"}:
+        raise ValueError("unsupported sequential feature role")
+    if (dataset_role == "test") != bool(test_accessed):
+        raise ValueError("test role requires a ledger-first access attestation")
     if checkpoint_interval <= 0:
         raise ValueError("checkpoint_interval must be positive")
     import torch as torch_runtime
@@ -542,7 +550,7 @@ def extract_sequential_feature_dataset(
         "benchmark": benchmark,
         "model": model_name_or_path,
         "model_revision": revision,
-        "test_accessed": False,
+        "test_accessed": bool(test_accessed),
         "feature_contract": "strict_pre_action_allowlist_v1",
         "proposed_crop_executed_for_features": False,
         "outcomes_included_only_as_labels": True,
@@ -593,7 +601,7 @@ def extract_sequential_feature_dataset(
         "rows": rows,
         "incomplete": False,
     }
-    examples_from_feature_dataset(result)
+    examples_from_feature_dataset(result, allow_test=test_accessed)
     _atomic_torch_save(result, destination)
     # Hash is returned for experiment ledgers without retaining model tensors.
     result["output_sha256"] = hashlib.sha256(destination.read_bytes()).hexdigest()

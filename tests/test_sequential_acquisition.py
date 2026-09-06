@@ -9,9 +9,16 @@ from beyond_entropy.acquisition_critic import (
 )
 from beyond_entropy.rollout import ActionSpec, AgentState, GroundTruth, ModelOutput, TaskExample
 from beyond_entropy.schema import BBox
-from beyond_entropy.sequential_metrics import policy_metrics
+from beyond_entropy.sequential_metrics import (
+    paired_source_bootstrap_utility_delta,
+    policy_metrics,
+)
 from beyond_entropy.sequential_rollout import SequentialPrefix, collect_counterfactual_prefixes
 from beyond_entropy.sequential_schema import SequentialRolloutRecord
+from beyond_entropy.sequential_test_transaction import (
+    start_test_transaction,
+    validate_test_access,
+)
 
 
 class PrefixBackend:
@@ -131,4 +138,102 @@ def test_source_and_rgb_split_audit_rejects_leakage():
     with pytest.raises(ValueError, match="leakage"):
         audit_development_disjointness(
             train, [{"source_id": "a", "image_rgb_sha256": "3" * 64}]
+        )
+
+
+def test_vectorized_paired_source_bootstrap_preserves_observed_utility_delta():
+    record, _ = one_record()
+    result = paired_source_bootstrap_utility_delta(
+        (record,),
+        (True,),
+        (False,),
+        lambda_cost=0.1,
+        samples=10_000,
+        seed=3,
+    )
+    assert result["observed_delta"] == pytest.approx(0.7)
+    assert result["ci_low"] == pytest.approx(0.7)
+    assert result["ci_high"] == pytest.approx(0.7)
+
+
+def test_test_transaction_writes_irreversible_ledger_before_manifest_access(tmp_path):
+    missing_manifest = tmp_path / "not-opened-test.jsonl"
+    rollouts = tmp_path / "formal" / "rollouts.jsonl"
+    features = tmp_path / "formal" / "features.pt"
+    freeze_path = tmp_path / "freeze.json"
+    ledger_path = tmp_path / "formal" / "access.json"
+    freeze = {
+        "schema": "sequential_test_freeze_v1",
+        "one_shot": True,
+        "test_authorized": True,
+        "benchmark": "chartqa",
+        "manifest_path": str(missing_manifest.resolve()),
+        "expected_manifest_sha256": "a" * 64,
+        "rollouts_output": str(rollouts.resolve()),
+        "features_output": str(features.resolve()),
+        "config_path": str((tmp_path / "config.json").resolve()),
+        "config_sha256": "b" * 64,
+        "critics_path": str((tmp_path / "critics.pt").resolve()),
+        "critics_sha256": "c" * 64,
+        "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+        "model_revision": "revision",
+        "generation_seeds": [0],
+        "proposer": "sequential-opposite-ug-v1",
+        "candidate_count": 4,
+        "visual_cost_per_crop": 1.0,
+        "dtype": "bfloat16",
+        "attention_implementation": "sdpa",
+        "max_new_tokens": 16,
+        "min_pixels": 200704,
+        "max_pixels": 602112,
+        "manifest_limit": None,
+        "shard_count": 1,
+        "shard_index": 0,
+        "bootstrap_samples": 10000,
+        "bootstrap_seed": 3,
+        "code_revision": "d" * 40,
+    }
+    freeze_path.write_text(json.dumps(freeze))
+    start_test_transaction(
+        freeze_path,
+        ledger_path,
+        benchmark="chartqa",
+        manifest_path=missing_manifest,
+        rollouts_output=rollouts,
+        features_output=features,
+        model=freeze["model"],
+        model_revision=freeze["model_revision"],
+        generation_seeds=[0],
+        code_revision=freeze["code_revision"],
+        dtype="bfloat16",
+        attention_implementation="sdpa",
+        max_new_tokens=16,
+        min_pixels=200704,
+        max_pixels=602112,
+        manifest_limit=None,
+        shard_count=1,
+        shard_index=0,
+    )
+    assert ledger_path.exists()
+    validate_test_access(freeze_path, ledger_path)
+    with pytest.raises(FileExistsError):
+        start_test_transaction(
+            freeze_path,
+            ledger_path,
+            benchmark="chartqa",
+            manifest_path=missing_manifest,
+            rollouts_output=rollouts,
+            features_output=features,
+            model=freeze["model"],
+            model_revision=freeze["model_revision"],
+            generation_seeds=[0],
+            code_revision=freeze["code_revision"],
+            dtype="bfloat16",
+            attention_implementation="sdpa",
+            max_new_tokens=16,
+            min_pixels=200704,
+            max_pixels=602112,
+            manifest_limit=None,
+            shard_count=1,
+            shard_index=0,
         )

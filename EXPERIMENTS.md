@@ -1871,3 +1871,43 @@
   deterministic shards 并行，减少总墙钟且不增加每样本 GPU-hours；邮件通知 `ALL`。
 - 科学结论：尚无；必须先完成真实 Qwen beneficial/harmful/neutral headroom diagnostic，
   其后才允许训练 linear/MLP critics。当前 verdict 为 `PENDING`。
+
+## E-20260906-34：三域真实 Sequential headroom 与 tiny critic smoke
+
+- Implementation revision：`665f50a912f5a416356954337ecc23c9f957dca8`（主实现 commit
+  `e69dbdf`；第二个 commit 仅把 4090 worker 从 8 CPU 修正为节点可用的 4 CPU）。
+- 首次提交：六个 8-CPU/1-GPU 请求均在创建 job 前被调度器以
+  `Requested node configuration is not available` 拒绝，没有 job ID/GPU 消耗。节点审计
+  显示单卡 4090 节点每 GPU 只有 4 CPU；修正后不改变模型、数据或科学配置。
+- 正式 smoke jobs：ChartQA train/validation `209042/209040`，DocVQA
+  `209044/209041`，HRBench `209045/209043`；每个 1×RTX 4090，train 32 states、validation
+  16 states，seed 0，Qwen2.5-VL-3B revision
+  `66285546d2b821cf421d4f5eb2576359d3770cd3`，全部 ExitCode 0，`--mail-type=ALL`。
+- ChartQA train/validation beneficial/harmful/neutral 为 `4/1/27`、`2/0/14`，mean gain
+  `+.09375/+.125`，oracle gain `.125/.125`，train entropy useful precision `.1111`。
+- DocVQA 为 `2/1/29`、`2/0/14`，mean gain `-.01950/+.04285`，oracle gain
+  `.01175/.04285`，train entropy useful precision `.0526`。
+- HRBench 为 `1/4/27`、`2/2/12`，mean gain `-.09375/0`，oracle gain `.03125/.125`，
+  train entropy useful precision `0`。因此三域均有 positive oracle support，且两域明确观察到
+  harmful branch；问题非空，但 tail 极稀疏。
+- Completion SHA-256（train/validation）：ChartQA
+  `53d305035adf5f7e2d763fcc49b32786157d829280f0d1c1cf3b4f31e3a85d3e` /
+  `e4549d844e6599bba28621bcdda497a93437387d088299176d0df3c716dbbd98`；DocVQA
+  `102b261eab00cb6f68ebf2ba43221e74df89c3821686c646161b33bdd902a599` /
+  `93aa6b61f99d8cdc53f3da8d39cc8a4c95ab7df96282581a482692a1335a49c0`；HRBench
+  `35325d7b67af2240596207f93b41c3791366b08f7c464c20c31bd9fe7d77b11b` /
+  `a5e450138d45dc5482123d5e2c92d5e94bcb87ae3aebfb4f2a016b8413e573fc`。
+- ChartQA tiny critic：report SHA-256
+  `bd0dd7bc97b5a38f959d19c6f174df6d7f3b9b4f2cb9e516a903eb442d83d36d`。选中 gain MLP
+  validation MSE `.28188`、useful AUROC `.64286`；risk linear AUROC `.63492`、Brier
+  `.27120`。这些来自 16 states，不作性能结论。
+- ChartQA tiny evaluation：report SHA-256
+  `74b5eb4d835eb8772137333da0dff5410d1e6def3cbc351d17622925088046bd`。
+  `lambda=.05` 时 learned gain/entropy matched 都是 50% call rate，utility
+  `+.0375/+.1000`，差 `-.0625`，95% source bootstrap `[-.1875,+.0094]`。没有早期正证据，
+  但样本不足以触发 Stop。
+- 工程修正：原通用 bootstrap 在 16 states 上需约 113 秒；改为等价的 vectorized
+  source sufficient-statistic bootstrap 后同一 7-lambda/10,000-replicate evaluation 约
+  8 秒。新增 ledger-first `sequential_test_freeze_v1`；test 仍未读取。
+- 决策：通过“问题有 counterfactual support”的前置 gate，进入三域 train 256 / validation
+  128 的一次有界 pilot；不直接扩到 full bank。
