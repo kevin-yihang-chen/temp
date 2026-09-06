@@ -23,6 +23,26 @@
   检查与执行后补记。所有任务邮件 `ALL`。
 - 当前结论：**PENDING**。实现与静态验证尚未完成，未提交 GPU job。
 
+## E-20260906-34：Counterfactual post-training Phase A smoke
+
+- Commit：`32bd83c`；冻结计划 SHA-256
+  `224c304f742837434b94e8ab8aee479390a93a3986a39eca50257ab329d56f75`。
+- 数据/配置：ChartQA/DocVQA 各 hash-selected train 25、validation 12；两臂相同 schedule
+  SHA-256，seed 17，64 steps；test 未访问。
+- 资源选择：2×H800 Job `209083` 因预计 2026-09-08 才启动而在运行前取消，runtime 0；旧
+  单图 3B peak 约 9.4 GiB，因此改用 2×RTX 4090 并行。Job `209085` 使用 8 CPU、96 GiB，
+  runtime 2分30秒，`COMPLETED/0:0`，每臂 peak 9.51 GiB，全状态邮件。
+- 工程结果：Outcome-only 与 Counterfactual 两臂的九项 checks 全真；固定 audit loss 分别
+  `.685516 -> .661889` 与 `.687914 -> .469614`；head、vision merger、last language block
+  均有非零 gradient 和参数更新；proposed crop execution 为零。
+- 动作诊断：24 个 validation states 上 natural CONTINUE 为 `22/24` 与 `23/24`，偏高但非
+  完整 collapse；后续 primary 使用 exact top-25% matched cost。tiny validation 不作效果结论。
+- 产物：Outcome/Counterfactual report SHA-256 为
+  `5817e115...25ce887` / `7a16afce...3c21fda`；evaluation 为 `PHASE_A_PASS`，SHA-256
+  `71eef3c8...a8cdfdf`。完整值见 `docs/cv_method_phase_a_result_209085.md`。
+- 结论/下一步：Phase A 工程 gate 通过，允许提交预注册的 Phase B；仍不允许 Phase C、
+  新 test、7B 或 RL。
+
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
 
