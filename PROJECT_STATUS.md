@@ -24,7 +24,11 @@ ANLS 是 `[0,1]` 连续 reward，旧 loss 却以 `.5` 决定 rescue/harm 分支�
 约 `183/512`、尚未产生 validation report 时于 17:08:37 HKT 取消，不能作科学结论。现在
 已改为严格 reward-mass 分解：`e*=1-Y0`，正/负 gain 分别按 `1-Y0`/`Y0` 归一化并用相同
 mass 加权 loss；它对连续/二值 reward 都精确重构 paired gain。21 个定向测试通过。
-因此旧 smoke 不再批准 Phase B，科学状态回到 **CORRECTED PHASE A PENDING**；test 未打开。
+旧 smoke 因此不再批准 Phase B。修正后的 Job `209158` 随后在 3×RTX 4090 上于
+17:13:20--17:15:21 HKT 完成，`COMPLETED/0:0`；三臂 schedule SHA 完全相同，九项
+工程 gate 全真，Factorized fixed-audit loss `.71468→.05749`、natural CONTINUE
+`22/24`，machine decision `PHASE_A_PASS`。科学状态现为
+**CORRECTED PHASE A PASS / PHASE B PENDING**；tiny accuracy 不作结论，test 未打开。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与

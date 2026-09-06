@@ -71,7 +71,27 @@
 - 修正：冻结为 bounded-reward exact factorization；conditional BCE 按 `1-Y0` 与 `Y0`
   加权，端点自然退化为原二值 loss。该项是同一 estimand 的 correctness fix，不是根据
   validation 表现换方法或超参。
-- 当前结论：**CORRECTED PHASE A PENDING**。必须重新 smoke，通过后才能重提 Phase B。
+- 当前结论（当时）：**CORRECTED PHASE A PENDING**。必须重新 smoke，通过后才能重提
+  Phase B。
+
+### 修正后的 Phase A 工程 smoke 通过
+
+- Commit：`b18feeb`；plan SHA-256
+  `52a6b5fe53d92db198d7339ef926e8d0f6ddd499e47514100f82d156f394e3c3`。
+- Job `209158`：3×RTX 4090、12 CPU、144 GiB，17:13:20--17:15:21 HKT，
+  `COMPLETED/ExitCode=0:0`，无 restart，全状态邮件；三臂 peak memory 约 `9.51 GiB`。
+- 三臂 schedule SHA-256 均为
+  `381965e781ef377b84798d46d8a9a665f7c736c44dcdedf050f172caad217aee`；九项工程、
+  更新、无泄漏、非恒定与 non-collapse checks 全真，test 未访问。
+- Fixed train audit loss：Outcome `.68552→.66189`、direct Counterfactual
+  `.68791→.46961`、修正 Factorized `.71468→.05749`；natural CONTINUE 分别
+  `22/24`、`23/24`、`22/24`。
+- 报告 SHA-256：Outcome
+  `56ae56ee28120459a4bf2ca8cbd26edfe132e96b84c13f2250d257a68925a112`；direct
+  Counterfactual `c8a15b73cb798a6eb80e6c20d4d6f4c710f491005a697edb49c5b33b94045714`；
+  Factorized `d5eb3b69164dc99e72f108888a14248b0a609a8c5cdf09af963d71e53615bcd1`；
+  evaluation `74bde8cb6fa301c470d6d48a850c6d8baada52aeed28d44330888bc12d03b652`。
+- 决定：`PHASE_A_PASS`。仅批准冻结的 Phase B；tiny accuracy 仍不作效果结论。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
