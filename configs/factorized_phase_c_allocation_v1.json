@@ -1,0 +1,92 @@
+{
+  "schema": "factorized_phase_c_allocation_v1",
+  "seed": 20260906,
+  "output_root": "data/factorized-phase-c-v1",
+  "blocked_manifest_glob": "data/**/manifest*.jsonl",
+  "chartqa": {
+    "dataset_id": "HuggingFaceM4/ChartQA",
+    "revision": "b605b6e08b57faf4359aeb2fe6a3ca595f99b6c5",
+    "train_manifest": {
+      "path": "data/predictability-audit-v1/chartqa/train/manifest.jsonl",
+      "sha256": "f243e3f9fddbf17a67d82cdab19a9d74e91f19804ba5f6f9663d2d49b0934ae1"
+    },
+    "train_states": 1024,
+    "heldout_states": 512,
+    "parquets": [
+      {
+        "path": "data/external/chartqa-hfm4-b605b6e-train/train-00000-of-00003-49492f364babfa44.parquet",
+        "sha256": "169979f8a8c64ba93ac1be22916bf9b49c9c2e4c57f5c0104e6f671f2aacd83a"
+      },
+      {
+        "path": "data/external/chartqa-hfm4-b605b6e-train/train-00001-of-00003-7302bae5e425bbc7.parquet",
+        "sha256": "a8819291729c807f163b93dcb2dc1fe60044d56412a0c0626cb7312df7392140"
+      },
+      {
+        "path": "data/external/chartqa-hfm4-b605b6e-train/train-00002-of-00003-194c9400785577a2.parquet",
+        "sha256": "528133aec54c7e948f40b8af56b083b98f9b7d1fdcdd1cd9e375f3df984f7ae4"
+      }
+    ]
+  },
+  "docvqa": {
+    "dataset_id": "lmms-lab/DocVQA",
+    "dataset_name": "DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "train_manifest": {
+      "path": "data/predictability-audit-v1/docvqa/train/manifest.jsonl",
+      "sha256": "a00dab30d5ec7bedd8b4bea808b9fc3579bf8c327d352d818b6726efb699528a"
+    },
+    "train_sources": 256,
+    "heldout_sources": 256,
+    "validation_parquets": [
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00000-of-00006.parquet",
+        "sha256": "a31507f0b700ac64f3ead52057c5dc3ccfb0baadcc62bc0d19d17159f080a4d8"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00001-of-00006.parquet",
+        "sha256": "ce63ba45f11bfb4e17362f9c073984b4c6c84a0e966ba3d33a86fa285a1fb3dc"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00002-of-00006.parquet",
+        "sha256": "2d580a39996ad05226ad462f2d31bad0df02f0f47f46263d96ad8df584a5667b"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00003-of-00006.parquet",
+        "sha256": "588a587567d1548a174b83b160132d97eb2b12a7d57374675d3c45b431403354"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00004-of-00006.parquet",
+        "sha256": "b43b8aa3e28a1b0f8728243fdf776b798a684b5baafb27d6a734edbbe3983302"
+      },
+      {
+        "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00005-of-00006.parquet",
+        "sha256": "5bba6d5f7b8e6ee0b64df2e4c2885f93cd759c732998e4d6f9b86ce4c690fcf2"
+      }
+    ]
+  },
+  "hrbench": {
+    "dataset_id": "DreamMr/HR-Bench",
+    "revision": "83b9013d6293b85dc507e87199ca52517536939c",
+    "train_manifest": {
+      "path": "data/predictability-audit-v1/hrbench/train/manifest.jsonl",
+      "sha256": "d59cdaaac6ea2110bf0c25c4a387f120c023997fab650668bc42e22a7679ca20"
+    },
+    "heldout_images": 20,
+    "historical_sequential_rollouts": [
+      {
+        "path": "artifacts/sequential-acquisition-v1/smoke-hrbench-train-256-v1/job-209050/rollouts.jsonl",
+        "sha256": "35fcc87dc1c8d2eb6c8d002065a5b002b99978ae32d4f4fc2ec6fde04ddde71a"
+      },
+      {
+        "path": "artifacts/sequential-acquisition-v1/smoke-hrbench-validation-128-v1/job-209053/rollouts.jsonl",
+        "sha256": "6f3a7fc91fdac9eff37f1ff786e77e7d8a33bfa75ba7d1385329c33920b4641a"
+      }
+    ]
+  },
+  "integrity": {
+    "selection_must_not_read_model_outcomes": true,
+    "train_heldout_source_overlap": 0,
+    "train_heldout_decoded_rgb_overlap": 0,
+    "heldout_sequential_outcomes_previously_opened": false
+  }
+}

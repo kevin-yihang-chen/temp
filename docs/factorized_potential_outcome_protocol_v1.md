@@ -155,6 +155,16 @@ domain, and no material accuracy-cost regression on the other successful
 domain. Semantic controls must show dependence on image, question and proposed
 region. Otherwise the route stops and is reported honestly.
 
+The frozen allocation uses 1,024 ChartQA training states and 256 complete
+DocVQA training documents, plus 512 new ChartQA states and 256 new DocVQA
+documents selected from their raw pinned revisions after excluding every
+historical manifest source/RGB. HRBench-4K and HRBench-8K contain the same 800
+questions, so 4K must not be presented as an independent new sample. The
+HRBench confirmation instead reserves 20 image groups from the old train role
+whose images have no prior sequential outcome; this is a weaker held-out
+guarantee and must be disclosed. Every role is state/source/image disjoint and
+allocation cannot read model outcomes.
+
 ## One-week stop boundary
 
 No RL, 7B, continuous bbox, free-form tool syntax, second acquisition, new

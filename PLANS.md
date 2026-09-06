@@ -43,6 +43,15 @@ Outcome-only 的平均差为正”；它已经满足，但不能替代上述 Pha
 bootstrap 与 error analysis；Day 7 冻结方法、表图和论文 method/experiment 骨架。这个
 计划承诺的是在一周内给出有证据约束的最终方法判定，不承诺顶会录用或正结果。
 
+Phase-C 数据冻结采用 outcome-blind 规则：ChartQA 从固定 raw-train revision 排除所有历史
+manifest 后抽 512 个平衡 held-out states；DocVQA 从固定 official-validation revision 排除
+所有历史 source/RGB 后抽 256 个完整 document groups；两者都是真正新 source。训练侧分别
+从旧 development-train 冻结 1024 ChartQA states 和 256 DocVQA document groups。HRBench
+4K/8K 是同一 800 问题的两种分辨率，不能把 4K 当新独立样本；因此从原 train role 中仅
+选取没有任何历史 sequential outcome 且与训练 image-disjoint 的 20 个 8K image groups
+作为 held-out，并在论文中明确它不具备前两域同等级的全新 source 保证。分配脚本、哈希
+绑定 CPU Slurm worker 与单元测试已实现，尚未执行或打开 held-out outcome。
+
 ## Counterfactual Visual Utility Post-training 已关闭：Phase B NO-GO（2026-09-06）
 
 新的独立路线已预注册在 `docs/cv_counterfactual_method_protocol_v1.md`。它不重写此前

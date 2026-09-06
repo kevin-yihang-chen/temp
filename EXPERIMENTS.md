@@ -124,6 +124,19 @@
   两域相对 Outcome CI 均跨零，不能作 paper claim。下一步必须是新 held-out、3 seeds、
   三域 Phase C，而不是在该 validation 上调参。
 
+### Phase C 数据 allocation 实现（未打开 outcome）
+
+- 新增固定配置 `factorized_phase_c_allocation_v1.json`：ChartQA train 1024 states / 新
+  held-out 512 states；DocVQA train 256 whole-document groups / 新 held-out 256 groups；
+  HRBench 从旧 train role 冻结 20 个从未生成 sequential outcome 的 image groups 作为
+  held-out，其余 image-disjoint rows 用于 train。
+- ChartQA/DocVQA 的 held-out 从原始固定 revision 抽取，显式排除所有历史 manifest 的
+  source/RGB；选择只看 identity、human/augmented stratum、document ID 和 RGB hash。
+- HRBench 官方 4K 与 8K 是同 800 questions 的裁剪/原图版本，不能伪装为全新 domain；
+  当前 held-out 只保证 sequential outcome 与 image group 未见，并将作为证据限制报告。
+- 新增 allocation helper、三项 synthetic fail-closed tests、CPU Slurm worker 与全状态邮件；
+  当前未执行，`heldout_sequential_outcomes_opened=false`。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本

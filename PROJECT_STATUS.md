@@ -43,6 +43,12 @@ mass 加权 loss；它对连续/二值 reward 都精确重构 paired gain。21 �
 **PHASE B DEVELOPMENT GO / PHASE C REQUIRED**，离三大会证据仍远；validation 是旧
 development split，test 仍未打开。
 
+Phase-C allocation 实现已加入：ChartQA/DocVQA held-out 从固定原始 revision 排除全部历史
+manifest 后选择；HRBench 因 4K/8K 共用同一问题集，只能冻结从未产生 sequential outcome
+的剩余 image groups，并显式记录证据限制。选择只读取 identity/stratum/RGB hash，不读取
+模型 outcome；train/heldout 对 source、state、decoded image 三重 fail-closed。当前尚未
+运行 allocation job，也未生成 held-out rollout。
+
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
 harm，并在动作前、固定成本下形成 acquisition score。它还必须实证超过 Outcome-only、
