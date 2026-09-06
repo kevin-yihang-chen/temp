@@ -1911,3 +1911,45 @@
   8 秒。新增 ledger-first `sequential_test_freeze_v1`；test 仍未读取。
 - 决策：通过“问题有 counterfactual support”的前置 gate，进入三域 train 256 / validation
   128 的一次有界 pilot；不直接扩到 full bank。
+
+## E-20260906-35：Sequential 256/128 screen、唯一表示修正与 NO-GO
+
+- Main rollout：ChartQA train/validation Jobs `209048/209052`，DocVQA
+  `209051/209049`，HRBench `209050/209053`；均为 Qwen2.5-VL-3B revision
+  `66285546d2b821cf421d4f5eb2576359d3770cd3`、seed 0、1×RTX 4090、ExitCode 0、邮件
+  `ALL`。每域为 train 256 / validation 128 paired decisions，source/RGB overlap 为 0。
+- Headroom：validation beneficial/harmful/neutral 为 ChartQA `16/4/108`、DocVQA
+  `8/2/118`、HRBench `9/7/112`。lambda=.05 oracle utility 与 10k source-bootstrap CI 为
+  `+.11875 [.06680,.17812]`、`+.01523 [.00000,.03917]`、
+  `+.06680 [.02969,.11133]`。固定第二次 acquisition 有价值；失败不来自零 headroom。
+- 初版 critic Jobs `209058/209057/209060`：18,461-D state-semantic gain AUROC 为
+  `.673/.384/.485`。ChartQA 的最好早期 endpoint 下界等于 0；DocVQA 和 HRBench 均跨 0。
+  ChartQA→HRBench development transfer 在 lambda<=.1 调用 90.63%，超出 nontrivial 上限且
+  不胜 matched baseline。
+- 唯一修正：commit `8ce042f` 在结果前冻结 `single-preregistered-relational-summary-v1`，
+  只把 raw coordinates 压为 90-D label-free summaries/relations；模型、loss、hidden size、
+  三个 seeds、split、lambda 和 outcomes 不变。correction Jobs `209061--209063` 均完成。
+- 完整 matched-rate audit：commit `6840ee5` 增加 risk+gain 独立 matched baselines、accuracy
+  bootstrap 和 risk baseline 指标；Jobs ChartQA/DocVQA/HRBench
+  `209065/209066/209064` 均 ExitCode 0。最终 gain AUROC `.7204/.6396/.4528`；risk AUROC
+  `.9106/.7293/.7256`，而各域最强 uncertainty risk AUROC 为 `.6915/.6950/.8177`。
+- 最有利 nontrivial cell 仍失败：ChartQA gain lambda=.2 相对最强 baseline utility
+  `+.03125 [-.01719,.08125]`；DocVQA gain lambda=.025
+  `+.01348 [-.00269,.03770]`；HRBench gain lambda=.05
+  `0 [-.03164,.03164]`。ChartQA risk+gain 也跨 0，DocVQA risk+gain 全部 Always STOP，
+  HRBench risk+gain 为负方向。没有任何域满足 CI lower > 0。
+- Final evaluation report SHA-256：ChartQA
+  `00f95dae7f0dd7c7015e3cf025af69ce6f78b1ddb3520a1b92d514871b114faa`；DocVQA
+  `bd025f78b0348af02747438a31490412aae4d5f4f9708a9c52d5a2b4853749da`；HRBench
+  `9ba6846a76d333044509a5bdb6073aa66be292b5777b22537b572ea751b89792`。每个 evaluation
+  均保存 accuracy-cost frontier 与 gain scatter。
+- Test audit：没有生成或读取 sequential test rollout/feature/reward/evaluation，也未创建
+  one-shot transaction；但后续 inventory 命令在 ledger 外读取了 pre-existing test manifest
+  metadata/示例行，因此这些 identities 不再可称 untouched，未来也不得用于 positive claim。
+- 终局：GO-1 headroom 通过；GO-2/3/4 与 cross-domain 均失败，触发 STOP-2/3/4/5。
+  `SEQUENTIAL_GO_NO_GO.md` 判定 **NO-GO**。禁止 RL、7B、multi-step、第二次表示/seed/
+  threshold search，不因负结果打开 test。
+- 最终核验：全仓 `python -m pytest -q` 到达 100% 且 ExitCode 0；compileall、三域 JSON
+  config、Slurm shell syntax、artifact schema/coverage、figure existence 和 `git diff --check`
+  全通过。终局报告 SHA-256 为
+  `3f9ca3039f10468d83e3fbb148065e2af233ff187c5eb1838d354b0fc484ffd9`。

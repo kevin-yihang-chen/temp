@@ -1,5 +1,16 @@
 # 研究计划
 
+## Sequential Visual Acquisition 已关闭：NO-GO（2026-09-06）
+
+当前目标已完成到预注册的否证终点。三域 counterfactual headroom 均存在，但 18,461 维
+初版 critic 和唯一允许的 90 维 relational correction 都没有在至少两个域以正的 paired
+CI 下界超过 matched entropy/confidence/margin；跨域迁移也失败。按 STOP-2/3/4/5，禁止
+继续换表示、加 seed、调 threshold、扩 backbone、打开 sequential test 或进入 RL。
+
+若未来重新立项，必须是新的 estimand 与新的 held-out allocation，不能复用本路线已经看过
+的 validation 或 pre-existing test identities。当前没有后续训练/排队任务；终局证据见
+`SEQUENTIAL_GO_NO_GO.md`，历史 PENDING 计划保留在下方。
+
 ## 当前用户授权目标：Sequential Visual Acquisition（2026-09-06）
 
 Utility-SFT 已按原停止规则以 NO-GO 关闭；新的唯一目标是验证 partial visual evidence 后的

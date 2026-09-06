@@ -1,6 +1,18 @@
 # 项目发展记录
 
-更新时间：2026-09-05 17:34（Asia/Hong_Kong）
+更新时间：2026-09-06 12:25（Asia/Hong_Kong）
+
+## 2026-09-06：Sequential stopping 以 NO-GO 关闭
+
+项目完成 additive shared-prefix STOP/CONTINUE counterfactual、严格 pre-action feature
+隔离、remaining-risk/acquisition-gain critics、cost-aware policies、matched deployable
+baselines、10,000 次 source bootstrap，以及 ChartQA/DocVQA/HRBench accuracy-cost 图。
+每域 256/128 screen 证明 oracle headroom，但没有证明 gain 可跨域学习。
+
+唯一预注册修正把 18,461 维 raw frozen state 压缩为 90 维 relational summary；它改善
+ChartQA/DocVQA ranking，却没有产生任何正的 matched-rate CI lower bound，并在 HRBench
+失败。路线按 STOP-2/3/4/5 关闭；未运行 sequential test outcome、RL、7B、multi-step 或
+第二次表示修正。最终证据与 test identity access caveat 见 `SEQUENTIAL_GO_NO_GO.md`。
 
 ## 项目要解决的问题
 

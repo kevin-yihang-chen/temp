@@ -1,5 +1,27 @@
 # 项目状态
 
+## Sequential Visual Acquisition 终局：NO-GO（2026-09-06）
+
+共享 partial-prefix 的 STOP/CONTINUE 实验已经按冻结停止规则完成。三域 main development
+screen 各用 train 256 / validation 128 个 paired states；ChartQA、DocVQA、HRBench 的
+validation beneficial rate 为 `12.50%/6.25%/7.03%`，lambda=.05 的 oracle utility 为
+`+.11875/+.01523/+.06680`，说明第二次视觉 observation 确有因果 headroom。
+
+初版 18,461 维 frozen-state critic 没有形成两域正证据。按 PARTIAL-GO 规则只执行一次、
+在结果前冻结的表示修正：90 维 label-free relational summary；未改变 Qwen2.5-VL-3B、
+loss、hidden size、seed、split 或 lambda grid。修正后 gain AUROC 为
+`.7204/.6396/.4528`，但 gain 与 risk+gain policy 相对最强 matched
+entropy/confidence/margin baseline 的 95% CI 下界在三个域全部 `<=0`；DocVQA risk+gain
+退化为 Always STOP，ChartQA→HRBench transfer 退化为高于 80% 调用率且无优势。
+
+因此触发 STOP-2/3/4/5，最终为 **NO-GO**：不生成 sequential test outcomes，不进入 RL、
+7B、multi-step 或第二轮 representation/seed/threshold 搜索。完整表、10,000 次 paired
+source bootstrap、风险指标、frontier 路径与 test-access 说明见
+`SEQUENTIAL_GO_NO_GO.md`。所有 15 个 post-smoke rollout/critic/audit jobs 均 ExitCode 0
+并邮件通知。
+
+更新时间：2026-09-06 12:25（Asia/Hong_Kong）
+
 ## Sequential Visual Acquisition：真实 smoke 通过，科学状态仍为 PENDING（2026-09-06）
 
 当前不是复现旧 Utility-SFT，也不是重开 static router。新 estimand 是：模型已经看到原图和
