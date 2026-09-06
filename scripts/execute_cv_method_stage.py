@@ -13,6 +13,22 @@ from pathlib import Path
 from beyond_entropy.predictability_matrix_artifacts import sha256_file
 
 
+METHOD_ORDER = (
+    "outcome_only", "counterfactual_utility", "factorized_potential_outcomes",
+)
+
+
+def canonical_plan_methods(configs: dict) -> tuple[str, ...]:
+    present = {method for method in configs if method != "evaluation"}
+    supported = {
+        frozenset(METHOD_ORDER[:2]),
+        frozenset(METHOD_ORDER),
+    }
+    if frozenset(present) not in supported:
+        raise ValueError("unsupported matched-arm plan")
+    return tuple(method for method in METHOD_ORDER if method in present)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", required=True)
@@ -39,12 +55,7 @@ def main() -> None:
     for spec in plan["configs"].values():
         if sha256_file(spec["path"]) != spec["sha256"]:
             raise ValueError("configuration changed after stage freeze")
-    methods = tuple(method for method in plan["configs"] if method != "evaluation")
-    if methods not in (
-        ("outcome_only", "counterfactual_utility"),
-        ("outcome_only", "counterfactual_utility", "factorized_potential_outcomes"),
-    ):
-        raise ValueError("unsupported matched-arm plan")
+    methods = canonical_plan_methods(plan["configs"])
     required_free = 4 * len(methods) * 1024**3
     if shutil.disk_usage(root).free < required_free:
         raise RuntimeError("matched-arm stage has insufficient free space")

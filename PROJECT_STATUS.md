@@ -12,8 +12,9 @@ Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户现
 实现已加入三头 Qwen policy、四种 paired outcome 的可观测条件损失、严格 typed
 pre-action 输入、三臂确定性评估、冻结/执行脚本，以及完全匹配旧 control 的 smoke/pilot
 配置。13 个定向单测、Python compile、shell syntax、两套 config equality 和旧 Phase-B
-evaluator 回归均通过。当前尚未提交 GPU，因此科学状态是 **METHOD DEFINED / PHASE A
-PENDING**，没有新的效果结果。
+evaluator 回归均通过。首次 Phase-A Job `209132` 在训练前因 executor 错把 JSON key 顺序
+当语义顺序而 4 秒 fail-closed；无模型加载或科学结果，现已改为 set 验证加 canonical GPU
+顺序。科学状态仍是 **METHOD DEFINED / PHASE A PENDING**。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与

@@ -29,6 +29,15 @@
   Job `209090` evaluator 回归仍输出 `PHASE_B_NO_GO` 与原 primary accuracy。尚无 GPU job。
 - 当前结论：**PENDING**。下一步只提交三臂 Phase A smoke。
 
+### Phase A 首次提交的非科学失败
+
+- Job `209132` 于 16:58:48 HKT 获得 3×RTX 4090，同节点资源与邮件合同正确，但 4 秒后
+  `FAILED/ExitCode=1:0`；没有模型加载、训练 step、checkpoint 或方法结果。
+- 根因：冻结 plan 使用稳定排序 JSON，`configs` key 顺序变为字母序；executor 把字典迭代
+  顺序错误地当成三臂语义顺序并拒绝合法 key set。该问题与数据、loss、模型和 GPU 无关。
+- 修复：executor 先用无序 key set 验证，再用显式 canonical method order 分配 GPU；旧二臂
+  与新三臂集合都 fail-closed。重新冻结新的 commit/plan 后才允许重提。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本
