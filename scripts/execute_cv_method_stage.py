@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify a frozen plan, run two one-GPU arms, then evaluate them."""
+"""Verify a frozen plan, run matched one-GPU arms, then evaluate them."""
 from __future__ import annotations
 
 import argparse
@@ -23,7 +23,9 @@ def main() -> None:
     if sha256_file(plan_path) != args.sha256:
         raise ValueError("stage plan hash mismatch")
     plan = json.loads(plan_path.read_text())
-    if plan.get("schema") != "cv_method_stage_plan_v1" or plan.get("test_authorized") is not False:
+    if (plan.get("schema") not in (
+            "cv_method_stage_plan_v1", "factorized_cv_method_stage_plan_v1")
+            or plan.get("test_authorized") is not False):
         raise ValueError("invalid development-only stage plan")
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=root, check=True,
@@ -37,14 +39,21 @@ def main() -> None:
     for spec in plan["configs"].values():
         if sha256_file(spec["path"]) != spec["sha256"]:
             raise ValueError("configuration changed after stage freeze")
-    if shutil.disk_usage(root).free < 8 * 1024**3:
-        raise RuntimeError("two-arm stage requires at least 8 GiB free")
+    methods = tuple(method for method in plan["configs"] if method != "evaluation")
+    if methods not in (
+        ("outcome_only", "counterfactual_utility"),
+        ("outcome_only", "counterfactual_utility", "factorized_potential_outcomes"),
+    ):
+        raise ValueError("unsupported matched-arm plan")
+    required_free = 4 * len(methods) * 1024**3
+    if shutil.disk_usage(root).free < required_free:
+        raise RuntimeError("matched-arm stage has insufficient free space")
     if not os.environ.get("SLURM_JOB_ID"):
         raise RuntimeError("stage executor requires Slurm")
     output_root = Path(plan["output_root"])
     job = f"job-{os.environ['SLURM_JOB_ID']}"
     processes = []
-    for gpu, method in enumerate(("outcome_only", "counterfactual_utility")):
+    for gpu, method in enumerate(methods):
         destination = output_root / method.replace("_", "-") / job
         environment = dict(os.environ)
         environment["CUDA_VISIBLE_DEVICES"] = str(gpu)
@@ -63,13 +72,19 @@ def main() -> None:
         raise RuntimeError(f"one or more post-training arms failed: {failures}")
     destinations = {method: destination for method, destination, _ in processes}
     evaluation = output_root / "evaluation" / job
-    subprocess.run([
+    evaluation_command = [
         sys.executable, str(root / "scripts/evaluate_cv_method_stage.py"),
         "--outcome-report", str(destinations["outcome_only"] / "report.json"),
         "--counterfactual-report", str(destinations["counterfactual_utility"] / "report.json"),
         "--config", plan["configs"]["evaluation"]["path"],
         "--output", str(evaluation),
-    ], check=True)
+    ]
+    if "factorized_potential_outcomes" in destinations:
+        evaluation_command.extend([
+            "--factorized-report",
+            str(destinations["factorized_potential_outcomes"] / "report.json"),
+        ])
+    subprocess.run(evaluation_command, check=True)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,31 @@
 # 研究计划
 
+## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06）
+
+用户给出的硬约束是：从当前全部结果出发，最多一周形成最终方法，目标为 CVPR/ICCV/ECCV。
+本周不再并行发散多个 idea。唯一候选冻结为 **Factorized Potential-Outcome Visual
+Acquisition**：端到端预测当前答案错误风险、错误条件下的 crop rescue 概率和当前正确
+条件下的 crop harm 概率，并用
+`P(error)P(rescue|error)-P(correct)P(harm|correct)` 排序视觉 acquisition。
+
+该方向来自已有结果中的一个明确不对称：Job `209090` 的 Outcome-only 在两个域都优于
+直接 Counterfactual Utility，ChartQA 的 top-25% 实际选中 8/16 个 rescue 且 0 个 harm；
+它主要学到了“当前答案可能错误”，但尚未把 baseline-wrong 中的 rescue 与仍然失败区分
+开。直接 gain 则只从 512 个 train pairs 中的 63 个非中性 pair 得到梯度并发生全
+CONTINUE collapse。新方法使用每个 pair 训练 risk，并使用其中一个条件分支训练 rescue
+或 harm；不是继续给旧 gain loss 调 class weight。
+
+协议已写入 `docs/factorized_potential_outcome_protocol_v1.md`。Phase A 固定为三臂、64-step
+工程 smoke；通过后 Phase B 才运行相同数据/schedule/seed 的 512-step pilot。只有 Phase B
+同时达到“一个域相对 strongest uncertainty `>+1pp`、另一域 `>-0.5pp`、两域相对
+Outcome-only 的平均差为正”才允许在剩余时间扩到新 held-out、三个 seeds 和第三 domain。
+否则当日 NO-GO，不靠换 seed、loss 或阈值拖满一周。
+
+一周节奏：Day 1 完成实现、smoke 与 bounded pilot；Day 2--3（仅 GO）扩 paired banks 和
+冻结新 held-out；Day 4--5 做三 seed/三域主结果及强基线；Day 6 做语义消融、frontier、
+bootstrap 与 error analysis；Day 7 冻结方法、表图和论文 method/experiment 骨架。这个
+计划承诺的是在一周内给出有证据约束的最终方法判定，不承诺顶会录用或正结果。
+
 ## Counterfactual Visual Utility Post-training 已关闭：Phase B NO-GO（2026-09-06）
 
 新的独立路线已预注册在 `docs/cv_counterfactual_method_protocol_v1.md`。它不重写此前

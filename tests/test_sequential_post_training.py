@@ -9,6 +9,7 @@ from beyond_entropy.sequential_post_training import (
     SequentialPolicyInput,
     SequentialTrainingExample,
     deterministic_joint_schedule,
+    factorized_potential_outcome_probabilities,
     load_sequential_training_examples,
     sequential_post_training_loss,
     state_hash_subset,
@@ -54,6 +55,49 @@ def test_outcome_only_and_counterfactual_losses_have_distinct_neutral_semantics(
     assert sequential_post_training_loss(
         logits, rescue, method="counterfactual_utility"
     ).item() > 0
+
+
+@pytest.mark.parametrize(
+    ("stop", "continued", "risk_target", "conditional_index", "conditional_target"),
+    (
+        (0, 0, 1, 1, 0),
+        (0, 1, 1, 1, 1),
+        (1, 0, 0, 2, 1),
+        (1, 1, 0, 2, 0),
+    ),
+)
+def test_factorized_loss_uses_dense_risk_and_observable_conditional(
+    stop, continued, risk_target, conditional_index, conditional_target
+):
+    logits = torch.zeros((1, 3), requires_grad=True)
+    loss = sequential_post_training_loss(
+        logits, example(stop=stop, continued=continued),
+        method="factorized_potential_outcomes",
+    )
+    loss.backward()
+    assert loss.item() == pytest.approx(0.69314718)
+    gradient = logits.grad[0]
+    assert gradient[0].sign().item() == (1 if risk_target == 0 else -1)
+    assert gradient[conditional_index].sign().item() == (
+        1 if conditional_target == 0 else -1
+    )
+    unused = 3 - conditional_index
+    assert gradient[unused].item() == 0
+
+
+def test_factorized_gain_is_rescue_mass_minus_harm_mass():
+    logits = torch.logit(torch.tensor([[.8, .5, .1]]))
+    result = factorized_potential_outcome_probabilities(logits)
+    assert result["expected_gain"].item() == pytest.approx(.8 * .5 - .2 * .1)
+    assert result["expected_gain"].item() == pytest.approx(.38)
+
+
+def test_factorized_loss_rejects_binary_action_logits():
+    with pytest.raises(ValueError, match="factorized logits"):
+        sequential_post_training_loss(
+            torch.zeros((1, 2)), example(),
+            method="factorized_potential_outcomes",
+        )
 
 
 def test_state_subset_and_joint_schedule_are_outcome_independent():

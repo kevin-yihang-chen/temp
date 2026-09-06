@@ -40,7 +40,10 @@ def tensor_hash(tensor: torch.Tensor) -> str:
 def validate_config(config: dict) -> None:
     if (config.get("schema") != "cv_method_post_training_config_v1"
             or config.get("stage") not in ("phase_a_smoke", "phase_b_pilot", "phase_c_confirmation")
-            or config.get("method") not in ("outcome_only", "counterfactual_utility")
+            or config.get("method") not in (
+                "outcome_only", "counterfactual_utility",
+                "factorized_potential_outcomes",
+            )
             or config.get("test_authorized") is not False
             or config.get("trainable_backbone") != "visual_merger_and_last_language_block"
             or set(config.get("datasets", {})) != set(BENCHMARKS)):
@@ -142,6 +145,7 @@ def main() -> None:
     model = QwenSequentialPolicy(
         backbone, processor, head_dim=config["head_dim"],
         min_pixels=config["min_pixels"], max_pixels=config["max_pixels"],
+        head_outputs=3 if config["method"] == "factorized_potential_outcomes" else 2,
     )
     device = next(model.parameters()).device
     optimizer = torch.optim.AdamW([
@@ -161,8 +165,15 @@ def main() -> None:
     for domain in BENCHMARKS:
         candidates = [
             item for item in data["train"][domain]
-            if (item.gain != 0 if config["method"] == "counterfactual_utility"
-                else item.stop_reward + item.continue_reward > 0)
+            if (
+                item.gain != 0
+                if config["method"] == "counterfactual_utility"
+                else (
+                    True
+                    if config["method"] == "factorized_potential_outcomes"
+                    else item.stop_reward + item.continue_reward > 0
+                )
+            )
         ]
         audit_examples.extend((domain, item) for item in candidates[:4])
     if not audit_examples:
@@ -244,20 +255,33 @@ def main() -> None:
             for example in data["validation"][benchmark]:
                 output = model(example.inputs)
                 logits = output["action_logits"][0].float().cpu().tolist()
-                predictions.append({
+                continue_score = float(output["continue_score"][0].float().cpu())
+                prediction = {
                     "benchmark": benchmark, "state_id": example.inputs.state_id,
                     "replicate_id": example.replicate_id,
                     "source_id": example.inputs.source_id,
                     "stop_reward": example.stop_reward,
                     "continue_reward": example.continue_reward,
                     "gain": example.gain, "action_logits": logits,
-                    "continue_score": logits[1] - logits[0],
-                    "continue_probability": float(torch.softmax(
-                        output["action_logits"].float(), dim=-1
-                    )[0, 1].cpu()),
-                    "natural_action": "CONTINUE" if logits[1] > logits[0] else "STOP",
+                    "continue_score": continue_score,
+                    "natural_action": "CONTINUE" if continue_score > 0 else "STOP",
                     "measurement": dict(model.last_measurement),
-                })
+                }
+                if config["method"] == "factorized_potential_outcomes":
+                    prediction["factorized_probabilities"] = {
+                        key: float(output[key][0].float().cpu())
+                        for key in (
+                            "error_probability",
+                            "rescue_probability_given_error",
+                            "harm_probability_given_correct",
+                            "expected_gain",
+                        )
+                    }
+                else:
+                    prediction["continue_probability"] = float(torch.softmax(
+                        output["action_logits"].float(), dim=-1
+                    )[0, 1].cpu())
+                predictions.append(prediction)
     _atomic_torch_save(
         {"provenance": provenance, "parameters": model.trainable_state_dict()},
         run / "selector.pt",

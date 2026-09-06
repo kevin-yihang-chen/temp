@@ -227,6 +227,23 @@ def sequential_post_training_loss(
     pair contributes no preference gradient to the counterfactual objective.
     """
 
+    if method == "factorized_potential_outcomes":
+        if logits.shape != (1, 3):
+            raise ValueError("factorized logits must have shape [1, 3]")
+        targets = logits.new_tensor([
+            1.0 - example.stop_reward,
+            example.continue_reward,
+            1.0 - example.continue_reward,
+        ]).float()
+        risk_loss = F.binary_cross_entropy_with_logits(logits[0, 0], targets[0])
+        conditional_index = 1 if example.stop_reward < .5 else 2
+        conditional_loss = F.binary_cross_entropy_with_logits(
+            logits[0, conditional_index], targets[conditional_index]
+        )
+        # Every state teaches baseline error risk and exactly one observable
+        # conditional: rescue given baseline error, or harm given baseline
+        # success.  Averaging keeps the per-state scale matched across strata.
+        return (risk_loss + conditional_loss) / 2
     if logits.shape != (1, 2):
         raise ValueError("binary policy logits must have shape [1, 2]")
     log_prob = F.log_softmax(logits.float(), dim=-1)[0]
@@ -243,15 +260,45 @@ def sequential_post_training_loss(
     raise ValueError(f"unsupported post-training method: {method}")
 
 
+def factorized_potential_outcome_probabilities(
+    logits: torch.Tensor,
+) -> dict[str, torch.Tensor]:
+    """Convert risk/rescue/harm logits into an identifiable expected gain.
+
+    With paired binary outcomes, the gain identity is
+
+    ``P(stop wrong) P(continue correct | stop wrong)`` minus
+    ``P(stop correct) P(continue wrong | stop correct)``.
+    """
+
+    if logits.ndim != 2 or logits.shape[1] != 3:
+        raise ValueError("factorized logits must have shape [batch, 3]")
+    if not torch.isfinite(logits).all():
+        raise ValueError("factorized logits must be finite")
+    probabilities = torch.sigmoid(logits.float())
+    error = probabilities[:, 0]
+    rescue = probabilities[:, 1]
+    harm = probabilities[:, 2]
+    expected_gain = error * rescue - (1.0 - error) * harm
+    return {
+        "error_probability": error,
+        "rescue_probability_given_error": rescue,
+        "harm_probability_given_correct": harm,
+        "expected_gain": expected_gain,
+    }
+
+
 class QwenSequentialPolicy(nn.Module):
     """Qwen partial-prefix encoder plus a small binary acquisition head."""
 
     def __init__(self, backbone: Any, processor: Any, *, head_dim: int = 128,
                  min_pixels: int = 256*28*28, max_pixels: int = 768*28*28,
-                 train_backbone: bool = True) -> None:
+                 train_backbone: bool = True, head_outputs: int = 2) -> None:
         super().__init__()
         if head_dim <= 0 or min_pixels <= 0 or max_pixels < min_pixels:
             raise ValueError("invalid policy dimensions or pixel budget")
+        if head_outputs not in (2, 3):
+            raise ValueError("policy head must have two actions or three factors")
         self.backbone, self.processor = backbone, processor
         self.min_pixels, self.max_pixels = min_pixels, max_pixels
         core = backbone.model
@@ -270,8 +317,9 @@ class QwenSequentialPolicy(nn.Module):
             nn.LayerNorm(hidden + 15),
             nn.Linear(hidden + 15, head_dim),
             nn.GELU(),
-            nn.Linear(head_dim, 2),
+            nn.Linear(head_dim, head_outputs),
         ).to(next(backbone.parameters()).device)
+        self.head_outputs = head_outputs
         for parameter in self.parameters():
             if parameter.requires_grad:
                 parameter.data = parameter.data.float()
@@ -317,7 +365,17 @@ class QwenSequentialPolicy(nn.Module):
             "proposed_crop_executions": 0,
             "prompt_tokens": int(tensors.attention_mask.sum().item()),
         }
-        return {"action_logits": logits, "continue_score": logits[:, 1] - logits[:, 0]}
+        if self.head_outputs == 2:
+            return {
+                "action_logits": logits,
+                "continue_score": logits[:, 1] - logits[:, 0],
+            }
+        factors = factorized_potential_outcome_probabilities(logits)
+        return {
+            "action_logits": logits,
+            "continue_score": factors["expected_gain"],
+            **factors,
+        }
 
     def trainable_state_dict(self) -> dict[str, Any]:
         names = {name for name, value in self.named_parameters() if value.requires_grad}

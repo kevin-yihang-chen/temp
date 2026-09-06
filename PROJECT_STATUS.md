@@ -1,5 +1,25 @@
 # 项目状态
 
+## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 16:56 HKT）
+
+项目没有停止，但此前的 direct Utility-SFT、Sequential frozen critic 和 direct
+Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户现要求最多一周形成最终
+方法。基于 Job `209090` 的机制证据，新的唯一候选是三头端到端 factorization：
+
+`expected_gain = P(stop wrong) * P(continue correct | stop wrong)`
+` - P(stop correct) * P(continue wrong | stop correct)`。
+
+实现已加入三头 Qwen policy、四种 paired outcome 的可观测条件损失、严格 typed
+pre-action 输入、三臂确定性评估、冻结/执行脚本，以及完全匹配旧 control 的 smoke/pilot
+配置。13 个定向单测、Python compile、shell syntax、两套 config equality 和旧 Phase-B
+evaluator 回归均通过。当前尚未提交 GPU，因此科学状态是 **METHOD DEFINED / PHASE A
+PENDING**，没有新的效果结果。
+
+该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
+于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
+harm，并在动作前、固定成本下形成 acquisition score。它还必须实证超过 Outcome-only、
+direct gain 与 strongest uncertainty 才能成立。当前 `squeue` 为空，test 未授权。
+
 ## Counterfactual Visual Utility Post-training：Phase B NO-GO（2026-09-06）
 
 当前已把下一阶段收敛为一个有界、可证伪的 end-to-end 方法实验：在相同 Qwen2.5-VL-3B

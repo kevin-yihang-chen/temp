@@ -99,6 +99,49 @@ def phase_b_decision(benchmarks: dict) -> tuple[str, str]:
     return "PHASE_B_NO_GO", reason
 
 
+def factorized_phase_b_decision(benchmarks: dict) -> tuple[str, str]:
+    versus_baseline = {
+        benchmark: benchmarks[benchmark]["primary_comparisons"]
+        ["factorized_potential_outcomes_minus_strongest_uncertainty"]
+        ["accuracy"]["observed_delta"]
+        for benchmark in BENCHMARKS
+    }
+    versus_outcome = {
+        benchmark: benchmarks[benchmark]["primary_comparisons"]
+        ["factorized_potential_outcomes_minus_outcome_only"]
+        ["accuracy"]["observed_delta"]
+        for benchmark in BENCHMARKS
+    }
+    if all(value <= 0 for value in versus_baseline.values()):
+        return (
+            "FACTORIZED_PHASE_B_NO_GO",
+            "factorized potential outcomes did not improve over the strongest "
+            "matched uncertainty baseline on either benchmark",
+        )
+    if all(value <= 0 for value in versus_outcome.values()):
+        return (
+            "FACTORIZED_PHASE_B_NO_GO",
+            "factorized potential outcomes did not improve over the matched "
+            "outcome-only control on either benchmark",
+        )
+    phase_b_go = (
+        any(value > .01 for value in versus_baseline.values())
+        and all(value > -.005 for value in versus_baseline.values())
+        and mean(versus_outcome.values()) > 0
+    )
+    if phase_b_go:
+        return (
+            "FACTORIZED_PHASE_B_GO",
+            "the frozen baseline, cross-domain safety, and mean outcome-control "
+            "transition rules were met",
+        )
+    return (
+        "FACTORIZED_PHASE_B_NO_GO",
+        "the frozen >+1pp baseline, >-0.5pp cross-domain, and positive mean "
+        "outcome-control transition rules were not jointly met",
+    )
+
+
 def evaluate_benchmark(
     benchmark: str,
     records: list[SequentialRolloutRecord],
@@ -109,7 +152,8 @@ def evaluate_benchmark(
 ) -> dict:
     ids = [record.decision_id for record in records]
     score_sets = {}
-    for method in ("outcome_only", "counterfactual_utility"):
+    learned_methods = tuple(predictions)
+    for method in learned_methods:
         if set(predictions[method]) != set(ids):
             raise ValueError(f"{benchmark} {method} prediction coverage mismatch")
         score_sets[method] = [
@@ -148,20 +192,32 @@ def evaluate_benchmark(
     outcome = primary_masks["outcome_only"]
     baseline = primary_masks[strongest]
     comparisons = {}
-    for label, right in (("strongest_uncertainty", baseline), ("outcome_only", outcome)):
-        comparisons[f"counterfactual_minus_{label}"] = {
-            "accuracy": paired_source_bootstrap_accuracy_delta(
-                records, cf, right, samples=bootstrap_samples, seed=bootstrap_seed
-            ),
-            "utility_lambda_0.05": paired_source_bootstrap_utility_delta(
-                records, cf, right, lambda_cost=.05,
-                samples=bootstrap_samples, seed=bootstrap_seed,
-            ),
-        }
+    for method in learned_methods:
+        left = primary_masks[method]
+        comparators = [("strongest_uncertainty", baseline)]
+        if method != "outcome_only":
+            comparators.append(("outcome_only", outcome))
+        if method == "factorized_potential_outcomes":
+            comparators.append(("counterfactual_utility", cf))
+        for label, right in comparators:
+            comparison_name = (
+                "counterfactual" if method == "counterfactual_utility" else method
+            )
+            comparisons[f"{comparison_name}_minus_{label}"] = {
+                "accuracy": paired_source_bootstrap_accuracy_delta(
+                    records, left, right,
+                    samples=bootstrap_samples, seed=bootstrap_seed,
+                ),
+                "utility_lambda_0.05": paired_source_bootstrap_utility_delta(
+                    records, left, right, lambda_cost=.05,
+                    samples=bootstrap_samples, seed=bootstrap_seed,
+                ),
+            }
     beneficial = sum(record.delta_success > 0 for record in records)
     secondary = {}
-    for name, mask in (("outcome_only", outcome), ("counterfactual_utility", cf),
-                       (strongest, baseline)):
+    secondary_masks = [(name, primary_masks[name]) for name in learned_methods]
+    secondary_masks.append((strongest, baseline))
+    for name, mask in secondary_masks:
         secondary[name] = {
             "unnecessary_continuation_count": sum(
                 use and record.delta_success <= 0 for record, use in zip(records, mask)
@@ -180,7 +236,7 @@ def evaluate_benchmark(
         "secondary": secondary,
         "calibration": {
             name: calibration(score_sets[name], records)
-            for name in ("outcome_only", "counterfactual_utility")
+            for name in learned_methods
         },
         "frontier": frontiers,
     }
@@ -190,6 +246,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--outcome-report", required=True)
     parser.add_argument("--counterfactual-report", required=True)
+    parser.add_argument("--factorized-report")
     parser.add_argument("--config", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
@@ -200,14 +257,24 @@ def main() -> None:
             or tuple(config.get("rates", ())) != RATES
             or tuple(config.get("lambdas", ())) != LAMBDAS):
         raise ValueError("invalid frozen evaluation config")
-    outcome = load_report(args.outcome_report, "outcome_only")
-    counterfactual = load_report(args.counterfactual_report, "counterfactual_utility")
-    if outcome["stage"] != config["stage"] or counterfactual["stage"] != config["stage"]:
+    reports = {
+        "outcome_only": load_report(args.outcome_report, "outcome_only"),
+        "counterfactual_utility": load_report(
+            args.counterfactual_report, "counterfactual_utility"
+        ),
+    }
+    if args.factorized_report:
+        reports["factorized_potential_outcomes"] = load_report(
+            args.factorized_report, "factorized_potential_outcomes"
+        )
+    outcome = reports["outcome_only"]
+    counterfactual = reports["counterfactual_utility"]
+    if any(report["stage"] != config["stage"] for report in reports.values()):
         raise ValueError("training and evaluation stages differ")
-    if outcome["schedule_sha256"] != counterfactual["schedule_sha256"]:
+    if len({report["schedule_sha256"] for report in reports.values()}) != 1:
         raise ValueError("training arms did not use the same state schedule")
     predictions = {}
-    for method, report in (("outcome_only", outcome), ("counterfactual_utility", counterfactual)):
+    for method, report in reports.items():
         predictions[method] = {benchmark: {} for benchmark in BENCHMARKS}
         for row in report["validation"]["predictions"]:
             key = (row["state_id"], row["replicate_id"])
@@ -220,9 +287,11 @@ def main() -> None:
         if sha256_file(spec["path"]) != spec["sha256"]:
             raise ValueError("validation rollout changed after evaluation freeze")
         records = read_records(spec["path"])
-        outcome_ids = set(predictions["outcome_only"][benchmark])
-        counterfactual_ids = set(predictions["counterfactual_utility"][benchmark])
-        if outcome_ids != counterfactual_ids:
+        prediction_id_sets = {
+            method: set(values[benchmark]) for method, values in predictions.items()
+        }
+        outcome_ids = prediction_id_sets["outcome_only"]
+        if any(ids != outcome_ids for ids in prediction_id_sets.values()):
             raise ValueError("arm validation subsets differ")
         if config["stage"] == "phase_a_smoke":
             records = [record for record in records if record.decision_id in outcome_ids]
@@ -233,17 +302,23 @@ def main() -> None:
             bootstrap_seed=int(config["bootstrap_seed"]),
         )
     engineering_checks = {
-        "outcome_only_smoke_passed": outcome.get("smoke_passed") is True,
-        "counterfactual_smoke_passed": counterfactual.get("smoke_passed") is True,
-        "matched_schedule": outcome["schedule_sha256"] == counterfactual["schedule_sha256"],
-        "no_test_access": not outcome["test_accessed"] and not counterfactual["test_accessed"],
+        **{
+            f"{method}_smoke_passed": report.get("smoke_passed") is True
+            for method, report in reports.items()
+        },
+        "matched_schedule": len({report["schedule_sha256"] for report in reports.values()}) == 1,
+        "no_test_access": all(not report["test_accessed"] for report in reports.values()),
     }
     if config["stage"] == "phase_a_smoke":
         decision = "PHASE_A_PASS" if all(engineering_checks.values()) else "PHASE_A_FAIL"
         reason = "all engineering gates passed" if decision == "PHASE_A_PASS" else "one or more engineering gates failed"
     else:
         if config["stage"] == "phase_b_pilot":
-            decision, reason = phase_b_decision(benchmarks)
+            decision, reason = (
+                factorized_phase_b_decision(benchmarks)
+                if "factorized_potential_outcomes" in reports
+                else phase_b_decision(benchmarks)
+            )
         else:
             # Phase C aggregation across three seeds is intentionally separate;
             # one seed report cannot authorize scaling.
@@ -258,6 +333,8 @@ def main() -> None:
             "evaluation_config_sha256": sha256_file(args.config),
             "outcome_report_sha256": sha256_file(args.outcome_report),
             "counterfactual_report_sha256": sha256_file(args.counterfactual_report),
+            **({"factorized_report_sha256": sha256_file(args.factorized_report)}
+               if args.factorized_report else {}),
             "schedule_sha256": outcome["schedule_sha256"],
         },
     }
@@ -269,7 +346,7 @@ def main() -> None:
         for benchmark in BENCHMARKS:
             frontier = benchmarks[benchmark]["frontier"]
             plt.figure(figsize=(6.5, 4.5))
-            for policy in ("outcome_only", "counterfactual_utility"):
+            for policy in reports:
                 xs = [row["realized_call_rate"] for row in frontier]
                 ys = [row["policies_by_lambda"]["0.0"][policy]["accuracy"] for row in frontier]
                 plt.plot(xs, ys, marker="o", label=policy)

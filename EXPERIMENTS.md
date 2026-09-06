@@ -2,6 +2,33 @@
 
 更新时间：2026-09-06（Asia/Hong_Kong）
 
+## E-20260906-36：Factorized Potential-Outcome 最终方法候选（待 Phase A）
+
+- 目标/时限：基于全部既有结果，在一周内形成唯一最终方法判定；目标为 CVPR/ICCV/ECCV，
+  但不把一周误写成录用或正结果承诺。
+- 既有触发证据：Job `209090` 的 Outcome-only 在 25% cost 下达到 ChartQA/DocVQA
+  `52.344/92.273%`，均高于 strongest uncertainty，且优于 direct Counterfactual
+  `3.906/0.521pp`。ChartQA Outcome-only top-32 包含 8 rescue、0 harm，说明 end-to-end
+  encoder 能学到 baseline error risk；direct gain 只使用 63/512 non-neutral train pairs，
+  natural policy collapse 为全 CONTINUE。
+- 新假设：把 gain 精确拆成
+  `P(error)P(rescue|error)-P(correct)P(harm|correct)`，用所有 pair 学 error risk，并按
+  `stop_correct` 条件训练可观测的 rescue 或 harm head，可比一个稀疏 action-preference
+  label 更稳定地学习 acquisition ranking。
+- 实现：`sequential_post_training.py` 新增 3-logit head、factorized probability identity 和
+  四 outcome-type loss；训练器保存三个概率与 expected gain；evaluator 支持 matched
+  Outcome-only / direct Counterfactual / Factorized 三臂及冻结 Phase-B rule；新增两套配置、
+  三卡 4090 runner 和全状态邮件。
+- 隔离：deployable input allowlist 不变，proposed crop 不执行，cost 仅在 policy 层，现有
+  train/validation 只作 development，test 未授权。
+- 预注册判定：Phase A 64 steps 工程 gate；Phase B 512 steps 后，Factorized 必须在一个域
+  相对 strongest uncertainty `>+1pp`、另一域 `>-0.5pp`，且相对 Outcome-only 的两域
+  mean delta `>0` 才晋级。否则 NO-GO，不调 loss/class weight/seed/threshold。
+- 当前验证：`tests/test_sequential_post_training.py` 与 `tests/test_cv_method_evaluation.py`
+  共 `13 passed`；Python compile、bash syntax、config equality、`git diff --check` 通过；旧
+  Job `209090` evaluator 回归仍输出 `PHASE_B_NO_GO` 与原 primary accuracy。尚无 GPU job。
+- 当前结论：**PENDING**。下一步只提交三臂 Phase A smoke。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本
