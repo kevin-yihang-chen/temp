@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --partition=debug
 #SBATCH --gres=gpu:rtx_4090:1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=02:00:00
 #SBATCH --job-name=be-phase-c-alloc
@@ -52,8 +52,8 @@ export PYTHONPATH="${repo}/src:${repo}/scripts"
 export HF_HOME=/userhome/cs3/yihangc/Data/hf_cache
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
-export OMP_NUM_THREADS=8
-export MKL_NUM_THREADS=8
+export OMP_NUM_THREADS=4
+export MKL_NUM_THREADS=4
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export BE_CODE_REVISION="${BE_PHASE_C_CODE_REVISION}"
 

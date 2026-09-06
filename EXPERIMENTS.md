@@ -139,6 +139,9 @@
 - 首次提交被 scheduler 在创建 Job 前以 `QOSMinGRES` 拒绝；没有 Job ID、运行或数据读取。
   cluster debug QOS 要求最少一个 GRES，因此 worker 改为请求 1×RTX 4090 仅满足调度约束，
   allocation 逻辑仍为 CPU-only，方法/数据/判据不变。
+- 第二次提交也在创建 Job 前被拒绝为 `Requested node configuration is not available`；live
+  `sinfo` 显示单卡 4090 节点只提供 4 CPUs，故将 `cpus-per-task` 从 8 改为 4。仍无 Job、
+  运行或数据访问。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
