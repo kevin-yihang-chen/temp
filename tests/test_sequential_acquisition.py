@@ -101,7 +101,9 @@ def test_sequential_schema_round_trip_preserves_counterfactual_pair():
 
 def test_feature_contract_excludes_post_action_values():
     record, _ = one_record()
-    dimension = 4
+    # Production Qwen features are 3,584-D; keep the fixture modest while
+    # preserving the correction's intended compression relationship.
+    dimension = 128
     semantic = {
         "question_embedding": [0.1] * dimension,
         "global_visual_embedding": [0.2] * dimension,
@@ -124,6 +126,10 @@ def test_feature_contract_excludes_post_action_values():
     )
     inputs = AcquisitionInputs.from_untrusted_mapping(row)
     assert len(inputs.feature_vector("state_semantic")) > dimension
+    relational = inputs.feature_vector("relational")
+    assert len(relational) < len(inputs.feature_vector("state_semantic"))
+    assert len(relational) == len(inputs.feature_vector("shallow")) + 7 * 4 + 11 * 3
+    assert all(value == value for value in relational)
     assert "labels" not in inputs.__dict__
     tampered = dict(row)
     tampered["pre_action"] = dict(row["pre_action"], continue_entropy=0.0)

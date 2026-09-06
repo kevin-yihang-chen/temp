@@ -16,7 +16,13 @@ except ModuleNotFoundError:  # pragma: no cover - package remains dependency-fre
 
 
 SEQUENTIAL_FEATURE_FORMAT_VERSION = 1
-CRITIC_FEATURE_LEVELS = ("uncertainty", "shallow", "semantic", "state_semantic")
+CRITIC_FEATURE_LEVELS = (
+    "uncertainty",
+    "shallow",
+    "semantic",
+    "state_semantic",
+    "relational",
+)
 _INPUT_FIELDS = frozenset(
     {
         "stop_entropy",
@@ -238,13 +244,75 @@ class AcquisitionInputs:
         )
         if level == "semantic":
             return shallow + semantic
-        return (
+        state_semantic = (
             shallow
             + semantic
             + self.current_pooled_language_state
             + self.current_pooled_visual_state
             + self.current_fused_multimodal_state
         )
+        if level == "state_semantic":
+            return state_semantic
+
+        # The single preregistered representation correction.  It removes the
+        # underdetermined raw coordinate concatenation (18k+ dimensions in the
+        # pilot) while retaining label-free, action-conditional relationships.
+        named = {
+            "question": self.question_embedding,
+            "global": self.global_visual_embedding,
+            "acquired": self.acquired_region_embedding,
+            "proposed": self.proposed_region_embedding,
+            "language": self.current_pooled_language_state,
+            "visual": self.current_pooled_visual_state,
+            "fused": self.current_fused_multimodal_state,
+        }
+
+        def summary(vector: tuple[float, ...]) -> tuple[float, ...]:
+            count = len(vector)
+            center = sum(vector) / count
+            mean_square = sum(value * value for value in vector) / count
+            variance = sum((value - center) ** 2 for value in vector) / count
+            return (
+                center,
+                math.sqrt(mean_square),
+                math.sqrt(variance),
+                sum(abs(value) for value in vector) / count,
+            )
+
+        def relation(
+            left: tuple[float, ...], right: tuple[float, ...]
+        ) -> tuple[float, ...]:
+            count = len(left)
+            dot = sum(a * b for a, b in zip(left, right))
+            left_norm = math.sqrt(sum(value * value for value in left))
+            right_norm = math.sqrt(sum(value * value for value in right))
+            cosine = dot / max(left_norm * right_norm, 1e-12)
+            return (
+                cosine,
+                dot / count,
+                math.sqrt(sum((a - b) ** 2 for a, b in zip(left, right)) / count),
+            )
+
+        pairs = (
+            ("question", "global"),
+            ("question", "acquired"),
+            ("question", "proposed"),
+            ("global", "acquired"),
+            ("global", "proposed"),
+            ("acquired", "proposed"),
+            ("language", "visual"),
+            ("language", "fused"),
+            ("visual", "fused"),
+            ("question", "fused"),
+            ("proposed", "fused"),
+        )
+        summaries = tuple(value for vector in named.values() for value in summary(vector))
+        relations = tuple(
+            value
+            for left, right in pairs
+            for value in relation(named[left], named[right])
+        )
+        return shallow + summaries + relations
 
 
 @dataclass(frozen=True)

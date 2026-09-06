@@ -35,7 +35,7 @@ def load_development(path: Path, role: str):
 
 
 def matrix(examples, level):
-    first = item_vector = examples[0].inputs.feature_vector(level)
+    first = examples[0].inputs.feature_vector(level)
     result = torch.empty((len(examples), len(first)), dtype=torch.float32)
     result[0] = torch.tensor(first, dtype=torch.float32)
     for index, item in enumerate(examples[1:], start=1):
@@ -175,7 +175,7 @@ def main() -> None:
     if (
         config.get("schema") != "sequential_critic_config_v1"
         or config.get("test_authorized") is not False
-        or config.get("feature_level") not in {"semantic", "state_semantic"}
+        or config.get("feature_level") not in {"semantic", "state_semantic", "relational"}
         or config.get("architectures") != ["linear", "mlp"]
     ):
         raise ValueError("invalid or overly broad sequential critic config")
