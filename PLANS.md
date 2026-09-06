@@ -1,6 +1,6 @@
 # 研究计划
 
-## 9月13日最终方法冲刺：Factorized Potential Outcomes（2026-09-06 18:33 HKT）
+## 9月13日最终方法冲刺：Factorized Potential Outcomes（2026-09-06 19:35 HKT）
 
 用户给出的硬约束是：从当前全部结果出发，最迟在 **2026-09-13 23:59 HKT** 前形成最终
 方法，目标为 CVPR/ICCV/ECCV。
@@ -66,6 +66,19 @@ sharding，再用 manifest/code/completion/record hashes 和 exact decision cove
 Factorized 三臂使用完全相同的 outcome-independent schedule 并占三张 GPU 并行。旧
 validation 只作为 previously-seen monitor，不能选方法、seed 或阈值；正式 held-out
 不出现在训练 matrix 中。
+
+截至 2026-09-06 19:35 HKT，seed `17/29/47` 分别绑定 Job
+`209187/209188/209189`。Job `209187` 正在 3×RTX 4090 上运行，日志已推进到约
+`2011/3072` steps；其余两个 job 因 `AssocGrpGRES` 等待同一账户 GPU 额度释放。这是运行
+健康度快照，不是模型选择或效果结果。正式 held-out 仍未打开。
+
+正式 Phase-C one-shot 评测实现已冻结在 commit `5e2f77d`：包含 ledger-first transaction、
+四分片真实 rollout、三 seed 独立 selector scoring、Answer-only/random/uncertainty/
+Outcome/direct-CF/Factorized/oracle 基线、20,000 次 source-cluster bootstrap、语义消融、
+accuracy-cost frontier 和 `GO_NO_GO.md` renderer。执行前还必须完成一个只读已开放
+validation 的真实 runtime smoke，并把 smoke report、三个 selector checkpoint、配置、
+代码和 held-out manifest hashes 一并绑定到最终 plan；不得在三个训练 job 结束前运行该
+smoke，也不得在 plan 冻结前读取 held-out bytes。
 
 ## Counterfactual Visual Utility Post-training 已关闭：Phase B NO-GO（2026-09-06）
 

@@ -1,6 +1,6 @@
 # 项目状态
 
-## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 18:33 HKT）
+## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 19:35 HKT）
 
 项目没有停止，但此前的 direct Utility-SFT、Sequential frozen critic 和 direct
 Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户要求最迟在
@@ -65,11 +65,24 @@ outcome-independent draws；Outcome-only/direct gain/Factorized 三臂匹配并�
 配置显式不包含 Phase-C held-out 路径；旧 128-state validation banks 只作 previously-seen
 monitor。单个 seed 的 machine status 只能是 `PHASE_C_SEED_FROZEN`，不能作正式 claim。
 
+实时快照（2026-09-06 19:35 HKT）：seed `17` 的 Job `209187` 正在 3×RTX 4090 上运行，
+日志约到 `2011/3072` steps；seed `29/47` 的 Job `209188/209189` 因 `AssocGrpGRES`
+排队。尚无 Phase-C selector 完成报告，也没有正式 held-out accuracy，因此当前仍是
+**PHASE C TRAINING IN PROGRESS**，不能根据中途 loss 或旧 monitor 宣布方法成功。
+
+正式评测代码已在独立 `phase-c-formal` 分支冻结为 commit `5e2f77d`。它实现 ledger-first
+一次性 transaction、4-way rollout、三 seed 独立评分、匹配成本强基线、source-cluster
+bootstrap、question/image/region 语义消融、两类核心图和 fail-closed `GO_NO_GO.md`。
+该代码还未执行：必须等三个 selector job 全部正常终止，再做一项已开放 validation 上的
+真实 runtime smoke，最后才冻结并提交一次正式 held-out job。held-out outcomes 截至本快照
+仍未打开。
+
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
 harm，并在动作前、固定成本下形成 acquisition score。它还必须实证超过 Outcome-only、
 direct gain 与 strongest uncertainty 才能成立。Job
-`209157/209158/209159/209161/209165/209177/209178/209179` 的状态邮件均由 Slurm 发送；
+`209157/209158/209159/209161/209165/209177/209178/209179/209187/209188/209189` 的
+状态邮件均由 Slurm 配置为发送；
 下一步是完成三 seed selector freeze 和一次性 held-out transaction，不直接宣布成功。
 
 ## Counterfactual Visual Utility Post-training：Phase B NO-GO（2026-09-06）

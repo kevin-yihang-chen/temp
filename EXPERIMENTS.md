@@ -178,6 +178,36 @@
   不含 held-out path，训练/monitor report 的 `formal_claim_eligible=false`。正式 outcome
   只允许在三个 seed selectors 与一次性 evaluation transaction 全部冻结后打开。
 
+### Phase C selector training 与 formal transaction 实现
+
+- Training matrix SHA-256：
+  `96c29760f0cf8ed21a93454bcad6894815c721213999542211ea24579cf8baea`；三个独立 seed
+  plan 使用 `17/29/47`，每个 job 在三张 RTX 4090 上并行运行 Outcome-only、direct gain、
+  Factorized 三臂，均为 3072 steps 和完全相同的 domain-balanced schedule。
+- Jobs：seed `17/29/47` 为 `209187/209188/209189`，均配置 `--mail-type=ALL`、
+  `--no-requeue`。截至 2026-09-06 19:35 HKT，`209187` 为 `RUNNING`，日志约到
+  `2011/3072` steps；`209188/209189` 为 `PENDING (AssocGrpGRES)`。这只是点时状态，
+  尚无完成 selector、monitor report 或 Phase-C scientific result。
+- Formal implementation commit：`5e2f77d`。新增固定配置、文字协议、transaction freeze/
+  execute/score/evaluate 脚本、真实 runtime smoke 和 Slurm wrappers；transaction 在读取
+  held-out bytes 前 exclusive-create ledger，并 hash-bind model revision、allocation、训练
+  matrix、三个 seed selector、runtime smoke、代码和 manifests。
+- Formal primary：call-rate `.25`、lambda `.05`；完整 sweep 为 rates
+  `[0,.1,.25,.5,.75,1]` 与 lambdas `[0,.025,.05,.1,.2]`；三 seed 作为独立 deployment
+  runs 先各自评分再平均 effect，不做 score ensemble。比较 Answer-only、deterministic
+  random、entropy/confidence/margin、Outcome-only、direct CF、Factorized 和 privileged
+  oracle；bootstrap 为 20,000 次 source/document/image-cluster resampling。
+- Formal GO：Factorized 相对 Outcome 在至少两个域 accuracy delta 为正、至少一个域的
+  95% source-bootstrap CI 下界大于 0、这些正域相对 strongest uncertainty 不回退超过
+  `0.5pp`，并通过 question/image/region 三项语义 gate。否则 fail closed 为 NO-GO。
+- 发布前验证：formal 定向回归在 torch 环境 `30 passed, 1 skipped`；含 matplotlib 的
+  transaction/evaluation 回归 `11 passed`；8 个新 Python 模块/CLI 的 mypy 与 pyflakes、
+  四个 shell 脚本 `bash -n`、`git diff --check` 全部通过。完整仓库回归未在本次快照重跑，
+  不把历史无关测试的既有问题改写成 formal 通过证据。
+- 当前结论：**PHASE C TRAINING IN PROGRESS**。held-out outcome 未打开；下一步是等待三
+  seed 完成、核验 reports/checkpoints，运行一次已开放 validation runtime smoke，然后冻结
+  one-shot plan。不得根据中途日志、旧 monitor 或单一 seed 修改方法、阈值或判定规则。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本
