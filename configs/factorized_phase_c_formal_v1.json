@@ -1,0 +1,84 @@
+{
+  "schema": "factorized_phase_c_formal_config_v1",
+  "deadline_hkt": "2026-09-13T23:59:00+08:00",
+  "allocation_report": {
+    "path": "data/factorized-phase-c-v1/allocation.report.json",
+    "sha256": "3bd94f0cba17b6ea476003d91278370026dd5a7d53bdb88b9d39e8df8efedc08"
+  },
+  "training_matrix": {
+    "path": "configs/factorized_phase_c_training_matrix_v1.json",
+    "sha256": "96c29760a7ecf9fd12a2b5c9f3e3033552e4db0e9afaeb7f543a946d93f8baea"
+  },
+  "training_output_root": "artifacts/factorized-potential-outcomes-v1/phase-c-training",
+  "formal_output_root": "artifacts/factorized-potential-outcomes-v1/phase-c-formal-v1",
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "model_revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "methods": ["outcome_only", "counterfactual_utility", "factorized_potential_outcomes"],
+  "seeds": [17, 29, 47],
+  "benchmarks": {
+    "chartqa": {
+      "states": 512,
+      "manifest": "data/factorized-phase-c-v1/chartqa/heldout/manifest.jsonl",
+      "manifest_sha256": "8c755a558d483e43d24c16f67a886b53afac3a2670e162cce7f8d16c1a8834bd"
+    },
+    "docvqa": {
+      "states": 522,
+      "manifest": "data/factorized-phase-c-v1/docvqa/heldout/manifest.jsonl",
+      "manifest_sha256": "90498d588503a614d839563120c0a699dd23be5727cd51c96a6131dd14b63484"
+    },
+    "hrbench": {
+      "states": 92,
+      "manifest": "data/factorized-phase-c-v1/hrbench/heldout/manifest.jsonl",
+      "manifest_sha256": "7d7141b6a78e936267b259a6dd4cac83a9e14a39d7f28b385df38b7f8e7cf1ee"
+    }
+  },
+  "generation": {
+    "generation_seeds": [0],
+    "proposer": "sequential-opposite-ug-v1",
+    "candidate_count": 4,
+    "visual_cost_per_crop": 1,
+    "dtype": "bfloat16",
+    "attention_implementation": "sdpa",
+    "max_new_tokens": 16,
+    "min_pixels": 200704,
+    "max_pixels": 602112,
+    "shard_count": 4,
+    "checkpoint_interval": 16
+  },
+  "policy": {
+    "primary_call_rate": 0.25,
+    "rates": [0, 0.1, 0.25, 0.5, 0.75, 1],
+    "lambdas": [0, 0.025, 0.05, 0.1, 0.2],
+    "primary_lambda": 0.05,
+    "bootstrap_samples": 20000,
+    "bootstrap_seed": 20260913
+  },
+  "baselines": {
+    "uncertainty": ["entropy", "confidence", "margin"],
+    "random_seed": 20260913,
+    "include_answer_only": true,
+    "include_random_gate": true,
+    "include_oracle": true
+  },
+  "ablations": {
+    "methods": ["factorized_potential_outcomes"],
+    "modes": ["question_shuffle", "image_shuffle", "region_shuffle"],
+    "permutation": "sha256-component-derangement-v1",
+    "seed": 20260913,
+    "semantic_score_correlation_max": 0.98,
+    "semantic_call_set_jaccard_max": 0.95,
+    "required_domains_with_changed_ranking": 2,
+    "required_positive_mean_accuracy_delta": true
+  },
+  "go_rule": {
+    "positive_mean_delta_vs_outcome_domains": 2,
+    "required_domain_source_bootstrap_ci_low_vs_outcome_positive": 1,
+    "successful_domain_max_regression_vs_strongest_uncertainty": 0.005,
+    "all_semantic_ablations_must_pass": true
+  },
+  "one_shot": true,
+  "test_authorized": true,
+  "allow_method_selection_after_access": false,
+  "allow_seed_selection_after_access": false,
+  "allow_threshold_selection_after_access": false
+}
