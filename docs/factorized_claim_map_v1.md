@@ -25,6 +25,11 @@ The exact technical distinction is the combination of:
 6. an `O(1)` selector that does not execute the proposed crop before deciding;
 7. independently frozen multi-domain, multi-seed, matched-cost evaluation.
 
+The method predicts task effect, not a cost-dependent label. Cost is applied
+only by a threshold or budgeted ranking policy. In the registered experiment
+all CONTINUE actions have unit cost, and exact call counts are used to compare
+ranking quality without held-out threshold fitting.
+
 No individual item above is claimed as novel in isolation. The paper claim is
 eligible only if the frozen Phase-C report establishes an empirical advantage
 over Outcome-only SFT, direct signed-gain SFT, and uncertainty gates.

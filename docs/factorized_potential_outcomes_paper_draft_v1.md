@@ -25,14 +25,18 @@ CONTINUE sibling executions. The per-state acquisition effect is
 \Delta=Y_1-Y_0.
 \]
 
-At deployment, the policy uses
+With a calibrated unconstrained policy, deployment can use
 
 \[
 \pi_\lambda(s)=\mathbb{1}[\widehat\Delta(s)>\lambda C(b_2)],
 \]
 
 where the cost `C` and trade-off `lambda` enter only at the policy layer. They
-are not part of the supervision target.
+are not part of the supervision target. The registered formal comparison uses
+an exact call budget instead: it selects the top-ranked states at each call
+rate. Because every CONTINUE action in this experiment has the same unit cost,
+subtracting `lambda C` does not change that ranking; the exact-rate protocol
+isolates ranking quality without fitting a threshold on held-out outcomes.
 
 ## 2. Why direct gain prediction is statistically brittle
 
@@ -149,7 +153,8 @@ states from 128 documents, and 92 HRBench states from 20 image groups. Training
 and held-out identities are source/image disjoint; allocation was frozen without
 model outcomes.
 
-The primary operating point is 25% calls and `lambda=0.05`. Call rates
+The primary operating point is an exact 25% call budget and `lambda=0.05` for
+reporting net utility. Call rates
 `0/10/25/50/75/100%` and lambdas `0/.025/.05/.1/.2` form the registered
 accuracy-cost frontier. Three trained seeds are treated as independent policy
 deployments: action selection occurs separately for each seed, and paired
