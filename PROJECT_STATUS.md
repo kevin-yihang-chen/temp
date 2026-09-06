@@ -14,7 +14,11 @@ pre-action 输入、三臂确定性评估、冻结/执行脚本，以及完全�
 配置。13 个定向单测、Python compile、shell syntax、两套 config equality 和旧 Phase-B
 evaluator 回归均通过。首次 Phase-A Job `209132` 在训练前因 executor 错把 JSON key 顺序
 当语义顺序而 4 秒 fail-closed；无模型加载或科学结果，现已改为 set 验证加 canonical GPU
-顺序。科学状态仍是 **METHOD DEFINED / PHASE A PENDING**。
+顺序。修复后 Job `209134` 使用 3×RTX 4090 于 17:00:26--17:02:54 HKT 完成，三臂全部
+通过，机器结论 `PHASE_A_PASS`；factorized fixed-audit loss `.71468→.06002`，自然
+CONTINUE `21/24`，非恒定且未完全 collapse，三组 trainable parameters 均有梯度并更新，
+proposed-crop executions 为 0。科学状态为 **PHASE A PASS / PHASE B PENDING**；tiny smoke
+accuracy 不作方法结论。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与

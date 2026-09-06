@@ -15,8 +15,10 @@ Acquisition**：端到端预测当前答案错误风险、错误条件下的 cro
 CONTINUE collapse。新方法使用每个 pair 训练 risk，并使用其中一个条件分支训练 rescue
 或 harm；不是继续给旧 gain loss 调 class weight。
 
-协议已写入 `docs/factorized_potential_outcome_protocol_v1.md`。Phase A 固定为三臂、64-step
-工程 smoke；通过后 Phase B 才运行相同数据/schedule/seed 的 512-step pilot。只有 Phase B
+协议已写入 `docs/factorized_potential_outcome_protocol_v1.md`。三臂 64-step Phase A 已由
+Job `209134` 在 3×RTX 4090 上通过；三臂 schedule 完全一致，factorized 固定训练审计 loss
+从 `.71468` 降到 `.06002`，所有工程/无泄漏 gate 为真。现在唯一下一步是运行相同
+数据/schedule/seed 的 512-step Phase B pilot。只有 Phase B
 同时达到“一个域相对 strongest uncertainty `>+1pp`、另一域 `>-0.5pp`、两域相对
 Outcome-only 的平均差为正”才允许在剩余时间扩到新 held-out、三个 seeds 和第三 domain。
 否则当日 NO-GO，不靠换 seed、loss 或阈值拖满一周。

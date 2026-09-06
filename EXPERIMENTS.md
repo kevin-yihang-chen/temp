@@ -38,6 +38,27 @@
 - 修复：executor 先用无序 key set 验证，再用显式 canonical method order 分配 GPU；旧二臂
   与新三臂集合都 fail-closed。重新冻结新的 commit/plan 后才允许重提。
 
+### Phase A 工程 smoke 通过
+
+- 修复 commit：`80695e9`；新 plan SHA-256
+  `b1b85b43218228211d63806930c3b04e70a6283a17e24a79e693b1f1ba224f04`。
+- Job `209134`：3×RTX 4090、12 CPU、144 GiB，2026-09-06
+  17:00:26--17:02:54 HKT，`COMPLETED/ExitCode=0:0`，无 restart，全状态邮件；三臂 peak
+  memory 均约 `9.51 GiB`。
+- 三臂 schedule SHA-256 均为
+  `381965e781ef377b84798d46d8a9a665f7c736c44dcdedf050f172caad217aee`；所有
+  `paired contract / finite / loss decrease / gradients / updates / no proposed crop /
+  nonconstant / no collapse` checks 为真，test 未访问。
+- Fixed train audit loss：Outcome `.68552→.66189`，direct Counterfactual
+  `.68791→.46961`，Factorized `.71468→.06002`。Factorized 的三头与 backbone 路径实际
+  收到梯度；24 个 tiny validation states 中 natural CONTINUE 为 21，未完全 collapse。
+- 报告 SHA-256：Outcome
+  `f0cd0bf6445001fd4b8e250a94131d7a9e7c536cdc44186be188dea7170d3313`；direct
+  Counterfactual `d68a78f9c60ee0403c35f103e0111c33db952e79fe6a6af1de77a9e73a65a98e`；
+  Factorized `24304bcc8b759a82f8ed10ccbf16a835e9850bd9aba95a04a3dab1dfcdef77c9`；evaluation
+  `4a22f9fa4dc94dbb505e2b55827129cf2c28c5b68cd4ff6c73368cec5920d47e`。
+- 决定：`PHASE_A_PASS`。tiny accuracy 不作效果结论；允许且只允许提交冻结的 Phase B。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本
