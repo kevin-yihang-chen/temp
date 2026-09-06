@@ -1,6 +1,6 @@
 # 研究计划
 
-## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06 17:11 HKT）
+## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06 17:30 HKT）
 
 用户给出的硬约束是：从当前全部结果出发，最多一周形成最终方法，目标为 CVPR/ICCV/ECCV。
 本周不再并行发散多个 idea。唯一候选冻结为 **Factorized Potential-Outcome Visual
@@ -25,11 +25,18 @@ CONTINUE collapse。新方法使用每个 pair 训练 risk，并使用总权重�
 loss 错把 DocVQA 连续 ANLS 按 `0.5` 二分。Job `209157` 已于 17:08:37 HKT 主动取消；其
 部分训练不作结果。连续 reward 精确分解已实现并由 21 个定向测试覆盖。修正后的 Phase A
 Job `209158` 已在 3×RTX 4090 上 `COMPLETED/0:0`，三臂全部工程 gate 为真，machine
-decision 为 `PHASE_A_PASS`。现在唯一下一步是运行相同数据/schedule/seed 的 512-step
-Phase B。只有 Phase B
+decision 为 `PHASE_A_PASS`。修正 Phase B Job `209159` 随后完成并达到冻结晋级规则：
+ChartQA 25% call rate accuracy `53.125%`，相对 strongest uncertainty `+3.906pp`、
+Outcome-only `+0.781pp`；DocVQA `91.527%`，相对 strongest uncertainty `-0.163pp`、
+Outcome-only `-0.746pp`。两域相对 Outcome-only 的平均差仅 `+0.017pp`，所以这是很脆弱
+但合规的 **development GO**，不是论文结论。
+
+现在进入 Phase C：冻结更大 paired train banks、全新 held-out allocation、3 seeds 和
+ChartQA/DocVQA/HRBench。正式方法只有在至少两个域方向为正、至少一个域相对 Outcome-only
+的 source-bootstrap 95% CI 下界大于 0，并通过 image/question/region 语义消融时才成立。
+Phase B 的晋级规则原为
 同时达到“一个域相对 strongest uncertainty `>+1pp`、另一域 `>-0.5pp`、两域相对
-Outcome-only 的平均差为正”才允许在剩余时间扩到新 held-out、三个 seeds 和第三 domain。
-否则当日 NO-GO，不靠换 seed、loss 或阈值拖满一周。
+Outcome-only 的平均差为正”；它已经满足，但不能替代上述 Phase C 条件。
 
 一周节奏：Day 1 完成实现、smoke 与 bounded pilot；Day 2--3（仅 GO）扩 paired banks 和
 冻结新 held-out；Day 4--5 做三 seed/三域主结果及强基线；Day 6 做语义消融、frontier、

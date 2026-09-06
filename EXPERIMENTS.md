@@ -93,6 +93,37 @@
   evaluation `74bde8cb6fa301c470d6d48a850c6d8baada52aeed28d44330888bc12d03b652`。
 - 决定：`PHASE_A_PASS`。仅批准冻结的 Phase B；tiny accuracy 仍不作效果结论。
 
+### 修正后的 Phase B development GO
+
+- Commit：`9ae64e9`；plan SHA-256
+  `597d10961ea68789c80e8c75dfd2451ff7ca262e283bb15239a4e31e245ec119`；三臂 schedule
+  SHA-256 均为 `7620e38321829c3da5a850c40c80e76aa2abe08a00908ecf953307c9e039d434`。
+- Job `209159`：3×RTX 4090、12 CPU、144 GiB，17:16:43--17:28:08 HKT，
+  `COMPLETED/ExitCode=0:0`，无 restart，全状态邮件；各臂 peak memory 约 `9.51 GiB`。
+- exact 32/128 CONTINUE：ChartQA Answer/strongest confidence/Outcome/direct CF/Factorized
+  为 `46.094/49.219/52.344/48.438/53.125%`；Factorized minus strongest
+  `+3.906pp [-1.563,+9.375]`，minus Outcome `+0.781pp [-1.563,+3.906]`，minus direct
+  CF `+4.688pp [+1.563,+8.594]`。
+- DocVQA Answer/strongest entropy/Outcome/direct CF/Factorized 为
+  `91.500/91.690/92.273/91.753/91.527%`；Factorized minus strongest
+  `-0.163pp [-0.491,+0.025]`，minus Outcome `-0.746pp [-2.036,+0.029]`，minus direct
+  CF `-0.226pp [-0.760,+0.042]`。
+- Call quality：ChartQA Factorized 选中 `9/16` beneficial（miss 7），32 calls 中 23 次
+  unnecessary；比 Outcome 多命中 1 个 beneficial、少 1 个 unnecessary。DocVQA 只命中
+  `2/8` beneficial，30/32 calls unnecessary，弱于 Outcome/entropy 的 `3/8`。
+- 训练诊断：Factorized fixed audit `.72426→.43085`，natural CONTINUE `211/256`，有限且
+  非恒定；Outcome `.69628→.69409`、natural `69/256`；direct CF audit 恶化且 natural
+  `256/256` collapse。所有 deployable inputs proposed-crop execution 为 0，test 未访问。
+- 报告 SHA-256：Outcome
+  `ed0760b57c06800c31def2d681c59817bc5e21e06a8697d5e28a26c3b022ca30`；direct CF
+  `a6f43ff72600c9111791aa142b3d2212e204d1bbb8db932379dd71c243481d83`；Factorized
+  `592ef818d8fcbcc2ecef8235a613d3b158ade5a4cc15ecf89494db36536f0f15`；evaluation
+  `4cff4c397e7433d65a2b08870c4dd388df280688b6b432c2c3fb0f3550def5d8`。
+- 决定：`FACTORIZED_PHASE_B_GO`，因为一个域超过 baseline `+1pp`、另一域高于
+  `-0.5pp`，且两域相对 Outcome 平均差约 `+0.017pp > 0`。这是边缘 development GO；
+  两域相对 Outcome CI 均跨零，不能作 paper claim。下一步必须是新 held-out、3 seeds、
+  三域 Phase C，而不是在该 validation 上调参。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本

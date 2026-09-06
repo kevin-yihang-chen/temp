@@ -1,6 +1,6 @@
 # 项目状态
 
-## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 17:11 HKT）
+## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 17:30 HKT）
 
 项目没有停止，但此前的 direct Utility-SFT、Sequential frozen critic 和 direct
 Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户现要求最多一周形成最终
@@ -28,13 +28,26 @@ mass 加权 loss；它对连续/二值 reward 都精确重构 paired gain。21 �
 17:13:20--17:15:21 HKT 完成，`COMPLETED/0:0`；三臂 schedule SHA 完全相同，九项
 工程 gate 全真，Factorized fixed-audit loss `.71468→.05749`、natural CONTINUE
 `22/24`，machine decision `PHASE_A_PASS`。科学状态现为
-**CORRECTED PHASE A PASS / PHASE B PENDING**；tiny accuracy 不作结论，test 未打开。
+**CORRECTED PHASE A PASS**；tiny accuracy 不作结论，test 未打开。
+
+修正 Phase B Job `209159` 于 17:16:43--17:28:08 HKT 在 3×RTX 4090 上
+`COMPLETED/0:0`，machine decision 为 `FACTORIZED_PHASE_B_GO`。exact 25% call rate 下：
+
+- ChartQA：Factorized `53.125%`，strongest confidence `49.219%`，Outcome-only
+  `52.344%`；差分别 `+3.906pp [-1.563,+9.375]`、`+0.781pp [-1.563,+3.906]`；
+- DocVQA：Factorized `91.527%`，strongest entropy `91.690%`，Outcome-only
+  `92.273%`；差分别 `-0.163pp [-0.491,+0.025]`、`-0.746pp [-2.036,+0.029]`。
+
+它满足预注册“一个域 `>+1pp`、另一域 `>-0.5pp`、相对 Outcome 两域平均差为正”规则，
+但平均差只有约 `+0.017pp`，两个相对 Outcome 的 CI 都跨零。因此当前科学状态只是
+**PHASE B DEVELOPMENT GO / PHASE C REQUIRED**，离三大会证据仍远；validation 是旧
+development split，test 仍未打开。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
 harm，并在动作前、固定成本下形成 acquisition score。它还必须实证超过 Outcome-only、
-direct gain 与 strongest uncertainty 才能成立。Job `209157` 的取消状态邮件已由 Slurm
-发送；test 未授权。
+direct gain 与 strongest uncertainty 才能成立。Job `209157/209158/209159` 的状态邮件均
+由 Slurm 发送；下一步是冻结 Phase C 的新数据与正式判据，不直接宣布成功。
 
 ## Counterfactual Visual Utility Post-training：Phase B NO-GO（2026-09-06）
 
