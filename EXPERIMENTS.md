@@ -234,6 +234,15 @@
   `e529f2392a421387b28ed1db575ddbef58ee16c2da7d6298ab684b473a903a88`。同一
   `_validate_selector` 实现已验证三个 selector/report 可进入最终 plan；held-out 未读取。
 
+#### Seed 29 运行快照
+
+- Job `209188` 于 20:12:33 HKT 在 3×RTX 4090 上开始；截至 21:19 HKT 仍为 `RUNNING`，
+  日志最大 step 约为 `2384/3072`。未观察到 traceback、OOM、CUDA error、NaN 或 non-finite
+  failure。seed 47 Job `209189` 仍为 `PENDING (AssocGrpGRES)`，会在账户 GPU 额度释放后
+  接棒。
+- 该记录仅用于运行审计。seed 29 尚未产生可冻结 selector/report，正式 held-out 仍未读取，
+  不据中途 loss、单 seed monitor 或运行速度修改方法、训练矩阵、阈值或 GO/NO-GO 规则。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本

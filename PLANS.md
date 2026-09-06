@@ -1,6 +1,6 @@
 # 研究计划
 
-## 9月13日最终方法冲刺：Factorized Potential Outcomes（2026-09-06 20:14 HKT）
+## 9月13日最终方法冲刺：Factorized Potential Outcomes（2026-09-06 21:19 HKT）
 
 用户给出的硬约束是：从当前全部结果出发，最迟在 **2026-09-13 23:59 HKT** 前形成最终
 方法，目标为 CVPR/ICCV/ECCV。
@@ -76,8 +76,9 @@ validation 只作为 previously-seen monitor，不能选方法、seed 或阈值�
 三个方法均有 3072 条训练 trace、384 条 previously-seen validation predictions、24 个
 trainable tensors 更新、零 proposed-crop execution；schedule SHA-256 完全一致为
 `46e27ff0b594f794d59723135c18c2724e10e09626097f3363583b0c3b48a153`。正式 plan validator
-已接受三份 selector/report。Job `209188` 同秒接棒运行 seed 29，Job `209189` 继续因
-`AssocGrpGRES` 等待；held-out 仍未打开。
+已接受三份 selector/report。Job `209188` 同秒接棒运行 seed 29；截至 21:19 HKT 日志约到
+`2384/3072` steps，未见运行错误。Job `209189` 继续因 `AssocGrpGRES` 等待；held-out
+仍未打开，中途训练日志不用于选择方法或修改协议。
 
 正式 Phase-C one-shot 评测实现已冻结在 commit `5e2f77d`：包含 ledger-first transaction、
 四分片真实 rollout、三 seed 独立 selector scoring、Answer-only/random/uncertainty/
