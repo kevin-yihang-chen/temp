@@ -104,6 +104,24 @@ formal-test 与 reserve 继续封存。
 
 详细数字、哈希和复现命令见 `EXPERIMENTS.md` 及对应 `artifacts/**/ops/` 审计文件。
 
+## 第八阶段：从单步 action ranking 转向共享前缀 stopping
+
+Utility-SFT 的负结果说明“从原图一次性给多个 crop 排名”没有形成稳定跨域贡献，但它没有
+回答已经取得部分视觉证据后是否能判断继续观察。新阶段因此把动作空间收缩为共享 prefix
+上的 `STOP/CONTINUE`：已有 crop 与下一 crop 都由 outcome-blind 几何规则固定，模型只学
+when，不再同时承担 where。
+
+代码审计发现旧 sibling bank 的 baseline 是原图，ZOOM branch 是原图加一个 crop；它没有
+原图加已有 crop的 STOP 分支，更没有与其配对的第二次 acquisition。因此旧 labels 不会被
+重包装使用。新 collector 直接构造 2-image STOP 和 3-image CONTINUE，保留相同 seed 与完整
+成本 ledger。critic 使用冻结 Qwen 的 question/global/ROI/current-prefix state，并通过 typed
+allowlist 隔离所有 post-action outcome。
+
+截至 2026-09-06 11:16 HKT，dependency-free schema、collector、risk/gain critic、stopping
+policy、指标/bootstrap、三域配置、Slurm smoke 及测试均已实现。下一关不是训练模型，而是
+先在真实 Qwen 小样本上确认第二次观察同时存在足够 beneficial 与 harmful support；若没有，
+该路线按协议在 critic 前停止。
+
 ## 第六阶段：收敛为固定工具的 pre-action predictability audit
 
 此前路线不断在 `where`、工具 RL、representation 与 benchmark framing 之间切换，虽然

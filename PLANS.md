@@ -1,5 +1,23 @@
 # 研究计划
 
+## 当前用户授权目标：Sequential Visual Acquisition（2026-09-06）
+
+Utility-SFT 已按原停止规则以 NO-GO 关闭；新的唯一目标是验证 partial visual evidence 后的
+`STOP` 与“一次固定 additional acquisition”。本阶段冻结 Qwen2.5-VL-3B backbone，只允许
+一个已有 observation、一个 outcome-blind fixed next crop、binary stopping、linear/小 MLP
+risk/gain critic；不学习 where，不做 exhaustive candidates、RL、7B 或两步以上 agent。
+
+协议已预注册在 `docs/sequential_acquisition_protocol_v1.md`。旧 sibling bank 只有“原图 vs
+原图+单 crop”，不能伪装成共享 partial-prefix 数据，因此必须新生成原图+已有 crop 的 STOP
+和原图+已有 crop+固定新 crop 的 CONTINUE paired branches。现已实现 typed schema、真实
+rollout、严格 pre-action feature allowlist、Critic A/B、policy/metrics、10,000 次 source
+bootstrap、三域配置和 test authorization 骨架；相关定向测试 `20 passed, 2 skipped`。
+
+下一步先在三域 train/validation 各跑有界真实 smoke，先看 beneficial/harmful/neutral 与
+oracle headroom，再决定是否允许 critic fit。test 继续封存；初步 smoke 不能作为 GO。
+
+更新时间：2026-09-06 11:16（Asia/Hong_Kong）
+
 ## 当前用户授权目标：Counterfactual Utility SFT（2026-09-05）
 
 用户已明确指定新的 supervised-only 假设：对 Qwen2.5-VL-3B 做 spatial utility

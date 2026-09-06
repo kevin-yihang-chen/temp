@@ -1847,3 +1847,27 @@
   compileall 与 `git diff --check` 通过。全仓 sweep 在无失败运行到 51% 后因一个无输出的
   历史慢测试段被人工中止，因此不宣称全仓全量通过。`GO_NO_GO.md` SHA-256 为
   `7f24b567d6cfff95f305baed12016cfd90d4b8e4f064c8af84a9c26703214fa1`。
+
+## E-20260906-33：Sequential Acquisition Phase 0 与代码 gate
+
+- 目的：验证旧数据是否能识别“已有 partial visual evidence 后再获取一次”的因果收益，并在
+  任何新 outcome 前冻结最小 STOP/CONTINUE 协议。
+- 数据审计：现有三域 train/validation split 可复用身份、图片、官方 scorer 和冻结 Qwen
+  feature infrastructure；旧 sibling outcome 不能复用，因为其 ANSWER branch 只有原图，
+  不存在共享的已获取 crop prefix。test 未打开。
+- 固定动作：`sequential-opposite-ug-v1` 用 state-ID hash 选择已有 UG crop，再以纯几何最远
+  距离固定下一 crop；没有 outcome、GT、entropy search 或候选 ranking。
+- 实现：新增 `sequential_schema.py`、`sequential_rollout.py`、`acquisition_critic.py`、
+  `stopping_policy.py`、`sequential_metrics.py`，三条 required CLI、三域配置、Slurm worker/
+  submitter、协议和 pending verdict。
+- 隔离：STOP/CONTINUE 同 prefix/seed/config；STOP incremental cost 为 0；critic typed view
+  拒绝 CONTINUE entropy、correctness、gain/reward/target 等字段，proposed ROI 仅从原图 token
+  pool，不执行 proposed crop。
+- 验证命令：`python -m pytest tests/test_sequential_acquisition.py tests/test_rollout.py
+  tests/test_utility_sft.py -q`；结果 `20 passed, 2 skipped`。Qwen 环境 compile、shell syntax、
+  `git diff --check` 均通过。
+- 资源快照：2026-09-06 11:10 HKT GPU quota 222,000 minutes，已用 43,378，剩余 178,622；
+  用户无 active/pending job，RTX 4090 有空闲。smoke 采用按 benchmark/role 的单 GPU
+  deterministic shards 并行，减少总墙钟且不增加每样本 GPU-hours；邮件通知 `ALL`。
+- 科学结论：尚无；必须先完成真实 Qwen beneficial/harmful/neutral headroom diagnostic，
+  其后才允许训练 linear/MLP critics。当前 verdict 为 `PENDING`。
