@@ -297,3 +297,25 @@ def paired_source_bootstrap_utility_delta(
         "bootstrap_seed": seed,
         "resampling_unit": "source",
     }
+
+
+def paired_source_bootstrap_accuracy_delta(
+    records: Sequence[SequentialRolloutRecord],
+    left_mask: Sequence[bool],
+    right_mask: Sequence[bool],
+    *,
+    samples: int = 10_000,
+    seed: int = 20260906,
+) -> dict[str, float | int]:
+    """Paired source bootstrap for accuracy under two stopping policies."""
+
+    # The shared STOP outcome cancels, leaving exactly the selected difference
+    # in counterfactual gain.  This is the utility statistic at zero cost.
+    return paired_source_bootstrap_utility_delta(
+        records,
+        left_mask,
+        right_mask,
+        lambda_cost=0.0,
+        samples=samples,
+        seed=seed,
+    )

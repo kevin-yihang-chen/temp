@@ -10,6 +10,7 @@ from beyond_entropy.acquisition_critic import (
 from beyond_entropy.rollout import ActionSpec, AgentState, GroundTruth, ModelOutput, TaskExample
 from beyond_entropy.schema import BBox
 from beyond_entropy.sequential_metrics import (
+    paired_source_bootstrap_accuracy_delta,
     paired_source_bootstrap_utility_delta,
     policy_metrics,
 )
@@ -160,6 +161,11 @@ def test_vectorized_paired_source_bootstrap_preserves_observed_utility_delta():
     assert result["observed_delta"] == pytest.approx(0.7)
     assert result["ci_low"] == pytest.approx(0.7)
     assert result["ci_high"] == pytest.approx(0.7)
+    accuracy = paired_source_bootstrap_accuracy_delta(
+        (record,), (True,), (False,), samples=10_000, seed=3
+    )
+    assert accuracy["observed_delta"] == pytest.approx(1.0)
+    assert accuracy["ci_low"] == pytest.approx(1.0)
 
 
 def test_test_transaction_writes_irreversible_ledger_before_manifest_access(tmp_path):

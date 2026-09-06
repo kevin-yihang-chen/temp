@@ -2,13 +2,13 @@
 set -euo pipefail
 
 if [[ "$#" -lt 1 || "$#" -gt 2 ]]; then
-  echo "usage: $0 {chartqa|docvqa|hrbench} [state-semantic|relational]" >&2
+  echo "usage: $0 {chartqa|docvqa|hrbench} [state-semantic|relational|relational-audit]" >&2
   exit 2
 fi
 benchmark=$1
 case "${benchmark}" in chartqa|docvqa|hrbench) ;; *) exit 2 ;; esac
 variant=${2:-state-semantic}
-case "${variant}" in state-semantic|relational) ;; *) exit 2 ;; esac
+case "${variant}" in state-semantic|relational|relational-audit) ;; *) exit 2 ;; esac
 
 repo=/userhome/cs3/yihangc/Documents/beyond-entropy
 mail_file="${repo}/.slurm-notify-email"
@@ -61,9 +61,13 @@ critic_module="${repo}/src/beyond_entropy/acquisition_critic.py"
 metrics_module="${repo}/src/beyond_entropy/sequential_metrics.py"
 policy_module="${repo}/src/beyond_entropy/stopping_policy.py"
 schema_module="${repo}/src/beyond_entropy/sequential_schema.py"
-if [[ "${variant}" == "relational" ]]; then
+if [[ "${variant}" == "relational" || "${variant}" == "relational-audit" ]]; then
   config="${repo}/configs/sequential_${benchmark}_relational.yaml"
-  run_root="${repo}/artifacts/sequential-acquisition-v1/critic-${benchmark}-relational-pilot-256x128-v1"
+  if [[ "${variant}" == "relational-audit" ]]; then
+    run_root="${repo}/artifacts/sequential-acquisition-v1/critic-${benchmark}-relational-audit-256x128-v1"
+  else
+    run_root="${repo}/artifacts/sequential-acquisition-v1/critic-${benchmark}-relational-pilot-256x128-v1"
+  fi
 else
   config="${repo}/configs/sequential_${benchmark}.yaml"
   run_root="${repo}/artifacts/sequential-acquisition-v1/critic-${benchmark}-pilot-256x128-v1"

@@ -11,6 +11,8 @@ import torch
 
 from beyond_entropy.acquisition_critic import AcquisitionCritic, examples_from_feature_dataset
 from beyond_entropy.sequential_metrics import (
+    binary_auroc,
+    paired_source_bootstrap_accuracy_delta,
     paired_source_bootstrap_utility_delta,
     policy_metrics,
     risk_metrics,
@@ -40,6 +42,45 @@ def top_count_mask(scores, count):
     order = sorted(range(len(scores)), key=lambda i: (-float(scores[i]), i))
     selected = set(order[:count])
     return [index in selected for index in range(len(scores))]
+
+
+def risk_baseline_report(records):
+    stop_correct = [item.stop_correct for item in records]
+    labels = [int(value < 1.0) for value in stop_correct]
+    scores = {
+        "entropy": [item.stop_entropy for item in records],
+        "confidence": [1.0 - item.stop_max_probability for item in records],
+        "margin": [1.0 - item.stop_top1_top2_margin for item in records],
+    }
+    report = {}
+    for name, values in scores.items():
+        item = {"auroc": binary_auroc(values, labels)}
+        if all(0.0 <= value <= 1.0 for value in values):
+            item["probability_metrics"] = risk_metrics(values, stop_correct)
+        else:
+            item["probability_metrics"] = None
+        report[name] = item
+    return report
+
+
+def matched_masks(records, ids, *, count, random_seed, static_scores):
+    result = {
+        "random_matched": matched_rate_random_mask(
+            ids, rate=count / len(records), seed=random_seed
+        ),
+        "entropy_matched": top_count_mask(
+            [item.stop_entropy for item in records], count
+        ),
+        "confidence_matched": top_count_mask(
+            [-item.stop_max_probability for item in records], count
+        ),
+        "margin_matched": top_count_mask(
+            [-item.stop_top1_top2_margin for item in records], count
+        ),
+    }
+    if static_scores is not None:
+        result["static_voi_matched"] = top_count_mask(static_scores, count)
+    return result
 
 
 def load_selected(checkpoint, target, input_dim):
@@ -152,6 +193,7 @@ def main() -> None:
         "risk_critic": risk_metrics(
             predictions["risk"], [item.stop_correct for item in records]
         ),
+        "risk_baselines": risk_baseline_report(records),
         "frontier": [],
         "static_voi_status": (
             "provided" if static_scores is not None else "unavailable_for_partial-prefix_state"
@@ -170,31 +212,26 @@ def main() -> None:
             gain - lambda_cost * record.proposed_visual_cost > 0
             for gain, record in zip(predictions["gain"], records)
         ]
-        count = sum(learned)
-        entropy = top_count_mask([item.stop_entropy for item in records], count)
-        confidence = top_count_mask([-item.stop_max_probability for item in records], count)
-        margin = top_count_mask([-item.stop_top1_top2_margin for item in records], count)
-        random_mask = matched_rate_random_mask(
-            ids, rate=count / len(records), seed=int(config["bootstrap_seed"])
-        )
         risk_gain = [
             use and risk > float(config["risk_threshold"])
             for use, risk in zip(learned, predictions["risk"])
         ]
         oracle = [item.incremental_utility(lambda_cost) > 0 for item in records]
+        learned_matched = matched_masks(
+            records,
+            ids,
+            count=sum(learned),
+            random_seed=int(config["bootstrap_seed"]),
+            static_scores=static_scores,
+        )
         masks = {
             "always_stop": [False] * len(records),
             "always_continue": [True] * len(records),
-            "random_matched": random_mask,
-            "entropy_matched": entropy,
-            "confidence_matched": confidence,
-            "margin_matched": margin,
             "learned_gain": learned,
             "risk_plus_gain": risk_gain,
             "oracle": oracle,
+            **learned_matched,
         }
-        if static_scores is not None:
-            masks["static_voi_matched"] = top_count_mask(static_scores, count)
         metrics = {
             name: policy_metrics(
                 records, mask, lambda_cost=lambda_cost, policy_name=name
@@ -202,28 +239,61 @@ def main() -> None:
             for name, mask in masks.items()
         }
         comparisons = {}
-
-        for baseline in (
-            "random_matched",
-            "entropy_matched",
-            "confidence_matched",
-            "margin_matched",
-            "static_voi_matched",
+        matched_rate_analyses = {}
+        for focal_name, focal_mask in (
+            ("learned_gain", learned),
+            ("risk_plus_gain", risk_gain),
         ):
-            if baseline in masks:
-                comparisons[f"learned_gain_minus_{baseline}"] = paired_source_bootstrap_utility_delta(
+            baseline_masks = matched_masks(
+                records,
+                ids,
+                count=sum(focal_mask),
+                random_seed=int(config["bootstrap_seed"]),
+                static_scores=static_scores,
+            )
+            baseline_metrics = {
+                name: policy_metrics(
+                    records, mask, lambda_cost=lambda_cost, policy_name=name
+                )
+                for name, mask in baseline_masks.items()
+            }
+            paired = {}
+            for baseline, baseline_mask in baseline_masks.items():
+                utility = paired_source_bootstrap_utility_delta(
                     records,
-                    learned,
-                    masks[baseline],
+                    focal_mask,
+                    baseline_mask,
                     lambda_cost=lambda_cost,
                     samples=int(config["bootstrap_samples"]),
                     seed=int(config["bootstrap_seed"]),
                 )
+                accuracy = paired_source_bootstrap_accuracy_delta(
+                    records,
+                    focal_mask,
+                    baseline_mask,
+                    samples=int(config["bootstrap_samples"]),
+                    seed=int(config["bootstrap_seed"]),
+                )
+                paired[baseline] = {"utility": utility, "accuracy": accuracy}
+                if focal_name == "learned_gain":
+                    # Preserve the v1 field for existing downstream readers.
+                    comparisons[f"learned_gain_minus_{baseline}"] = utility
+            matched_rate_analyses[focal_name] = {
+                "policy": policy_metrics(
+                    records,
+                    focal_mask,
+                    lambda_cost=lambda_cost,
+                    policy_name=focal_name,
+                ),
+                "matched_baselines": baseline_metrics,
+                "paired_bootstrap": paired,
+            }
         report["frontier"].append(
             {
                 "lambda_cost": lambda_cost,
                 "policies": metrics,
                 "paired_bootstrap": comparisons,
+                "matched_rate_analyses": matched_rate_analyses,
             }
         )
 
