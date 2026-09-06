@@ -1,6 +1,29 @@
 # 研究计划
 
-更新时间：2026-09-05 17:34（Asia/Hong_Kong）
+## 当前用户授权目标：Counterfactual Utility SFT（2026-09-05）
+
+用户已明确指定新的 supervised-only 假设：对 Qwen2.5-VL-3B 做 spatial utility
+post-training，比较 Format/Support、Best-Action 与 soft Utility-SFT。本轮不做 RL、
+7B、continuous bbox 或 multi-turn。下方旧路线及“下一步”保留为历史，不再作为当前
+执行指令；旧 INCONCLUSIVE 结论和已消费 test 保持不变。
+
+执行合同与 Phase 0 字段/复用审计：`docs/utility_sft_phase0.md`。完整目标仍包括
+三套训练、八基线、至少两个域的独立证据、空间语义消融、一次性新 test freeze、两张图
+和四问 `GO_NO_GO.md`；不能以模块单测或单域 overfit 代替完成。当前先实现数据隔离、
+离散动作和可反传的原图 ROI head，再进行有界真实输入 sanity check。
+
+真实 TRAIN overfit gate、三个 matched development arms、冻结 VOI、八策略 validation
+evaluation、两张图与三类语义消融均已完成。首轮 pilot 未通过 Go 后，预注册唯一允许的
+coverage correction Job `208822` 也已完成：三臂统一 1024 steps、全 source pool、
+outcome-independent source-cycle，其余训练和评估设定不变。
+
+修正后 ChartQA/DocVQA 的 Utility-SFT 在 primary policy 上均退化为全选 ANSWER，与
+Best-Action 持平；HRBench 相对 Best/Frozen 虽为正方向，但两个 paired 95% CI 都跨零。
+语义消融也没有显示跨域一致的 image-question-region 依赖。因此 Stop 1/2/3 已触发，
+`GO_NO_GO.md` 判定为 **NO-GO**。本路线到此结束：不打开新 test，不进入 RL、7B、额外
+loss/threshold/seed 搜索。详见 E-20260906-31/32。
+
+更新时间：2026-09-06 03:53（Asia/Hong_Kong）
 
 ## 总目标与完成标准
 

@@ -1676,3 +1676,174 @@
   `artifacts/predictability-audit-v1/formal-test-once-v1/PREDICTABILITY_AUDIT.md`，SHA-256
   `4ce979e1242a375937d1573d93be50c9db1ef6c118b50f30f50c87c8f5e07465`。当前 static-router
   路线结束；若继续，必须为 active/sequential acquisition 冻结新协议并使用新 held-out test。
+
+## E-20260905-29：用户指定 Utility-SFT；Phase 0、合同测试与真实两步工程检查
+
+- 新假设：cost-independent sibling gain 的 soft supervision 能通过 Qwen2.5-VL-3B
+  post-training 学到动作条件化空间效用。用户指定本阶段不做 RL；旧审计和旧 test 不重开。
+  Phase 0/完整交付清单在 `docs/utility_sft_phase0.md`，不是新颖性或成功结论。
+- 复用：旧 ActionRecord、paired sibling validator、official scorer、原图 ROI pooling、
+  source/RGB split audit、cost accounting/source bootstrap 与 exclusive artifact writer。
+  新 inference allowlist 不包含任何 outcome；所有 action 由程序映射，ANSWER=0。
+- 数据：只读并验证旧 ChartQA opened train complete.json/manifest/rollout/provenance
+  hashes，重新运行 official scorer。Hash-ranked whole-source 64-state sanity pool SHA-256
+  `8dc97e83225b2bdd8099552d9bb794c71a3de0784251b4e18fb12ea7aaa20d9a`。
+  从 TRAIN pool 选择首个正 gain、首个负 gain，再按 ID 补齐八个样本；这是有标签
+  overfit 诊断取样，不是泛化测试；三臂共用取样规则。
+- 实现：SpatialActionSpace、UtilityInputs/UtilitySample、复用 SemanticGainHead 的
+  ANSWER-anchored utility head、原图单次编码的可微 Qwen adapter、三个 matched config、
+  resumable train-only runner、八基线评估核心和 Slurm hash-bound launcher。VLM 更新
+  visual merger + last language block/norm，共 114,642,945 个可训练参数（含 head）。
+  未完成正式 train/val runner、新 test 事务、frozen VOI 接线、图和 GO/NO-GO。
+- 单测：base Python 相关 schema/rollout/new data/evaluation 17 passed、2 optional torch
+  skipped；qwen-vl 环境通过 9 个新增 data/loss/head/真实 tiny-Qwen 测试。真实架构测试
+  验证 merger/language 梯度和更新、其余权重未变、无 candidate crop。只复用 base pytest
+  pure-Python 包，未改变 qwen-vl 环境。compile、bash syntax、diff check 通过。
+- 运行：Job `208789`，1×H800，2026-09-05 23:25:08--23:25:37 HKT，29 秒，
+  `COMPLETED/ExitCode=0:0`，8 CPU/64 GiB，邮件 ALL。模型 revision
+  `66285546d2b821cf421d4f5eb2576359d3770cd3`，torch/transformers 版本和逐文件代码
+  SHA-256 在 started/report 中绑定（基于本地未提交实现，不冒充 clean commit）。
+  engineering plan SHA-256 `8d065afa81df2ba8aea3d4ced5472ef3470bceb329c2891f8612fcdc87195aeb`。
+- 结果：两步 minibatch loss `0.195905→0.126388`，但完整八样本均值
+  `0.159926→0.189434`，所以不能声称 overfit 成功。Head/merger/language 均有非零
+  梯度和真实参数更新；只有一次原图 vision encoding，candidate executions=0。
+  峰值显存 `9,714,365,952 bytes`；resume/selector 文件分别
+  `1,375,780,794/458,598,659 bytes`。科学状态 engineering_only，overfit_passed=false。
+- 资源：实时 quota total/used/remaining `3700.00/718.33/2981.67 GPU-hours`，磁盘
+  约 324 GiB 可用。两步 gate 用单卡避免无效分布式初始化；实测 optimizer step
+  `2.96/2.42 sec`，80-step 单臂约 4--6 分钟（含保存/评估的估计，不含排队）。
+  当前先完成 Utility 单臂 overfit gate；通过后再考虑并行独立对照，不做无意义数据合并。
+- 下一步：使用原先三个 config 中的 Utility `80 steps, seed=17, T=.25` 完整 overfit，
+  不调整超参、不换 seed。其后只按 sanity/语义控制证据推进三臂与独立 domain 评估。
+  当前没有新 held-out 结果，不进入 RL，不 push GitHub。
+
+## E-20260905-30：Utility-SFT 真实 3B 八样本 80-step overfit sanity 通过
+
+- 假设/范围：在固定八个 TRAIN 样本上验证 cost-independent soft utility loss 能下降，
+  正/负动作可区分，且模型实质更新 VLM representation；不是泛化、方法比较或 GO。
+  复用 E-29 数据、初始化 seed=17、T=.25、head lr=3e-4、backbone lr=1e-5，80 optimizer
+  steps、每步四个状态；没有根据两步结果调整超参。选择器与最终答题 backend 分离。
+- 冻结：`configs/utility_sft_utility_v1.json`；计划
+  `artifacts/utility-sft-v1/utility-overfit-plan-v2.json`，SHA-256
+  `897f39507955d16c88b882d39798be2ebca4d13060efad6919f77b65f8a7efcc`。
+  v1 plan 未提交，v2 仅修正文案中的 two-step/80-step 区别并禁用自动 requeue。
+  科学配置不变。逐源码/配置/数据 hashes 在 plan、started.json 与 report.json 中绑定。
+- 运行：Job `208790`，1×H800，2026-09-05 23:33:15--23:37:08 HKT，3分53秒，
+  `COMPLETED/ExitCode=0:0`，8 CPU/64 GiB，邮件 ALL。约 0.0647 H800-hours，峰值
+  allocated 显存约 9.289 GiB。原图单次 vision pass，candidate crop executions=0。
+- 结果：同一八样本全量 KL `0.159926→0.011927`，平均 raw top-1 regret
+  `0.125→0.0`。正 gain 动作的最小预测为 `+0.390445`，负 gain 动作的最大预测为
+  `-0.639438`。Head、visual merger、last-language block 均有非零梯度并更新。
+  Utility 必需 sanity checks 全通过；`support_memorized=false` 是不同的随机标签控制
+  任务，不属于 Utility 臂通过条件。不能把它解释为动作格式不合法。
+- 独立复核：80 trace rows、八个固定状态、stored gains 与原始 train sibling 重建一致，
+  regret 逐行重算一致；selector SHA 与报告一致，29 个 trainable tensors 全部 finite，
+  checkpoint provenance 与报告一致；`test_accessed=false/formal_claim_eligible=false`。
+  报告 `artifacts/utility-sft-v1/utility-overfit-v1/job-208790/report.json` SHA-256
+  `e304fe4c245e2773ac32df5afcf7a5969b4d6f72e4d2985aa536c3fd9dd70764`。
+- 回归：qwen-vl 环境下 schema/dataset/rollout/semantic 与三个新增测试文件合计
+  `38 passed`，只有 Torch autocast API 的 FutureWarning。两个核心数据/动作模块 mypy
+  通过；compileall、bash syntax、diff check 通过。
+- 结论/下一步：通过工程与 TRAIN-overfit gate。接下来完成 Format/Best-action matched
+  sanity、独立 train/validation runner、真实 frozen VOI 接线与语义打乱控制；验证新
+  ChartQA/DocVQA source/RGB 余量并冻结新 test。正式评估、两张图、GO_NO_GO 仍未完成。
+  不扩大模型，不做 RL，不以这个八样本结果声称学到了可泛化 spatial utility。
+
+## E-20260906-31：三臂 development pilot、冻结评估、核心图与语义消融
+
+- 数据与隔离：完整 development bundle 包含 ChartQA/DocVQA/HRBench 的 train
+  `3600/10861/480` states 和 validation `900/2719/160` states，source/RGB split audit
+  通过且 `test_data_present=false`。训练 pilot 固定每域 128 个 sources；validation
+  固定每域 64 个 sources，对应 `64/224/64` states。canonical validation freeze 为
+  `artifacts/utility-sft-v1/validation-pilot-v2/VALIDATION_FREEZE.json`，SHA-256
+  `84c652069d5b615faffd7cbb4944e7312671b0b3c24bf17107ee4649905ce2a6`。v1 仅因 staging
+  path 写入报告而失效，保留为工程诊断，不用于结果。
+- 训练：Format/Best-Action/Utility 三臂使用相同 Qwen2.5-VL-3B revision、seed 17、
+  128 steps、每步四状态、T=.25、head/backbone learning rate `3e-4/1e-5`。Job `208799`
+  完成 Format/Best 的 overfit controls；Job `208809` 用 2×H800 完成三臂 development
+  pilot，runtime 22分34秒、ExitCode=0。原 3×H800 Job `208801` 在运行前取消，因为
+  预计排队约 23 小时；两卡方案立即启动且最大逻辑训练量仍为三单臂。三个 selector
+  SHA-256 为 Format `b22977cd...005f`、Best `b50cc7d2...ee2d6`、Utility
+  `22ef9e75...f53`；每次 inference 都是一遍原图 encoder、零 candidate crop execution。
+- 冻结评估：prediction freeze SHA-256
+  `181584e8bb873783c8249930028113276e0d2e31dfe6ae878f2c2b49688a7ec0`；canonical
+  evaluation bundle 为 `validation-evaluation-v2/EVALUATION_BUNDLE.json`，SHA-256
+  `6b127318bea861d752cbd1674c97022ce6aec55f119b41bc069f7c5605877086`。比较 Answer-only、
+  Random、UG/entropy、Frozen VOI、Format、Best、Utility 和 Oracle，lambda 固定 sweep
+  `[0,.01,.025,.05,.1,.2]`，primary `.05`，20,000 次 paired whole-source bootstrap。
+- Primary 结果：ChartQA Utility net utility `-0.0226563`，相对 Best/Frozen 的 95% CI
+  均完全为负（相对 Best `[-0.0578125,-0.003125]`）；DocVQA Utility `-0.0010756`，
+  Best `+0.0020833`、Frozen `-0.0005648`，两项差值 CI 均跨零；HRBench Utility
+  `+0.0523438`，高于 Best `-0.0054688` 和 Frozen `+0.025`，但相对 CI
+  `[-0.0421875,0.165625]` / `[-0.0726563,0.130469]` 均跨零。只有一个域为正方向，
+  不满足两个域 Go，也不能打开 test 或进入 RL。
+- 核心图：修正 colorbar 后 canonical `validation-figures-v2/FIGURES.json` SHA-256
+  `0bb2bee18965fbcbf6a3ef0fc2004115e4c621ba4ef793df36cad1c2e272fda8`；Figure A 为
+  action rank heatmap，Figure B 为 accuracy-visual-cost frontier。v1 图保留为布局诊断。
+- 语义消融：Job `208820`，1×H800，7分27秒，ExitCode=0，报告 SHA-256
+  `b9ef4534dd13fae3f9c781ee37a73d82d75d99277076b2e7c10e77e720a7a74b`。DocVQA 的
+  original/image-shuffle pairwise accuracy 为 `.5517/.4310`，region ablation `.4713`；
+  HRBench original/region 为 `.4737/.4123` 且 regret `.2031→.2813`。但 question shuffle
+  对 DocVQA/HRBench 基本不伤害，ChartQA image/region controls 反而优于 original。
+  因而不是严格的“所有输入消融均不变”，但 image-question-region semantic utility
+  仍不稳定。该结果允许一次覆盖修正，不支持扩大方法搜索。
+
+## E-20260906-32：唯一 coverage correction 与 NO-GO 终局
+
+- 依据：pilot 每域只有约 170 个训练 draw，且实际 train subset 的 positive/harmful
+  states 稀疏。唯一修正不更换 loss、模型、seed、温度、学习率、验证集或 lambda；训练
+  pool 扩为全部 `3600/2800/480` sources，步数统一从 128 增至 1024，source-cycle 在每个
+  cycle 内无放回且完全不读取 outcome，三臂使用同一顺序。
+- 预运行覆盖审计：ChartQA `1366` draws/unique sources，positive/harmful `74/212`；
+  DocVQA `1365/1365` unique sources，positive/harmful `89/75`；HRBench `1365` draws、
+  覆盖全部 `480` sources/`480` states，positive/harmful `177/173`。Format 的 sampling
+  同样不使用 gain；这些 gain counts 只作事后计划审计。
+- 冻结计划 SHA-256：Format
+  `a0e12b68a7ed228fcdce515297db223ccb962bcf8020a9ad17fdc03cbdb0d77a`；Best-Action
+  `396188a343bccf98b83a4d425c5a20353e06bb5988151bdebfc7fef9afe2c199`；Utility
+  `9127b640b75f0893940f97681fd479cd05217580064ef23301c7a277f8a51246`。测试、compile、
+  bash syntax 与 diff check 通过；计划禁止 test 并 hash-bind data/config/code。
+- 资源选择：提交时 GPU quota `222000` minutes、已用 `43153`、剩余 `178847`
+  （约 `2980.78` GPU-hours）；gpucluster-g1 恰有 2×H800 空闲。3-GPU 前次预计排队约
+  23 小时，故选择 2-GPU 单 job：Format/Best 并行，Utility 随后在释放的 GPU0 上运行。
+  allocation 上限 3 小时/6 GPU-hours，预计实际墙钟约 2--2.5 小时。
+- 运行：Job `208822` 于 2026-09-06 01:13:10 HKT 立即开始，2×H800、24 CPU、128G，
+  `--mail-type=ALL`、no-requeue；03:36:58 正常结束，runtime `2:23:48`、ExitCode=0。
+  Format/Best/Utility 的训练 elapsed 为 `4353.775/4373.034/4207.229` 秒；每臂均有
+  1024 trace rows、29 个 trainable tensors 更新、峰值显存约 10.08 GB。
+- 训练产物：Format report/selector SHA-256 为
+  `0b3d50fa426075ceb84f352933da8e387d42727be975fb4863be77154234be3e` /
+  `2e5fbebcb62573ee93915e4526faeca67eedd592fa134272d2c385441730a80c`；Best 为
+  `f1b3fe7e708a013c87a358a1cae63d21d1384762d95c3699a20f7874bfb249ee` /
+  `56c732aff3f9a466d1b78dba3857b77ddd4d3a0b3362f6a96dfeb78e2f8ee089`；Utility 为
+  `af6eb0eeb8eb8b7aa9719e9b1997fc296a94fce041802c1f5ac4a67126b90669` /
+  `bc1dc6e19728df1b9c55ca940ecfeb4d680dd94b6364c13cd82166977c15615d`。
+- 冻结评估：prediction freeze SHA-256
+  `1f016c76973e598a527d9459b533151025ad68140ff507723a438f07ec093b8c`；evaluation bundle
+  `validation-evaluation-correction-v1/EVALUATION_BUNDLE.json` SHA-256
+  `960936499d92cc42bba7a261ae183244696d1bb75afa6e0a5228043de6882cf1`。配置仍为八策略、
+  lambda `[0,.01,.025,.05,.1,.2]`、primary `.05`、20,000 次 source bootstrap。
+- Primary 结果：ChartQA Utility/Best/Frozen net utility 全为 `0`，三者均全选 ANSWER；
+  DocVQA Utility/Best 为 `0`，Frozen 为 `-0.000565`，Utility-minus-Frozen
+  `+0.000565 [-0.002073,0.003363]`；HRBench Utility 为 `+0.035156`、Best 为 `0`、
+  Frozen 为 `+0.025000`，Utility-minus-Best
+  `+0.035156 [-0.009375,0.093750]`，Utility-minus-Frozen
+  `+0.010156 [-0.056250,0.079687]`。没有一个域对两个关键基线同时形成稳定优势。
+- 核心图：`validation-figures-correction-v1/FIGURES.json` SHA-256
+  `516fc83aad74bd008322398d9598cfa40257d61e923317140f3859ebd454ce0c`。Figure A 的 raw
+  ranking 显示 Utility 在 ChartQA/DocVQA 的 regret 分别为 `.125/.0211`，但 policy cost
+  后不形成稳定任务收益；Figure B 的完整 frontier 没有产生两域 Go。
+- 语义消融：冻结 plan SHA-256
+  `e8a56b5abc84c43bfe0a4916bb0f8b4b6d5f58499cc8c59ee069e77ab12a89d5`。Job `208954`
+  用 1×H800 在 7分08秒完成，ExitCode=0；报告 SHA-256
+  `837574497f334295bc6466df177ef6ba3677b1a310e08c54e7d864e3f5dd50c0`。DocVQA original
+  pairwise `.4943`，image/question/region 为 `.4425/.4655/.4483`；ChartQA image shuffle
+  与 original 同为 `.5930`，region ablation top1 从 `.375` 变成 `.8906` 的 ANSWER 偏置；
+  HRBench question shuffle regret 从 `.2188` 反而降到 `.1875`。局部输入依赖存在，但
+  image-question-region semantic utility 不跨域稳定。
+- 终局：Stop 1/2/3 触发，`GO_NO_GO.md` 判定 **NO-GO**。test 从未打开；不进入 RL、
+  7B、multi-turn、continuous bbox，不做第二轮超参或 seed 搜索。该负结果按原协议保留。
+- 最终核验：Utility-SFT 与 one-shot test-transaction 定向回归 `29 passed, 5 skipped`；
+  compileall 与 `git diff --check` 通过。全仓 sweep 在无失败运行到 51% 后因一个无输出的
+  历史慢测试段被人工中止，因此不宣称全仓全量通过。`GO_NO_GO.md` SHA-256 为
+  `7f24b567d6cfff95f305baed12016cfd90d4b8e4f064c8af84a9c26703214fa1`。

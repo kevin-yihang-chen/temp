@@ -1,6 +1,34 @@
 # 项目状态
 
-更新时间：2026-09-05 17:34（Asia/Hong_Kong）
+## Utility-SFT 终局：NO-GO（2026-09-06）
+
+完整 Utility-SFT MVP 已实现并执行：结构化 `ANSWER + 4 ZOOM` action space、无
+post-action leakage 的数据接口、可训练 Qwen2.5-VL-3B spatial utility head、Format / Best-
+Action / soft Utility 三个 matched arms、八策略确定性评估、20,000 次 whole-source paired
+bootstrap、两张核心图和三类语义消融。正式 test 始终未打开，未执行 RL、7B 或额外方法搜索。
+
+首轮 128-step pilot 未通过 Go 后，只执行了预注册允许的唯一 coverage correction：三臂
+统一 1024 steps，读取完整 train pools，使用不看 outcome 的 source-cycle；模型、seed、
+loss、温度、学习率、冻结 validation 和 lambda sweep 均不变。Job `208822` 使用 2×H800
+于 2026-09-06 03:36:58 HKT 正常结束，三臂报告和 selector 均通过哈希/更新审计。
+
+修正后的 primary `lambda=0.05` 仍未通过：ChartQA 与 DocVQA 的 Utility-SFT 都选择
+`ANSWER`，与 Best-Action 的 net utility 差为 `0`；HRBench Utility-SFT 为 `+0.035156`，
+但相对 Best-Action 为 `+0.035156 [-0.009375, 0.093750]`，相对 Frozen VOI 为
+`+0.010156 [-0.056250, 0.079687]`，两个 95% CI 均跨零。三个 domain 中没有一个对两个
+关键基线同时形成稳定优势，更不满足至少两个 domain。完整 frontier 也没有改变该判断。
+
+Job `208954` 用 1×H800 在 7分08秒内完成修正模型的语义消融。DocVQA 的 image/question/
+region 扰动会降低部分 ranking 指标，但 ChartQA image shuffle 不降低 pairwise accuracy、
+region ablation 反而回到强 ANSWER 偏置；HRBench question shuffle 还改善 regret。说明存在
+局部输入依赖，但不是跨域稳定的 image-question-region semantic utility。
+
+因此触发预注册 Stop 1、Stop 2 和 Stop 3：Utility-SFT 未稳定超过 Frozen VOI、未证明比
+Best-Action SFT 有额外价值、且趋势未在两个域成立。路线正式 **NO-GO**；不创建/读取新
+test transaction，不进入 RL，不再通过 seed、loss、threshold 或模型规模搜索正结果。
+四问结论见 `GO_NO_GO.md`。
+
+更新时间：2026-09-06 03:53（Asia/Hong_Kong）
 
 ## 2026-09-05 终局状态
 
