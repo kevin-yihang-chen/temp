@@ -1,6 +1,6 @@
 # 项目状态
 
-## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 19:35 HKT）
+## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 20:14 HKT）
 
 项目没有停止，但此前的 direct Utility-SFT、Sequential frozen critic 和 direct
 Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户要求最迟在
@@ -69,6 +69,17 @@ monitor。单个 seed 的 machine status 只能是 `PHASE_C_SEED_FROZEN`，不�
 日志约到 `2011/3072` steps；seed `29/47` 的 Job `209188/209189` 因 `AssocGrpGRES`
 排队。尚无 Phase-C selector 完成报告，也没有正式 held-out accuracy，因此当前仍是
 **PHASE C TRAINING IN PROGRESS**，不能根据中途 loss 或旧 monitor 宣布方法成功。
+
+更新：seed 17 Job `209187` 已于 20:12:33 HKT `COMPLETED/0:0`，运行 `1:37:04`、
+3×RTX 4090、无 restart/requeue。Outcome/direct-CF/Factorized 的 report SHA-256 为
+`0c7a6e...65d0`、`37089a...6e`、`d5057d...306f`，selector SHA-256 为
+`fc5cdc...47e`、`d0afda...ebec`、`09cf49...2ab4`；三臂 schedule SHA-256 均为
+`46e27f...a153`。每臂 3072 trace、384 monitor rows、24 个 trainable tensors 更新，正式
+plan validator 接受全部三份 selector。monitor decision 为 `PHASE_C_SEED_FROZEN`，report
+SHA-256 `e529f239...a903a88`，仍不具备 formal claim 资格。direct-CF fixed audit loss
+`.65431→.67742`，其 loss-decrease diagnostic 为 false；Factorized 为 `.70292→.54277`，
+Outcome 为 `.71267→.69430`。该负 control 诊断如实保留，不据此改 schedule 或方法。
+seed 29 Job `209188` 已于 20:12:33 HKT 自动开始；seed 47 Job `209189` 继续排队。
 
 正式评测代码已在独立 `phase-c-formal` 分支冻结为 commit `5e2f77d`。它实现 ledger-first
 一次性 transaction、4-way rollout、三 seed 独立评分、匹配成本强基线、source-cluster

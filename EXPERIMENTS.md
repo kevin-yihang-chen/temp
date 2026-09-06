@@ -208,6 +208,32 @@
   seed 完成、核验 reports/checkpoints，运行一次已开放 validation runtime smoke，然后冻结
   one-shot plan。不得根据中途日志、旧 monitor 或单一 seed 修改方法、阈值或判定规则。
 
+#### Seed 17 selector freeze
+
+- Job `209187`：3×RTX 4090、12 CPU、144 GiB；2026-09-06
+  18:35:29--20:12:33 HKT，运行 `1:37:04`，`COMPLETED/ExitCode=0:0`，无 restart/requeue，
+  邮件 `ALL`。结束后 seed 29 Job `209188` 同秒开始，seed 47 `209189` 继续因
+  `AssocGrpGRES` 排队。
+- 三臂 schedule SHA-256 均为
+  `46e27ff0b594f794d59723135c18c2724e10e09626097f3363583b0c3b48a153`；每臂 3072
+  training trace rows、384 previously-seen validation predictions、24 个 trainable
+  parameter tensors 更新，峰值 GPU bytes 约 `10.23e9`，无 proposed crop execution。
+- Outcome report/selector SHA-256：
+  `0c7a6e013c265834967d69df158c0425befa238593f34fdca11f9a8d50e565d0` /
+  `fc5cdc62aed7be76d3d6024434f5d06eae7455ba98449aa2fabf55aa525fa47e`；direct CF：
+  `37089afa959659815e93ef2d45d0b689d361062c5fcab43eefe2b77d6424ae6e` /
+  `d0afdab81c86eb5cc84db7d82c7d3cb8665917235dd9706c9cb891c80490ebec`；Factorized：
+  `d5057ddc7f4ce774cc653d4c84bff60c8a174f928d6ad8742acebe4e8d86306f` /
+  `09cf4952c5caacdf6e12e883245df758a75d2662440b68e3b86afef9a6b82ab4`。
+- Fixed audit loss：Outcome `.712671→.694301`；direct CF `.654308→.677420`；Factorized
+  `.702922→.542770`。direct CF 的 `loss_positive_and_decreased_on_fixed_audit=false` 如实
+  保留；其余 formal-selector required checks 及 non-collapse 均通过。它是匹配负 control，
+  不能据此更换训练或只保留有利 seed。
+- Monitor evaluation decision `PHASE_C_SEED_FROZEN`，evaluation role 为
+  `previously_seen_development_monitor_only`，report SHA-256
+  `e529f2392a421387b28ed1db575ddbef58ee16c2da7d6298ab684b473a903a88`。同一
+  `_validate_selector` 实现已验证三个 selector/report 可进入最终 plan；held-out 未读取。
+
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
 - 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本
