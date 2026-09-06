@@ -1,0 +1,104 @@
+import json
+
+import pytest
+
+torch = pytest.importorskip("torch")
+
+from beyond_entropy.schema import BBox
+from beyond_entropy.sequential_post_training import (
+    SequentialPolicyInput,
+    SequentialTrainingExample,
+    deterministic_joint_schedule,
+    load_sequential_training_examples,
+    sequential_post_training_loss,
+    state_hash_subset,
+)
+from beyond_entropy.sequential_schema import AcquiredObservationSpec, SequentialRolloutRecord
+
+
+def policy_input(state_id="s1"):
+    return SequentialPolicyInput.from_untrusted_mapping({
+        "state_id": state_id, "image_id": "i1", "source_id": f"source-{state_id}",
+        "image_path": "/tmp/image.png", "question": "question?",
+        "model_prompt": "question? Answer briefly.",
+        "acquired_observations": [{
+            "action_id": "crop-a", "bbox": [0, 0, .5, .5], "visual_cost": 1,
+        }],
+        "proposed_action_id": "crop-b", "proposed_bbox": [.5, .5, 1, 1],
+        "proposed_visual_cost": 1,
+    })
+
+
+def example(state_id="s1", stop=0, continued=1):
+    return SequentialTrainingExample(policy_input(state_id), stop, continued, "replicate-000")
+
+
+def test_policy_input_strictly_rejects_outcome_leakage():
+    value = dict(policy_input().__dict__)
+    value["stop_correct"] = 1.0
+    with pytest.raises(ValueError, match="strict pre-action allowlist"):
+        SequentialPolicyInput.from_untrusted_mapping(value)
+    assert len(policy_input().geometry()) == 15
+
+
+def test_outcome_only_and_counterfactual_losses_have_distinct_neutral_semantics():
+    logits = torch.tensor([[2.0, -1.0]], requires_grad=True)
+    neutral = example(stop=1, continued=1)
+    outcome = sequential_post_training_loss(logits, neutral, method="outcome_only")
+    counterfactual = sequential_post_training_loss(
+        logits, neutral, method="counterfactual_utility"
+    )
+    assert outcome.item() > 0
+    assert counterfactual.item() == 0
+    rescue = example(stop=0, continued=1)
+    assert sequential_post_training_loss(
+        logits, rescue, method="counterfactual_utility"
+    ).item() > 0
+
+
+def test_state_subset_and_joint_schedule_are_outcome_independent():
+    left = [example(f"s{i}", stop=i % 2, continued=(i + 1) % 2) for i in range(8)]
+    right = [example(f"s{i}", stop=0, continued=0) for i in range(8)]
+    left_ids = [item.inputs.state_id for item in state_hash_subset(
+        left, maximum_states=3, seed=17, namespace="test"
+    )]
+    right_ids = [item.inputs.state_id for item in state_hash_subset(
+        right, maximum_states=3, seed=17, namespace="test"
+    )]
+    assert left_ids == right_ids
+    schedule = deterministic_joint_schedule(
+        {"chartqa": left, "docvqa": right}, draws=6, seed=17, namespace="test"
+    )
+    assert [domain for domain, _ in schedule] == [
+        "chartqa", "docvqa", "chartqa", "docvqa", "chartqa", "docvqa"
+    ]
+
+
+def test_loader_joins_manifest_prompt_but_keeps_labels_outside_input(tmp_path):
+    image = tmp_path / "image.png"
+    image.write_bytes(b"not-opened-by-loader")
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(json.dumps({
+        "state_id": "s1", "image_id": "i1", "source_id": "source-s1",
+        "image_path": "image.png", "question": "question?",
+        "model_prompt": "question? Answer briefly.",
+    }) + "\n")
+    record = SequentialRolloutRecord(
+        state_id="s1", image_id="i1", source_id="source-s1", question="question?",
+        original_image=str(image), step_index=1,
+        acquired_observations=(AcquiredObservationSpec(
+            "crop-a", BBox(0, 0, .5, .5), 1
+        ),),
+        proposed_action_id="crop-b", proposed_bbox=BBox(.5, .5, 1, 1),
+        proposed_visual_cost=1, replicate_id="replicate-000", generation_seed=0,
+        stop_answer="no", stop_correct=0, stop_entropy=.5,
+        stop_max_probability=.6, stop_top1_top2_margin=.2,
+        continue_answer="yes", continue_correct=1, continue_entropy=.2,
+        continue_max_probability=.8, continue_top1_top2_margin=.6,
+    )
+    rollouts = tmp_path / "rollouts.jsonl"
+    rollouts.write_text(json.dumps(record.to_dict()) + "\n")
+    loaded = load_sequential_training_examples(rollouts, manifest)
+    assert loaded[0].gain == 1
+    assert loaded[0].inputs.model_prompt == "question? Answer briefly."
+    assert "correct" not in repr(loaded[0].inputs)

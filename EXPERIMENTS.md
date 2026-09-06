@@ -1,6 +1,27 @@
 # 实验记录
 
-更新时间：2026-09-05 17:34（Asia/Hong_Kong）
+更新时间：2026-09-06（Asia/Hong_Kong）
+
+## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
+
+- 假设：显式 paired gain preference 能把已有 visual-acquisition headroom 转化为比相同成本
+  uncertainty baseline 和 Outcome-only post-training 更高的最终准确率。
+- 范围：仅 ChartQA/DocVQA；Qwen2.5-VL-3B；binary STOP/CONTINUE；不做 HRBench、RL、
+  7B、candidate search、OCR/detector 或新 test 调参。
+- 数据：每域 train 256 / validation 128；manifest 与 rollout 的完整 SHA-256 已绑定在六个
+  `configs/cv_method_*_v1.json`，source-disjoint，test 未授权。
+- 方法：Outcome-only 以两个 branch 的绝对 final reward 加权 log probability；proposed
+  method 以 `G=R_continue-R_stop` 的符号做 paired preference。架构、optimizer、步数和
+  outcome-independent schedule matched。
+- Phase A：每域 hash-selected 25/256 train states（9.765625%），64 steps，seed 17；只检查
+  loss、gradient、parameter update、leakage、score 和 collapse，不作为科学结果。
+- Phase B（仅 Phase A pass 后）：每域完整 256 train、128 validation，512 steps，seed 17；
+  primary exact 25% call rate，10,000 whole-source bootstrap。进入 Phase C 的冻结规则为一个
+  domain `>+1pp` 且另一 domain `>-1pp` vs strongest matched uncertainty。
+- 资源计划：两个独立 arm 各占一张 GPU 并行，不合并模型状态；总 GPU-hours 与串行基本
+  相同而墙钟约减半。实际 partition、Job、runtime、peak memory 和结果待 live resource
+  检查与执行后补记。所有任务邮件 `ALL`。
+- 当前结论：**PENDING**。实现与静态验证尚未完成，未提交 GPU job。
 
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。

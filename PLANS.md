@@ -1,5 +1,19 @@
 # 研究计划
 
+## 当前目标：Counterfactual Visual Utility Post-training（2026-09-06）
+
+新的独立路线已预注册在 `docs/cv_counterfactual_method_protocol_v1.md`。它不重写此前
+Sequential frozen-critic 的 NO-GO，而是直接对 Qwen2.5-VL-3B 做轻量 post-training，比较
+绝对 final-reward 的 Outcome-only 对照和显式 `G=R_continue-R_stop` 的 Counterfactual
+Utility preference。两臂复用完全相同的 ChartQA/DocVQA paired partial-prefix bank、架构、
+优化器、state schedule、步数和 seed；proposed crop 在决策前不会执行。
+
+先执行 9.765625% train 的 Phase A 工程 smoke；只有两臂均通过 finite loss/gradient、参数
+更新、无泄漏、非恒定 score 和无动作 collapse，才执行 Phase B。Phase B 固定 seed 17、
+每域完整 256 train / 128 validation、512 steps，primary 为精确 25% matched call rate。
+只有一个域相对最强 uncertainty baseline `>+1pp` 且另一个 `>-1pp` 才进入三 seed Phase C；
+否则停止。Phase C 通过前禁止 7B、RL 和新 test transaction。
+
 ## Sequential Visual Acquisition 已关闭：NO-GO（2026-09-06）
 
 当前目标已完成到预注册的否证终点。三域 counterfactual headroom 均存在，但 18,461 维

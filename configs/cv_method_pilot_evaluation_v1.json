@@ -1,0 +1,14 @@
+{
+  "schema": "cv_method_evaluation_config_v1",
+  "stage": "phase_b_pilot",
+  "test_authorized": false,
+  "primary_call_rate": 0.25,
+  "rates": [0.0, 0.1, 0.25, 0.5, 0.75, 1.0],
+  "lambdas": [0.0, 0.025, 0.05, 0.1, 0.2],
+  "bootstrap_samples": 10000,
+  "bootstrap_seed": 20260906,
+  "validation_rollouts": {
+    "chartqa": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/sequential-acquisition-v1/smoke-chartqa-validation-128-v1/job-209052/rollouts.jsonl", "sha256": "5e200db737f2a7166136efefa5527394ec72b392bb5a0ea4bcab34829c2987a8"},
+    "docvqa": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/sequential-acquisition-v1/smoke-docvqa-validation-128-v1/job-209049/rollouts.jsonl", "sha256": "68948adefbfa2f057da7953edd4099e006c088a350a7d9f05baa8ffd0821cf7c"}
+  }
+}

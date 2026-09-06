@@ -1,5 +1,17 @@
 # 项目状态
 
+## Counterfactual Visual Utility Post-training：协议冻结，等待 Phase A（2026-09-06）
+
+当前已把下一阶段收敛为一个有界、可证伪的 end-to-end 方法实验：在相同 Qwen2.5-VL-3B
+partial-tuning、数据、训练 schedule、步数和 seed 下，比较 Outcome-only final-reward 监督与
+显式 paired gain preference。部署输入只有原图、已经获得的 crop、问题和 fixed next bbox；
+不执行 proposed crop，也不读取任何 branch outcome。
+
+ChartQA/DocVQA 的现有 train 256 / validation 128 paired banks 已按 SHA-256 绑定；旧 validation
+只作 development，test 保持未打开。Phase A 用每域 25 个 train state、64 steps 检查工程
+正确性；通过后才运行 full-bank single-seed Phase B。当前科学状态为 **PENDING**，没有新
+方法结果，且未授权 Phase C、7B 或 RL。最终判断只写入 `CV_METHOD_GO_NO_GO.md`。
+
 ## Sequential Visual Acquisition 终局：NO-GO（2026-09-06）
 
 共享 partial-prefix 的 STOP/CONTINUE 实验已经按冻结停止规则完成。三域 main development

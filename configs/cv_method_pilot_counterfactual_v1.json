@@ -1,0 +1,47 @@
+{
+  "schema": "cv_method_post_training_config_v1",
+  "stage": "phase_b_pilot",
+  "method": "counterfactual_utility",
+  "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "revision": "66285546d2b821cf421d4f5eb2576359d3770cd3",
+  "seed": 17,
+  "head_dim": 128,
+  "learning_rate": 0.00001,
+  "head_learning_rate": 0.0003,
+  "weight_decay": 0.0,
+  "gradient_clip": 1.0,
+  "steps": 512,
+  "gradient_accumulation": 1,
+  "checkpoint_interval": 64,
+  "train_fraction": 1.0,
+  "min_pixels": 200704,
+  "max_pixels": 602112,
+  "trainable_backbone": "visual_merger_and_last_language_block",
+  "test_authorized": false,
+  "datasets": {
+    "chartqa": {
+      "train": {
+        "states": 256,
+        "manifest": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/predictability-audit-v1/chartqa/train/manifest.jsonl", "sha256": "f243e3f9fddbf17a67d82cdab19a9d74e91f19804ba5f6f9663d2d49b0934ae1"},
+        "rollouts": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/sequential-acquisition-v1/smoke-chartqa-train-256-v1/job-209048/rollouts.jsonl", "sha256": "bf456dfecd1fde87610bc70ac874c147345e4d716d54b7e3990b4fc798980739"}
+      },
+      "validation": {
+        "states": 128,
+        "manifest": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/predictability-audit-v1/chartqa/validation/manifest.jsonl", "sha256": "81f1a5b0ac1bc053398633bdecfc4811a6ce5f83507d4f503eee87a8d064d550"},
+        "rollouts": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/sequential-acquisition-v1/smoke-chartqa-validation-128-v1/job-209052/rollouts.jsonl", "sha256": "5e200db737f2a7166136efefa5527394ec72b392bb5a0ea4bcab34829c2987a8"}
+      }
+    },
+    "docvqa": {
+      "train": {
+        "states": 256,
+        "manifest": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/predictability-audit-v1/docvqa/train/manifest.jsonl", "sha256": "a00dab30d5ec7bedd8b4bea808b9fc3579bf8c327d352d818b6726efb699528a"},
+        "rollouts": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/sequential-acquisition-v1/smoke-docvqa-train-256-v1/job-209051/rollouts.jsonl", "sha256": "abcf7e5f5db49117980855f030940fc3eb64454cf939560c9719aea0ffcf3644"}
+      },
+      "validation": {
+        "states": 128,
+        "manifest": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/data/predictability-audit-v1/docvqa/validation/manifest.jsonl", "sha256": "96f24b924ef64dd7a7f9f35c2dd7f68ffbc6146998282dd26d8cfb4aff726da5"},
+        "rollouts": {"path": "/userhome/cs3/yihangc/Documents/beyond-entropy/artifacts/sequential-acquisition-v1/smoke-docvqa-validation-128-v1/job-209049/rollouts.jsonl", "sha256": "68948adefbfa2f057da7953edd4099e006c088a350a7d9f05baa8ffd0821cf7c"}
+      }
+    }
+  }
+}
