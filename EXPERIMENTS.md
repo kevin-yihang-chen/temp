@@ -181,7 +181,7 @@
 ### Phase C selector training 与 formal transaction 实现
 
 - Training matrix SHA-256：
-  `96c29760f0cf8ed21a93454bcad6894815c721213999542211ea24579cf8baea`；三个独立 seed
+  `96c29760a7ecf9fd12a2b5c9f3e3033552e4db0e9afaeb7f543a946d93f8baea`；三个独立 seed
   plan 使用 `17/29/47`，每个 job 在三张 RTX 4090 上并行运行 Outcome-only、direct gain、
   Factorized 三臂，均为 3072 steps 和完全相同的 domain-balanced schedule。
 - Jobs：seed `17/29/47` 为 `209187/209188/209189`，均配置 `--mail-type=ALL`、
