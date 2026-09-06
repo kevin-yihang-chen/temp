@@ -165,6 +165,19 @@ whose images have no prior sequential outcome; this is a weaker held-out
 guarantee and must be disclosed. Every role is state/source/image disjoint and
 allocation cannot read model outcomes.
 
+Allocation Job 209165 completed before any held-out rollout. It froze 1,024 /
+512 ChartQA train/held-out states, 1,012 / 522 DocVQA states from 256 / 128
+whole documents, and 388 / 92 HRBench states from 69 / 20 image groups. The
+allocation report hash is
+`3bd94f0cba17b6ea476003d91278370026dd5a7d53bdb88b9d39e8df8efedc08`;
+it records zero state/source/image role overlap,
+`selection_used_model_outcomes=false`, and
+`heldout_sequential_outcomes_opened=false`. Train rollout generation is a
+separate transaction: four deterministic state shards per domain may run on
+four GPUs and must pass exact manifest, completion, byte-hash, identity and
+decision-coverage validation before merging. This transaction cannot read a
+held-out manifest or outcome.
+
 ## One-week stop boundary
 
 No RL, 7B, continuous bbox, free-form tool syntax, second acquisition, new

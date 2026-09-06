@@ -1,6 +1,6 @@
 # 研究计划
 
-## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06 17:30 HKT）
+## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06 18:05 HKT）
 
 用户给出的硬约束是：从当前全部结果出发，最多一周形成最终方法，目标为 CVPR/ICCV/ECCV。
 本周不再并行发散多个 idea。唯一候选冻结为 **Factorized Potential-Outcome Visual
@@ -49,8 +49,13 @@ manifest 后抽 512 个平衡 held-out states；DocVQA 从固定 official-valida
 从旧 development-train 冻结 1024 ChartQA states 和 256 DocVQA document groups。HRBench
 4K/8K 是同一 800 问题的两种分辨率，不能把 4K 当新独立样本；因此从原 train role 中仅
 选取没有任何历史 sequential outcome 且与训练 image-disjoint 的 20 个 8K image groups
-作为 held-out，并在论文中明确它不具备前两域同等级的全新 source 保证。分配脚本、哈希
-绑定 CPU Slurm worker 与单元测试已实现，尚未执行或打开 held-out outcome。
+作为 held-out，并在论文中明确它不具备前两域同等级的全新 source 保证。Job `209165` 已
+成功冻结 allocation：ChartQA 为 `1024 train / 512 held-out states`，DocVQA 为
+`1012 train states from 256 documents / 522 held-out states from 128 documents`，HRBench
+为 `388 train / 92 held-out states`（69/20 image groups）；三域 train/held-out 的
+state/source/image overlap 均为零，选择未使用模型 outcome，held-out sequential outcomes
+仍未打开。现在只生成三域 train paired banks；每域一个 4×RTX 4090 job 做确定性 state
+sharding，再用 manifest/code/completion/record hashes 和 exact decision coverage 合并。
 
 ## Counterfactual Visual Utility Post-training 已关闭：Phase B NO-GO（2026-09-06）
 

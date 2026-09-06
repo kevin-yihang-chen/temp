@@ -147,6 +147,22 @@
   少于请求的 256。没有模型推理或 held-out outcome；staging 已完整移入
   `phase-c-allocation-failed-job-209161.staging` 保留取证。冻结 held-out 改为 128 个完整
   新 documents，并为后续 worker 增加 `--no-requeue`；这是 pre-outcome feasibility 修正。
+- Job `209165` 使用 1×RTX 4090（allocation 逻辑仍为 CPU-only）于
+  17:50:23--17:56:12 HKT `COMPLETED/0:0`，无 restart/requeue，全状态邮件。最终冻结：
+  ChartQA train/held-out `1024/512 states`；DocVQA `1012 states from 256 documents / 522
+  states from 128 documents`；HRBench `388/92 states`、`69/20 images`。每域 role 的
+  state/source/image overlap 都为零，ChartQA/DocVQA held-out 与历史 source/RGB 也为零；
+  `selection_used_model_outcomes=false`、`heldout_sequential_outcomes_opened=false`。
+- allocation report SHA-256：
+  `3bd94f0cba17b6ea476003d91278370026dd5a7d53bdb88b9d39e8df8efedc08`。train manifest
+  SHA-256 分别为 ChartQA `128298315ff3cc0940849de10285c446dca4e88652528ce029964f703355cbc7`、
+  DocVQA `6b94bfe1daef0c8adb81012fe892e45fd84962700cd742858b0ca438f8c4bbf6`、HRBench
+  `c65c15966b33c48fe35ae69106cdbe000687ee3d5c70edc4e054b7394e28c9e9`。
+- 已实现 Phase-C train rollout 的 4-GPU deterministic sharding 与 strict merge：每域一个
+  4×4090 job；四个进程只处理由 state hash 分配的 shard，不提取额外 feature。merge 在写
+  merged bank 前验证 manifest/code/config、每片 completion 与 bytes hash、全部
+  state/replicate decision 精确覆盖和 identity 一致。held-out manifest/outcome 不由该
+  worker 读取。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
