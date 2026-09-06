@@ -230,19 +230,22 @@ def sequential_post_training_loss(
     if method == "factorized_potential_outcomes":
         if logits.shape != (1, 3):
             raise ValueError("factorized logits must have shape [1, 3]")
-        targets = logits.new_tensor([
-            1.0 - example.stop_reward,
-            example.continue_reward,
-            1.0 - example.continue_reward,
-        ]).float()
-        risk_loss = F.binary_cross_entropy_with_logits(logits[0, 0], targets[0])
-        conditional_index = 1 if example.stop_reward < .5 else 2
-        conditional_loss = F.binary_cross_entropy_with_logits(
-            logits[0, conditional_index], targets[conditional_index]
+        targets = factorized_potential_outcome_targets(example)
+        risk_target = logits.new_tensor(targets["error_mass"]).float()
+        rescue_target = logits.new_tensor(targets["rescue_fraction"]).float()
+        harm_target = logits.new_tensor(targets["harm_fraction"]).float()
+        risk_loss = F.binary_cross_entropy_with_logits(logits[0, 0], risk_target)
+        rescue_loss = F.binary_cross_entropy_with_logits(logits[0, 1], rescue_target)
+        harm_loss = F.binary_cross_entropy_with_logits(logits[0, 2], harm_target)
+        # The conditional weights sum to one.  For binary rewards this trains
+        # exactly one observable conditional, as before.  For a soft official
+        # score (for example DocVQA ANLS), both conditionals can carry fractional
+        # mass.  Weighting is necessary so a population optimum still satisfies
+        # E[gain|s] = e*r - (1-e)*h instead of multiplying unweighted means.
+        conditional_loss = (
+            targets["error_mass"] * rescue_loss
+            + targets["correct_mass"] * harm_loss
         )
-        # Every state teaches baseline error risk and exactly one observable
-        # conditional: rescue given baseline error, or harm given baseline
-        # success.  Averaging keeps the per-state scale matched across strata.
         return (risk_loss + conditional_loss) / 2
     if logits.shape != (1, 2):
         raise ValueError("binary policy logits must have shape [1, 2]")
@@ -260,15 +263,54 @@ def sequential_post_training_loss(
     raise ValueError(f"unsupported post-training method: {method}")
 
 
+def factorized_potential_outcome_targets(
+    example: SequentialTrainingExample,
+) -> dict[str, float]:
+    """Return a reward-scale-safe rescue/harm decomposition for one pair.
+
+    Let ``y0`` be the STOP reward and ``y1`` the CONTINUE reward.  Rescue is
+    the fraction of the remaining reward mass recovered by CONTINUE, while
+    harm is the fraction of current reward mass destroyed by CONTINUE.  Thus
+
+    ``y1 - y0 = (1-y0) * rescue_fraction - y0 * harm_fraction``
+
+    for binary correctness and for bounded soft benchmark scores such as ANLS.
+    Undefined endpoint fractions receive zero weight in the loss.
+    """
+
+    stop = float(example.stop_reward)
+    continued = float(example.continue_reward)
+    error_mass = 1.0 - stop
+    correct_mass = stop
+    positive_gain = max(continued - stop, 0.0)
+    negative_gain = max(stop - continued, 0.0)
+    rescue = positive_gain / error_mass if error_mass > 0 else 0.0
+    harm = negative_gain / correct_mass if correct_mass > 0 else 0.0
+    # Mathematical bounds follow from y0,y1 in [0,1].  Clamp only guards
+    # floating-point scorer noise at the endpoints.
+    rescue = min(max(rescue, 0.0), 1.0)
+    harm = min(max(harm, 0.0), 1.0)
+    reconstructed_gain = error_mass * rescue - correct_mass * harm
+    if not math.isclose(reconstructed_gain, example.gain, abs_tol=1e-7):
+        raise RuntimeError("factorized targets do not reconstruct paired gain")
+    return {
+        "error_mass": error_mass,
+        "correct_mass": correct_mass,
+        "rescue_fraction": rescue,
+        "harm_fraction": harm,
+    }
+
+
 def factorized_potential_outcome_probabilities(
     logits: torch.Tensor,
 ) -> dict[str, torch.Tensor]:
     """Convert risk/rescue/harm logits into an identifiable expected gain.
 
-    With paired binary outcomes, the gain identity is
+    With paired bounded outcomes, the gain identity is
 
-    ``P(stop wrong) P(continue correct | stop wrong)`` minus
-    ``P(stop correct) P(continue wrong | stop correct)``.
+    ``remaining reward mass * rescued fraction`` minus
+    ``current reward mass * harmed fraction``.  For binary correctness these
+    factors reduce to error/rescue and correct/harm probabilities.
     """
 
     if logits.ndim != 2 or logits.shape[1] != 3:

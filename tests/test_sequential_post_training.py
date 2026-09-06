@@ -10,6 +10,7 @@ from beyond_entropy.sequential_post_training import (
     SequentialTrainingExample,
     deterministic_joint_schedule,
     factorized_potential_outcome_probabilities,
+    factorized_potential_outcome_targets,
     load_sequential_training_examples,
     sequential_post_training_loss,
     state_hash_subset,
@@ -90,6 +91,43 @@ def test_factorized_gain_is_rescue_mass_minus_harm_mass():
     result = factorized_potential_outcome_probabilities(logits)
     assert result["expected_gain"].item() == pytest.approx(.8 * .5 - .2 * .1)
     assert result["expected_gain"].item() == pytest.approx(.38)
+
+
+@pytest.mark.parametrize(
+    ("stop", "continued", "rescue", "harm"),
+    (
+        (.6, .8, .5, 0),
+        (.6, .3, 0, .5),
+        (.25, .25, 0, 0),
+        (0, .4, .4, 0),
+        (1, .4, 0, .6),
+    ),
+)
+def test_factorized_targets_exactly_reconstruct_soft_reward_gain(
+    stop, continued, rescue, harm
+):
+    item = example(stop=stop, continued=continued)
+    targets = factorized_potential_outcome_targets(item)
+    assert targets["rescue_fraction"] == pytest.approx(rescue)
+    assert targets["harm_fraction"] == pytest.approx(harm)
+    reconstructed = (
+        targets["error_mass"] * targets["rescue_fraction"]
+        - targets["correct_mass"] * targets["harm_fraction"]
+    )
+    assert reconstructed == pytest.approx(item.gain)
+
+
+def test_factorized_soft_reward_loss_uses_both_weighted_conditionals():
+    logits = torch.zeros((1, 3), requires_grad=True)
+    loss = sequential_post_training_loss(
+        logits, example(stop=.6, continued=.8),
+        method="factorized_potential_outcomes",
+    )
+    loss.backward()
+    assert loss.item() == pytest.approx(0.69314718)
+    assert logits.grad[0, 0].item() > 0  # target error mass is .4
+    assert logits.grad[0, 1].item() == pytest.approx(0)  # rescue target is .5
+    assert logits.grad[0, 2].item() > 0  # zero harm with .6 observed mass
 
 
 def test_factorized_loss_rejects_binary_action_logits():

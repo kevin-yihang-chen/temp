@@ -2,7 +2,7 @@
 
 更新时间：2026-09-06（Asia/Hong_Kong）
 
-## E-20260906-36：Factorized Potential-Outcome 最终方法候选（待 Phase A）
+## E-20260906-36：Factorized Potential-Outcome 最终方法候选（修正后待 Phase A）
 
 - 目标/时限：基于全部既有结果，在一周内形成唯一最终方法判定；目标为 CVPR/ICCV/ECCV，
   但不把一周误写成录用或正结果承诺。
@@ -11,10 +11,10 @@
   `3.906/0.521pp`。ChartQA Outcome-only top-32 包含 8 rescue、0 harm，说明 end-to-end
   encoder 能学到 baseline error risk；direct gain 只使用 63/512 non-neutral train pairs，
   natural policy collapse 为全 CONTINUE。
-- 新假设：把 gain 精确拆成
-  `P(error)P(rescue|error)-P(correct)P(harm|correct)`，用所有 pair 学 error risk，并按
-  `stop_correct` 条件训练可观测的 rescue 或 harm head，可比一个稀疏 action-preference
-  label 更稳定地学习 acquisition ranking。
+- 新假设：把 gain 拆成 error/correct mass 与 normalized rescue/harm fraction。二值 reward
+  时等价于 `P(error)P(rescue|error)-P(correct)P(harm|correct)`；连续 reward 使用
+  `e*=1-Y0`、`r*=max(Y1-Y0,0)/(1-Y0)`、`h*=max(Y0-Y1,0)/Y0`，满足
+  `Y1-Y0=(1-Y0)r*-Y0h*`。所有 pair 均提供 error 监督，两个条件 loss 权重之和为一。
 - 实现：`sequential_post_training.py` 新增 3-logit head、factorized probability identity 和
   四 outcome-type loss；训练器保存三个概率与 expected gain；evaluator 支持 matched
   Outcome-only / direct Counterfactual / Factorized 三臂及冻结 Phase-B rule；新增两套配置、
@@ -24,8 +24,8 @@
 - 预注册判定：Phase A 64 steps 工程 gate；Phase B 512 steps 后，Factorized 必须在一个域
   相对 strongest uncertainty `>+1pp`、另一域 `>-0.5pp`，且相对 Outcome-only 的两域
   mean delta `>0` 才晋级。否则 NO-GO，不调 loss/class weight/seed/threshold。
-- 当前验证：`tests/test_sequential_post_training.py` 与 `tests/test_cv_method_evaluation.py`
-  共 `13 passed`；Python compile、bash syntax、config equality、`git diff --check` 通过；旧
+- 当前验证：相关三个 test files 共 `21 passed`；含五组连续 reward 重构与双条件 gradient
+  回归。Python compile、bash syntax、config equality、`git diff --check` 通过；旧
   Job `209090` evaluator 回归仍输出 `PHASE_B_NO_GO` 与原 primary accuracy。尚无 GPU job。
 - 当前结论：**PENDING**。下一步只提交三臂 Phase A smoke。
 
@@ -57,7 +57,21 @@
   Counterfactual `d68a78f9c60ee0403c35f103e0111c33db952e79fe6a6af1de77a9e73a65a98e`；
   Factorized `24304bcc8b759a82f8ed10ccbf16a835e9850bd9aba95a04a3dab1dfcdef77c9`；evaluation
   `4a22f9fa4dc94dbb505e2b55827129cf2c28c5b68cd4ff6c73368cec5920d47e`。
-- 决定：`PHASE_A_PASS`。tiny accuracy 不作效果结论；允许且只允许提交冻结的 Phase B。
+- 当时决定：`PHASE_A_PASS`。tiny accuracy 不作效果结论。下述连续 reward bug 发现后，
+  该 pass 只保留为三头工程链路证据，不再授权 Phase B。
+
+### Phase B 在结果前取消：连续 reward 定义修正
+
+- Job `209157`：3×RTX 4090，于 17:04:23 HKT 启动；日志在约 step `183/512` 暴露 DocVQA
+  `stop/continue_correct` 含 ANLS 分数（例如 gain `+.06818/-.04167`），并非二值标签。
+- 问题：旧 loss 用 `stop_reward < .5` 二分 baseline 状态，同时把连续 continue reward 当
+  conditional target；这不能重构所声称的 utility identity，因此跨域判定无效。
+- 处置：在任何 validation/evaluation report 产生前主动取消，Slurm 记录
+  `CANCELLED at 17:08:37`；部分训练 artifact 不作科学结果，也不查看结果后选 loss。
+- 修正：冻结为 bounded-reward exact factorization；conditional BCE 按 `1-Y0` 与 `Y0`
+  加权，端点自然退化为原二值 loss。该项是同一 estimand 的 correctness fix，不是根据
+  validation 表现换方法或超参。
+- 当前结论：**CORRECTED PHASE A PENDING**。必须重新 smoke，通过后才能重提 Phase B。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 

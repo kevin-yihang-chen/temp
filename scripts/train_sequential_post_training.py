@@ -322,6 +322,23 @@ def main() -> None:
     report = {
         "schema": "cv_method_post_training_report_v1",
         "stage": config["stage"], "method": config["method"],
+        **({
+            "factorization": {
+                "reward_domain": "bounded_[0,1]",
+                "error_mass_target": "1 - stop_reward",
+                "rescue_fraction_target": (
+                    "max(continue_reward-stop_reward,0)/(1-stop_reward)"
+                ),
+                "harm_fraction_target": (
+                    "max(stop_reward-continue_reward,0)/stop_reward"
+                ),
+                "identity": (
+                    "gain = error_mass*rescue_fraction "
+                    "- correct_mass*harm_fraction"
+                ),
+                "conditional_loss_weights": "error_mass_and_correct_mass",
+            }
+        } if config["method"] == "factorized_potential_outcomes" else {}),
         "scientific_status": "engineering_smoke" if config["stage"] == "phase_a_smoke" else "development_pilot",
         "test_accessed": False, "formal_claim_eligible": config["stage"] == "phase_c_confirmation",
         "provenance": provenance, "schedule_sha256": schedule_sha256,

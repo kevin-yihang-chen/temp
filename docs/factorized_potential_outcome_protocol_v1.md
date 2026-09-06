@@ -1,23 +1,27 @@
 # Factorized Potential-Outcome Visual Acquisition Protocol v1
 
-Status: method definition fixed before the first GPU smoke. This is a new
-development transaction and does not revise any earlier NO-GO result.
+Status: corrected before any Phase-B validation result was produced. The first
+binary-only implementation was valid for ChartQA but not for DocVQA's bounded
+ANLS reward; Job 209157 was cancelled before evaluation. The reward-scale-safe
+definition below is the only version eligible for a scientific decision. This
+is a new development transaction and does not revise any earlier NO-GO result.
 
 ## One-week research question
 
 Can end-to-end post-training learn a deployable visual-acquisition score by
 separating three asymmetric events that direct gain classification conflates?
 
-For the same pre-action state, let `Y0` be STOP correctness and `Y1` be
-CONTINUE correctness. The model predicts
+For the same pre-action state, let `Y0` be the STOP reward and `Y1` be the
+CONTINUE reward, both in `[0,1]`. Define the supervised factors
 
 \[
-e(s)=P(Y_0=0\mid s),\quad
-r(s)=P(Y_1=1\mid Y_0=0,s),\quad
-h(s)=P(Y_1=0\mid Y_0=1,s).
+e^*=1-Y_0,\quad
+r^*={\max(Y_1-Y_0,0)\over 1-Y_0},\quad
+h^*={\max(Y_0-Y_1,0)\over Y_0},
 \]
 
-The expected acquisition gain is the identifiable decomposition
+where a zero-denominator target is assigned zero loss weight. The model
+predicts `e(s), r(s), h(s)` and uses the decomposition
 
 \[
 \widehat G(s)=e(s)r(s)-(1-e(s))h(s),
@@ -25,13 +29,23 @@ The expected acquisition gain is the identifiable decomposition
 
 and deployment chooses CONTINUE only when
 `G_hat - lambda * incremental_cost > 0`. Cost is not a training label.
+For every observed bounded-reward pair,
+
+\[
+Y_1-Y_0=(1-Y_0)r^*-Y_0h^*.
+\]
+
+For binary correctness this reduces exactly to error probability, rescue given
+error, and harm given correctness. For soft reward it means remaining reward
+mass, fraction rescued, and fraction harmed. Conditional loss weighting by
+`1-Y0` and `Y0` preserves the corresponding population factorization.
 
 The decomposition is motivated by current evidence, not by a post-hoc claim on
 old results. At matched 25% cost, the earlier Outcome-only arm improved
 ChartQA/DocVQA accuracy over uncertainty baselines, while direct paired-gain
 training was worse and collapsed naturally to CONTINUE. On the training pairs,
 direct gain receives only 63 non-neutral labels out of 512. The factorized loss
-uses every state for error risk and one observable conditional event.
+uses every state for error mass and a total unit of rescue/harm supervision.
 
 ## Inputs and leakage boundary
 
@@ -52,17 +66,22 @@ Phase-B transition rule passes.
 The encoder, Qwen2.5-VL-3B revision, pixel budget, trainable vision merger,
 last language block/norm, optimizer, schedule, steps and seed match the two
 existing controls. The only architectural difference is a three-logit head for
-`error`, `rescue|error` and `harm|correct` instead of a two-action head.
+`error mass`, `rescued fraction` and `harmed fraction` instead of a two-action
+head.
 
 For each paired state the loss is
 
 \[
 L={1\over2}\big[
-\operatorname{BCE}(e,1-Y_0)
-+\mathbb 1[Y_0=0]\operatorname{BCE}(r,Y_1)
-+\mathbb 1[Y_0=1]\operatorname{BCE}(h,1-Y_1)
+\operatorname{BCE}(e,e^*)
++e^*\operatorname{BCE}(r,r^*)
++(1-e^*)\operatorname{BCE}(h,h^*)
 \big].
 \]
+
+The two conditional weights sum to one, so the per-state scale remains matched
+to the original binary loss. This correction is required by the official
+DocVQA scorer and is not a result-driven hyperparameter change.
 
 No inverse-frequency weight, focal loss, auxiliary gain loss, temperature,
 threshold fitting or hyperparameter search is allowed in Phase A/B. The three
@@ -104,7 +123,9 @@ Primary references:
   schedule, no test access and noncollapsed validation scores.
 
 An engineering failure may be fixed only if it does not change the estimand,
-loss, data, schedule or decision rule.
+data, schedule or decision rule. The pre-result correction from a binary-only
+to the exact bounded-reward form above fixes the implementation of the same
+estimand and requires Phase A to be rerun before Phase B.
 
 ### Phase B: bounded development pilot
 
@@ -140,4 +161,3 @@ No RL, 7B, continuous bbox, free-form tool syntax, second acquisition, new
 visual tool, prompt search or loss family search is allowed before Phase C.
 If Phase B is NO-GO, this route ends; the remaining time is used to consolidate
 the negative empirical finding, not to cycle through seeds or renamed losses.
-

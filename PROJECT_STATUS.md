@@ -1,6 +1,6 @@
 # 项目状态
 
-## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 16:56 HKT）
+## 当前唯一进行中路线：Factorized Potential Outcomes（2026-09-06 17:11 HKT）
 
 项目没有停止，但此前的 direct Utility-SFT、Sequential frozen critic 和 direct
 Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户现要求最多一周形成最终
@@ -9,21 +9,28 @@ Counterfactual preference 均已按各自协议 NO-GO，不能重开。用户现
 `expected_gain = P(stop wrong) * P(continue correct | stop wrong)`
 ` - P(stop correct) * P(continue wrong | stop correct)`。
 
-实现已加入三头 Qwen policy、四种 paired outcome 的可观测条件损失、严格 typed
+实现已加入三头 Qwen policy、paired outcome 的 reward-mass 条件损失、严格 typed
 pre-action 输入、三臂确定性评估、冻结/执行脚本，以及完全匹配旧 control 的 smoke/pilot
-配置。13 个定向单测、Python compile、shell syntax、两套 config equality 和旧 Phase-B
+配置。21 个定向单测、Python compile、shell syntax、两套 config equality 和旧 Phase-B
 evaluator 回归均通过。首次 Phase-A Job `209132` 在训练前因 executor 错把 JSON key 顺序
 当语义顺序而 4 秒 fail-closed；无模型加载或科学结果，现已改为 set 验证加 canonical GPU
 顺序。修复后 Job `209134` 使用 3×RTX 4090 于 17:00:26--17:02:54 HKT 完成，三臂全部
 通过，机器结论 `PHASE_A_PASS`；factorized fixed-audit loss `.71468→.06002`，自然
 CONTINUE `21/24`，非恒定且未完全 collapse，三组 trainable parameters 均有梯度并更新，
-proposed-crop executions 为 0。科学状态为 **PHASE A PASS / PHASE B PENDING**；tiny smoke
-accuracy 不作方法结论。
+proposed-crop executions 为 0，证明工程链路可用。
+
+但正式 pilot Job `209157` 的训练日志暴露了一个 pre-result correctness bug：DocVQA 官方
+ANLS 是 `[0,1]` 连续 reward，旧 loss 却以 `.5` 决定 rescue/harm 分支。该 job 在 step
+约 `183/512`、尚未产生 validation report 时于 17:08:37 HKT 取消，不能作科学结论。现在
+已改为严格 reward-mass 分解：`e*=1-Y0`，正/负 gain 分别按 `1-Y0`/`Y0` 归一化并用相同
+mass 加权 loss；它对连续/二值 reward 都精确重构 paired gain。21 个定向测试通过。
+因此旧 smoke 不再批准 Phase B，科学状态回到 **CORRECTED PHASE A PENDING**；test 未打开。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
 harm，并在动作前、固定成本下形成 acquisition score。它还必须实证超过 Outcome-only、
-direct gain 与 strongest uncertainty 才能成立。当前 `squeue` 为空，test 未授权。
+direct gain 与 strongest uncertainty 才能成立。Job `209157` 的取消状态邮件已由 Slurm
+发送；test 未授权。
 
 ## Counterfactual Visual Utility Post-training：Phase B NO-GO（2026-09-06）
 

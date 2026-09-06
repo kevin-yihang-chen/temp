@@ -1,6 +1,6 @@
 # 研究计划
 
-## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06）
+## 一周最终方法冲刺：Factorized Potential Outcomes（2026-09-06 17:11 HKT）
 
 用户给出的硬约束是：从当前全部结果出发，最多一周形成最终方法，目标为 CVPR/ICCV/ECCV。
 本周不再并行发散多个 idea。唯一候选冻结为 **Factorized Potential-Outcome Visual
@@ -8,17 +8,23 @@ Acquisition**：端到端预测当前答案错误风险、错误条件下的 cro
 条件下的 crop harm 概率，并用
 `P(error)P(rescue|error)-P(correct)P(harm|correct)` 排序视觉 acquisition。
 
+对二值 correctness，该式就是概率分解；对 DocVQA 连续 ANLS，使用严格推广：
+`e*=1-Y0`、`r*=max(Y1-Y0,0)/(1-Y0)`、`h*=max(Y0-Y1,0)/Y0`，并以
+`1-Y0`/`Y0` 加权两个条件 loss。因而
+`Y1-Y0=(1-Y0)r*-Y0h*` 对所有 `[0,1]` reward 精确成立。
+
 该方向来自已有结果中的一个明确不对称：Job `209090` 的 Outcome-only 在两个域都优于
 直接 Counterfactual Utility，ChartQA 的 top-25% 实际选中 8/16 个 rescue 且 0 个 harm；
 它主要学到了“当前答案可能错误”，但尚未把 baseline-wrong 中的 rescue 与仍然失败区分
 开。直接 gain 则只从 512 个 train pairs 中的 63 个非中性 pair 得到梯度并发生全
-CONTINUE collapse。新方法使用每个 pair 训练 risk，并使用其中一个条件分支训练 rescue
-或 harm；不是继续给旧 gain loss 调 class weight。
+CONTINUE collapse。新方法使用每个 pair 训练 risk，并使用总权重为一的 rescue/harm
+条件监督；不是继续给旧 gain loss 调 class weight。
 
-协议已写入 `docs/factorized_potential_outcome_protocol_v1.md`。三臂 64-step Phase A 已由
-Job `209134` 在 3×RTX 4090 上通过；三臂 schedule 完全一致，factorized 固定训练审计 loss
-从 `.71468` 降到 `.06002`，所有工程/无泄漏 gate 为真。现在唯一下一步是运行相同
-数据/schedule/seed 的 512-step Phase B pilot。只有 Phase B
+协议已写入 `docs/factorized_potential_outcome_protocol_v1.md`。Job `209134` 证明三头训练
+链路和无泄漏 gate 可运行，但随后在首个 Phase-B 日志、产生 validation 结果之前发现旧
+loss 错把 DocVQA 连续 ANLS 按 `0.5` 二分。Job `209157` 已于 17:08:37 HKT 主动取消；其
+部分训练不作结果。连续 reward 精确分解已实现并由 21 个定向测试覆盖。现在必须先重跑
+修正后的 Phase A，再运行相同数据/schedule/seed 的 512-step Phase B。只有 Phase B
 同时达到“一个域相对 strongest uncertainty `>+1pp`、另一域 `>-0.5pp`、两域相对
 Outcome-only 的平均差为正”才允许在剩余时间扩到新 held-out、三个 seeds 和第三 domain。
 否则当日 NO-GO，不靠换 seed、loss 或阈值拖满一周。
