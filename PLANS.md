@@ -45,7 +45,7 @@ bootstrap 与 error analysis；Day 7 冻结方法、表图和论文 method/exper
 
 Phase-C 数据冻结采用 outcome-blind 规则：ChartQA 从固定 raw-train revision 排除所有历史
 manifest 后抽 512 个平衡 held-out states；DocVQA 从固定 official-validation revision 排除
-所有历史 source/RGB 后抽 256 个完整 document groups；两者都是真正新 source。训练侧分别
+所有历史 source/RGB 后抽 128 个完整 document groups；两者都是真正新 source。训练侧分别
 从旧 development-train 冻结 1024 ChartQA states 和 256 DocVQA document groups。HRBench
 4K/8K 是同一 800 问题的两种分辨率，不能把 4K 当新独立样本；因此从原 train role 中仅
 选取没有任何历史 sequential outcome 且与训练 image-disjoint 的 20 个 8K image groups

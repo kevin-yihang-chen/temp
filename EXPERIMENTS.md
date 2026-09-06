@@ -127,7 +127,7 @@
 ### Phase C 数据 allocation 实现（未打开 outcome）
 
 - 新增固定配置 `factorized_phase_c_allocation_v1.json`：ChartQA train 1024 states / 新
-  held-out 512 states；DocVQA train 256 whole-document groups / 新 held-out 256 groups；
+  held-out 512 states；DocVQA train 256 whole-document groups / 新 held-out 128 groups；
   HRBench 从旧 train role 冻结 20 个从未生成 sequential outcome 的 image groups 作为
   held-out，其余 image-disjoint rows 用于 train。
 - ChartQA/DocVQA 的 held-out 从原始固定 revision 抽取，显式排除所有历史 manifest 的
@@ -142,6 +142,11 @@
 - 第二次提交也在创建 Job 前被拒绝为 `Requested node configuration is not available`；live
   `sinfo` 显示单卡 4090 节点只提供 4 CPUs，故将 `cpus-per-task` 从 8 改为 4。仍无 Job、
   运行或数据访问。
+- Job `209161` 随后运行 5分08秒并 fail-closed：ChartQA 1024/512 staging 已形成，但排除
+  所有历史 manifest 后，DocVQA raw validation 在 RGB 过滤前也只剩 185 个完整 sources，
+  少于请求的 256。没有模型推理或 held-out outcome；staging 已完整移入
+  `phase-c-allocation-failed-job-209161.staging` 保留取证。冻结 held-out 改为 128 个完整
+  新 documents，并为后续 worker 增加 `--no-requeue`；这是 pre-outcome feasibility 修正。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 

@@ -8,6 +8,7 @@
 #SBATCH --output=/userhome/cs3/yihangc/Documents/beyond-entropy/slurm-phase-c-allocation-%j.out
 #SBATCH --mail-user=yihangc@connect.hku.hk
 #SBATCH --mail-type=ALL
+#SBATCH --no-requeue
 
 set -euo pipefail
 

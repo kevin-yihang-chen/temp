@@ -36,7 +36,7 @@
       "sha256": "a00dab30d5ec7bedd8b4bea808b9fc3579bf8c327d352d818b6726efb699528a"
     },
     "train_sources": 256,
-    "heldout_sources": 256,
+    "heldout_sources": 128,
     "validation_parquets": [
       {
         "path": "/userhome/cs3/yihangc/Data/hf_cache/datasets--lmms-lab--DocVQA/snapshots/539088ef8a8ada01ac8e2e6d4e372586748a265e/DocVQA/validation-00000-of-00006.parquet",

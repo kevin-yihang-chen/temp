@@ -154,7 +154,10 @@ def freeze_docvqa(
         eligible, seed=seed, namespace="factorized-phase-c-docvqa-heldout"
     )[: int(spec["heldout_sources"])]
     if len(selected_sources) != int(spec["heldout_sources"]):
-        raise ValueError("insufficient new DocVQA held-out sources")
+        raise ValueError(
+            "insufficient new DocVQA held-out sources: "
+            f"requested={spec['heldout_sources']}, eligible={len(eligible)}"
+        )
     source_indices = sorted(
         index for source in selected_sources for index in group_rows[source]
     )
@@ -178,6 +181,7 @@ def freeze_docvqa(
         "train_selected_source_ids": train_groups,
         "heldout_selected_source_ids": selected_sources,
         "heldout_source_indices": source_indices,
+        "eligible_new_source_count": len(eligible),
         "historical_source_overlap": 0,
         "historical_image_overlap": 0,
         "role_overlap": overlap,

@@ -47,7 +47,9 @@ Phase-C allocation 实现已加入：ChartQA/DocVQA held-out 从固定原始 rev
 manifest 后选择；HRBench 因 4K/8K 共用同一问题集，只能冻结从未产生 sequential outcome
 的剩余 image groups，并显式记录证据限制。选择只读取 identity/stratum/RGB hash，不读取
 模型 outcome；train/heldout 对 source、state、decoded image 三重 fail-closed。当前尚未
-运行 allocation job，也未生成 held-out rollout。
+生成 held-out rollout。首次 allocation Job `209161` 在 5分08秒后因新 DocVQA source
+不足 256 而 fail-closed；只读统计表明 RGB 过滤前最多剩 185 个完整 source。失败 staging
+已保留，未做模型推理；配置在任何 outcome 前改为 128 个完整新 documents 并等待重跑。
 
 该候选不声称发明双潜在结果网络；标准 TARNet/CFR 是明确 prior art。可能的论文贡献仅限
 于：利用真实 sibling executions，把视觉工具调用学习拆成非对称的 answer-risk、rescue 与
