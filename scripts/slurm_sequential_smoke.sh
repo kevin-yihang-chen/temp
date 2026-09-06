@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
 #SBATCH --job-name=be-sequential-smoke
@@ -110,4 +110,3 @@ export BE_CODE_REVISION="${BE_SEQ_CODE_REVISION}"
   --generation-seed 0 \
   --limit "${BE_SEQ_LIMIT}" \
   --checkpoint-interval 4
-
