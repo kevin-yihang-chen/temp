@@ -136,6 +136,9 @@
   当前 held-out 只保证 sequential outcome 与 image group 未见，并将作为证据限制报告。
 - 新增 allocation helper、三项 synthetic fail-closed tests、CPU Slurm worker 与全状态邮件；
   当前未执行，`heldout_sequential_outcomes_opened=false`。
+- 首次提交被 scheduler 在创建 Job 前以 `QOSMinGRES` 拒绝；没有 Job ID、运行或数据读取。
+  cluster debug QOS 要求最少一个 GRES，因此 worker 改为请求 1×RTX 4090 仅满足调度约束，
+  allocation 逻辑仍为 CPU-only，方法/数据/判据不变。
 
 ## E-20260906-33：Counterfactual post-training 协议冻结（待执行）
 
