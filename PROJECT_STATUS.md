@@ -1,6 +1,6 @@
 # 项目状态
 
-## Counterfactual Visual Utility Post-training：Phase A PASS，等待 Phase B（2026-09-06）
+## Counterfactual Visual Utility Post-training：Phase B NO-GO（2026-09-06）
 
 当前已把下一阶段收敛为一个有界、可证伪的 end-to-end 方法实验：在相同 Qwen2.5-VL-3B
 partial-tuning、数据、训练 schedule、步数和 seed 下，比较 Outcome-only final-reward 监督与
@@ -8,11 +8,18 @@ partial-tuning、数据、训练 schedule、步数和 seed 下，比较 Outcome-
 不执行 proposed crop，也不读取任何 branch outcome。
 
 ChartQA/DocVQA 的现有 train 256 / validation 128 paired banks 已按 SHA-256 绑定；旧 validation
-只作 development，test 保持未打开。Phase A Job `209085` 用每域 25 个 train state、64 steps
-在 2×RTX 4090 上完成，2分30秒、ExitCode 0:0。两臂全部九项工程检查为真，峰值显存各
-9.51 GiB，固定 audit loss 均下降，evaluation 为 `PHASE_A_PASS`。当前科学状态仍为
-**PENDING**；Phase B 已授权，但 Phase C、7B 与 RL 仍禁止。完整工程证据和哈希见
-`docs/cv_method_phase_a_result_209085.md`。
+只作 development，test 保持未打开。Phase A Job `209085` 的工程 gate 全部通过；Phase B
+Job `209090` 随后在相同两臂设计下完成，2×RTX 4090、11分08秒、ExitCode 0:0。
+
+25% matched cost 下，ChartQA 的 Answer/strongest uncertainty/Outcome/Counterfactual accuracy
+为 `46.094/49.219/52.344/48.438%`；DocVQA 为
+`91.500/91.690/92.273/91.753%`。Counterfactual 相对 Outcome 在两域分别
+`-3.906pp [-7.812,-0.781]` 与 `-0.521pp [-1.681,0]`，触发明确 Stop；相对最强
+uncertainty 也未达到 Phase C 门槛。Counterfactual natural policy 退化为全 CONTINUE，
+但 exact top-count ranking 仍然更差，故不是单纯 threshold 问题。
+
+最终状态为 **NO-GO**。test 未打开；禁止 Phase C、额外 seed、loss/class-weight 搜索、7B
+和 RL。完整证据、frontier、utility、哈希与停止理由见 `CV_METHOD_GO_NO_GO.md`。
 
 ## Sequential Visual Acquisition 终局：NO-GO（2026-09-06）
 

@@ -1,6 +1,6 @@
 # 研究计划
 
-## 当前目标：Counterfactual Visual Utility Post-training（2026-09-06）
+## Counterfactual Visual Utility Post-training 已关闭：Phase B NO-GO（2026-09-06）
 
 新的独立路线已预注册在 `docs/cv_counterfactual_method_protocol_v1.md`。它不重写此前
 Sequential frozen-critic 的 NO-GO，而是直接对 Qwen2.5-VL-3B 做轻量 post-training，比较
@@ -8,12 +8,15 @@ Sequential frozen-critic 的 NO-GO，而是直接对 Qwen2.5-VL-3B 做轻量 pos
 Utility preference。两臂复用完全相同的 ChartQA/DocVQA paired partial-prefix bank、架构、
 优化器、state schedule、步数和 seed；proposed crop 在决策前不会执行。
 
-9.765625% train 的 Phase A 工程 smoke 已由 Job `209085` 在 2×RTX 4090 上于 2分30秒完成；
-两臂 finite loss/gradient、参数更新、无泄漏、非恒定 score 和无完整动作 collapse 全部通过。
-Phase B 固定 seed 17、
-每域完整 256 train / 128 validation、512 steps，primary 为精确 25% matched call rate。
-只有一个域相对最强 uncertainty baseline `>+1pp` 且另一个 `>-1pp` 才进入三 seed Phase C；
-否则停止。Phase C 通过前禁止 7B、RL 和新 test transaction。Phase B 现已获准执行。
+Phase A Job `209085` 的工程 smoke 全部通过。随后 Phase B Job `209090` 按冻结设置完成：
+2×RTX 4090、每域完整 256 train / 128 validation、512 steps、seed 17、精确 25% matched
+call rate。Counterfactual 相对 Outcome-only 在 ChartQA/DocVQA 分别为 `-3.906pp/-0.521pp`，
+两个域均不为正；相对最强 uncertainty baseline 为 `-0.781pp/+0.062pp`，也未满足
+`>+1pp` 与 `>-1pp` 的 Phase C 转移规则。
+
+因此本路线按预注册停止条件正式 **NO-GO**。不运行三 seed Phase C，不创建新 test
+transaction，不做 class reweighting/loss 搜索，不进入 7B、RL 或 multi-turn。终局证据见
+`CV_METHOD_GO_NO_GO.md`。
 
 ## Sequential Visual Acquisition 已关闭：NO-GO（2026-09-06）
 

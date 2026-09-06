@@ -43,6 +43,34 @@
 - 结论/下一步：Phase A 工程 gate 通过，允许提交预注册的 Phase B；仍不允许 Phase C、
   新 test、7B 或 RL。
 
+## E-20260906-35：Counterfactual post-training Phase B pilot
+
+- Commit：`da5fdfe`；冻结 plan SHA-256
+  `49cdcb5b7556fb986bcca3b7d5ba8fbf65f570d31406b5bc9b95da87d5d764fd`；两臂 schedule
+  SHA-256 `7620e38321829c3da5a850c40c80e76aa2abe08a00908ecf953307c9e039d434`。
+- 数据/配置：ChartQA、DocVQA 各 train 256 / validation 128，seed 17，512 steps，每 state
+  一次 optimizer step；Qwen2.5-VL-3B 的 vision merger、last language block/norm 和相同
+  128-wide head；test 未访问。
+- 资源：Job `209090`，2×RTX 4090、8 CPU、96 GiB，2026-09-06 14:27:23--14:38:31 HKT，
+  11分08秒，`COMPLETED/0:0`，无 restart，全状态邮件；两臂 peak 9.51 GiB。
+- Primary：exact 32/128 CONTINUE（25%）。ChartQA strongest confidence / Outcome /
+  Counterfactual accuracy 为 `49.219/52.344/48.438%`；DocVQA strongest entropy / Outcome /
+  Counterfactual 为 `91.690/92.273/91.753%`。
+- Paired source bootstrap：Counterfactual minus Outcome 为 ChartQA
+  `-3.906pp [-7.812,-0.781]`、DocVQA `-0.521pp [-1.681,0.000]`；minus strongest
+  uncertainty 为 `-0.781pp [-5.469,+3.906]` 与 `+0.062pp [-0.439,+0.684]`。
+- Utility：`lambda=.05` 时 Counterfactual 为 ChartQA `+.01094`、DocVQA `-.00997`，两者
+  均低于 Outcome `+.05000/-.00476`。不必要调用率为 `90.63/93.75%`。
+- 诊断：Counterfactual 只从 50 beneficial + 13 harmful pairs 接收梯度并忽略 449 neutral；
+  最终两域 natural policy 均全 CONTINUE，fixed audit loss `.68236 -> 1.64377`。即使以 exact
+  top-count 消除 threshold/cost 差异，其 ranking 仍不如 Outcome。
+- 产物：Outcome/Counterfactual report SHA-256 为
+  `81722c92...4ce5e5` / `dae1ee0b...e6f144`；evaluation SHA-256
+  `b0008061...605a4`，machine decision `PHASE_B_NO_GO`。
+- 结论：两个域相对 Outcome 均非正，且未满足 Phase B→C baseline 门槛，触发预注册 Stop。
+  不执行 Phase C、新 test、额外 seed、class reweighting/loss 搜索、7B 或 RL。终局见
+  `CV_METHOD_GO_NO_GO.md`。
+
 本文件记录当前决策链中的关键实验。更早的完整协议、哈希与结果保存在
 `artifacts/docvqa-train-factorized-v2/ops/` 及各实验产物目录。
 
